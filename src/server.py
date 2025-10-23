@@ -756,6 +756,104 @@ async def list_available_sessions():
     return {"sessions": sessions}
 
 
+@app.get("/sessions/{session_id}/history")
+async def get_session_history(session_id: str):
+    """
+    Get the conversation history for a session from disk.
+
+    Args:
+        session_id: The session ID
+
+    Returns:
+        Session history with messages and metadata
+    """
+    session_dir = Path.home() / ".claude" / "projects"
+
+    # Find the session file
+    session_file = None
+    for project_dir in session_dir.iterdir():
+        if not project_dir.is_dir():
+            continue
+        potential_file = project_dir / f"{session_id}.jsonl"
+        if potential_file.exists():
+            session_file = potential_file
+            break
+
+    if not session_file:
+        raise HTTPException(status_code=404, detail="Session history not found")
+
+    try:
+        messages = []
+        metadata = {
+            "session_id": session_id,
+            "cwd": None,
+            "git_branch": None,
+            "version": None
+        }
+
+        with open(session_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+
+                try:
+                    entry = json.loads(line)
+                    entry_type = entry.get("type")
+
+                    # Extract metadata from first entry
+                    if not metadata["cwd"]:
+                        metadata["cwd"] = entry.get("cwd")
+                        metadata["git_branch"] = entry.get("gitBranch")
+                        metadata["version"] = entry.get("version")
+
+                    # Process user and assistant messages
+                    if entry_type in ["user", "assistant"]:
+                        msg_data = entry.get("message", {})
+                        role = msg_data.get("role")
+                        content = msg_data.get("content")
+
+                        # Handle different content formats
+                        if isinstance(content, str):
+                            text_content = content
+                        elif isinstance(content, list):
+                            # Extract text from content blocks
+                            text_parts = []
+                            for block in content:
+                                if isinstance(block, dict):
+                                    if block.get("type") == "text":
+                                        text_parts.append(block.get("text", ""))
+                                    elif block.get("type") == "tool_use":
+                                        text_parts.append(f"[Tool: {block.get('name', 'unknown')}]")
+                                elif isinstance(block, str):
+                                    text_parts.append(block)
+                            text_content = "\n".join(text_parts)
+                        else:
+                            text_content = str(content)
+
+                        messages.append({
+                            "role": role,
+                            "content": text_content,
+                            "timestamp": entry.get("timestamp"),
+                            "uuid": entry.get("uuid")
+                        })
+
+                except json.JSONDecodeError:
+                    continue
+
+        return {
+            "metadata": metadata,
+            "messages": messages,
+            "message_count": len(messages)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read session history: {str(e)}"
+        )
+
+
 @app.get("/sessions/{session_id}/status", response_model=SessionStatus)
 async def get_session_status(session_id: str):
     """

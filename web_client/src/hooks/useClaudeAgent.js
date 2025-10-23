@@ -239,13 +239,46 @@ export function useClaudeAgent() {
       setSessionId(existingSessionId)
       setConnected(true)
 
-      // Load messages (if available)
-      // Note: API doesn't provide message history endpoint, so start fresh
-      setMessages([])
-      addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}...`)
+      // Try to load message history from disk
+      try {
+        const historyResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/history`)
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json()
 
-      // Update session info
-      setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}... (${statusData.message_count} messages)`)
+          // Convert history messages to UI format
+          const historyMessages = historyData.messages.map(msg => ({
+            type: 'text',
+            role: msg.role,
+            content: msg.content
+          }))
+
+          setMessages(historyMessages)
+
+          // Update session info with metadata
+          const metadata = historyData.metadata
+          let info = `📋 Session: ${existingSessionId.slice(0, 8)}...`
+          if (metadata.cwd) {
+            info += ` | ${metadata.cwd.split('/').pop()}`
+          }
+          if (metadata.git_branch) {
+            info += ` (${metadata.git_branch})`
+          }
+          setSessionInfo(info)
+
+          addSystemMessage(`✅ Loaded session with ${historyData.message_count} messages`)
+        } else {
+          // No history available, start fresh
+          setMessages([])
+          addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}...`)
+          setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}... (${statusData.message_count} messages)`)
+        }
+      } catch (historyError) {
+        // History loading failed, start fresh
+        console.warn('Failed to load history:', historyError)
+        setMessages([])
+        addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}... (history unavailable)`)
+        setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}... (${statusData.message_count} messages)`)
+      }
     } catch (error) {
       addErrorMessage(`Failed to load session: ${error.message}`)
     } finally {
