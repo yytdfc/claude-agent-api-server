@@ -391,6 +391,8 @@ class AgentSession:
             env_vars["ANTHROPIC_BASE_URL"] = f"http://127.0.0.1:{self.server_port}"
             # Disable Bedrock when using proxy mode
             env_vars["CLAUDE_CODE_USE_BEDROCK"] = "0"
+            # Add placeholder API key (not actually used, just a placeholder)
+            env_vars["ANTHROPIC_API_KEY"] = "placeholder"
 
         # Disable prompt caching for non-Claude models
         if self.model and "claude" not in self.model.lower():

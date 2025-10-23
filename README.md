@@ -678,6 +678,7 @@ The server automatically configures environment variables based on session setti
 1. **Proxy Mode** (`enable_proxy: true`):
    - `ANTHROPIC_BASE_URL`: Set to `http://127.0.0.1:8000` (routes to `/v1/messages`)
    - `CLAUDE_CODE_USE_BEDROCK`: Set to `"0"` (disables AWS Bedrock)
+   - `ANTHROPIC_API_KEY`: Set to `"placeholder"` (required by SDK, not actually used)
 
 2. **Non-Claude Models** (model ID doesn't contain "claude"):
    - `DISABLE_PROMPT_CACHING`: Set to `"0"` (disables prompt caching for compatibility)
@@ -691,7 +692,8 @@ curl -X POST http://localhost:8000/sessions \
     "model": "gpt-4",
     "enable_proxy": true
   }'
-# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0, DISABLE_PROMPT_CACHING=0
+# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0,
+#                     ANTHROPIC_API_KEY=placeholder, DISABLE_PROMPT_CACHING=0
 
 # Using Claude with proxy mode
 curl -X POST http://localhost:8000/sessions \
@@ -700,7 +702,7 @@ curl -X POST http://localhost:8000/sessions \
     "model": "claude-3-5-sonnet-20241022",
     "enable_proxy": true
   }'
-# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0
+# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0, ANTHROPIC_API_KEY=placeholder
 # (DISABLE_PROMPT_CACHING not set because model contains "claude")
 ```
 
