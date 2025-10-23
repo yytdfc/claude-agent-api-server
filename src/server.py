@@ -24,7 +24,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from claude_agent_sdk import (
@@ -993,6 +994,96 @@ async def health_check():
         "active_sessions": len(session_manager.sessions),
         "timestamp": datetime.now().isoformat(),
     }
+
+
+# ============================================================================
+# LiteLLM Proxy Endpoint
+# ============================================================================
+
+
+@app.post("/v1/messages")
+async def litellm_messages_proxy(request: Request):
+    """
+    LiteLLM proxy endpoint for Anthropic-compatible messages API.
+
+    This endpoint forwards requests to LiteLLM for model inference,
+    allowing the SDK client to use this server as ANTHROPIC_BASE_URL.
+
+    Supports:
+    - Streaming responses
+    - Multiple model providers via LiteLLM
+    - Compatible with Anthropic Messages API format
+    """
+    try:
+        # Try to import litellm
+        try:
+            import litellm
+        except ImportError:
+            raise HTTPException(
+                status_code=503,
+                detail="LiteLLM is not installed. Install with: pip install litellm",
+            )
+
+        body = await request.json()
+
+        # Check if streaming is requested
+        is_streaming = body.get("stream", False)
+
+        if is_streaming:
+            # Streaming response
+            async def generate_stream():
+                try:
+                    # Forward to LiteLLM with streaming
+                    response = await litellm.acompletion(**body)
+
+                    async for chunk in response:
+                        # Forward raw chunk in SSE format
+                        if hasattr(chunk, "model_dump_json"):
+                            # Pydantic model
+                            yield f"data: {chunk.model_dump_json()}\n\n"
+                        elif hasattr(chunk, "json"):
+                            # Dict-like with json method
+                            yield f"data: {chunk.json()}\n\n"
+                        else:
+                            # Plain dict
+                            yield f"data: {json.dumps(chunk)}\n\n"
+
+                except Exception as e:
+                    error_data = {
+                        "error": {"message": str(e), "type": type(e).__name__}
+                    }
+                    yield f"data: {json.dumps(error_data)}\n\n"
+
+            return StreamingResponse(
+                generate_stream(),
+                media_type="text/event-stream",
+            )
+        else:
+            # Non-streaming response
+            try:
+                response = await litellm.acompletion(**body)
+
+                # Convert response to dict
+                if hasattr(response, "model_dump"):
+                    return response.model_dump()
+                elif hasattr(response, "dict"):
+                    return response.dict()
+                else:
+                    return response
+
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail={"error": {"message": str(e), "type": type(e).__name__}},
+                )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"message": str(e), "type": type(e).__name__}},
+        )
 
 
 # ============================================================================

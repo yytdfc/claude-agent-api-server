@@ -47,6 +47,7 @@ A client-server architecture for the Claude Agent SDK that separates the SDK log
 - ✅ Graceful shutdown and cleanup
 - ✅ Health check endpoints
 - ✅ Async/await throughout
+- ✅ LiteLLM proxy for multi-provider support
 
 ### CLI Client
 - ✅ Interactive command-line interface
@@ -110,6 +111,7 @@ All dependencies are managed via `pyproject.toml`:
 - `fastapi>=0.119.1`
 - `uvicorn` (auto-installed with FastAPI)
 - `httpx` (auto-installed with FastAPI)
+- `litellm` (optional, for LiteLLM proxy endpoint)
 
 ## Usage
 
@@ -518,6 +520,117 @@ Response:
   "timestamp": "2024-01-01T00:00:00"
 }
 ```
+
+### LiteLLM Proxy
+
+#### POST /v1/messages
+
+The server includes a LiteLLM proxy endpoint that forwards requests to LiteLLM, enabling the SDK to use alternative model providers (OpenAI, Azure, Cohere, etc.) through the server as a proxy.
+
+**Use Case**: When you want to use the Claude Agent SDK with different LLM providers without modifying your code.
+
+**Setup**:
+
+1. Install LiteLLM (optional dependency):
+```bash
+pip install litellm
+```
+
+2. Set the base URL environment variable:
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8000
+```
+
+3. Start the server:
+```bash
+uv run src/server.py
+```
+
+4. Use the SDK normally - it will automatically route through the server:
+```python
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+
+# SDK automatically uses ANTHROPIC_BASE_URL
+options = ClaudeAgentOptions(
+    model="gpt-4",  # Or any LiteLLM-supported model
+    # ... other options
+)
+client = ClaudeSDKClient(options=options)
+```
+
+**Request Format**:
+
+```http
+POST /v1/messages
+Content-Type: application/json
+
+{
+  "model": "gpt-4",
+  "messages": [
+    {"role": "user", "content": "Hello!"}
+  ],
+  "stream": false,
+  "max_tokens": 1024
+}
+```
+
+**Streaming Support**:
+
+The endpoint supports Server-Sent Events (SSE) for streaming responses:
+
+```json
+{
+  "model": "gpt-4",
+  "messages": [...],
+  "stream": true
+}
+```
+
+**Example with curl**:
+
+```bash
+# Non-streaming request
+curl -X POST http://127.0.0.1:8000/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": false,
+    "max_tokens": 100
+  }'
+
+# Streaming request
+curl -X POST http://127.0.0.1:8000/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": true
+  }'
+```
+
+**Supported Models** (via LiteLLM):
+- OpenAI: `gpt-4`, `gpt-3.5-turbo`, etc.
+- Anthropic: `claude-3-opus-20240229`, `claude-3-sonnet-20240229`, etc.
+- Azure OpenAI: `azure/<deployment-name>`
+- Cohere: `command-nightly`, `command-light`
+- And 100+ other providers
+
+See [LiteLLM documentation](https://docs.litellm.ai/docs/providers) for full list of supported models.
+
+**Error Handling**:
+
+If LiteLLM is not installed:
+```json
+{
+  "detail": "LiteLLM is not installed. Install with: pip install litellm"
+}
+```
+
+**Notes**:
+- The endpoint is compatible with the Anthropic Messages API format
+- LiteLLM automatically handles authentication via environment variables (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
+- The SDK client automatically uses `ANTHROPIC_BASE_URL` when set - no code changes required
 
 ## Architecture Details
 
