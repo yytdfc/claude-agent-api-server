@@ -222,16 +222,50 @@ export function useClaudeAgent() {
     }
   }, [sessionId, addErrorMessage])
 
+  // Load existing session
+  const loadSession = useCallback(async (existingSessionId) => {
+    try {
+      setConnecting(true)
+
+      // Check session status
+      const statusResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/status`)
+      if (!statusResponse.ok) {
+        throw new Error('Session not found or inactive')
+      }
+
+      const statusData = await statusResponse.json()
+
+      // Set session as current
+      setSessionId(existingSessionId)
+      setConnected(true)
+
+      // Load messages (if available)
+      // Note: API doesn't provide message history endpoint, so start fresh
+      setMessages([])
+      addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}...`)
+
+      // Update session info
+      setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}... (${statusData.message_count} messages)`)
+    } catch (error) {
+      addErrorMessage(`Failed to load session: ${error.message}`)
+    } finally {
+      setConnecting(false)
+    }
+  }, [addSystemMessage, addErrorMessage])
+
   return {
     connected,
     connecting,
+    sessionId,
     sessionInfo,
     messages,
     pendingPermission,
+    serverUrl: serverUrlRef.current,
     connect,
     disconnect,
     clearSession,
     sendMessage,
-    respondToPermission
+    respondToPermission,
+    loadSession
   }
 }
