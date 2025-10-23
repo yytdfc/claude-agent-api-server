@@ -17,6 +17,7 @@ Key Features:
 
 import asyncio
 import json
+import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -51,6 +52,7 @@ class CreateSessionRequest(BaseModel):
 
     resume_session_id: Optional[str] = None
     system_prompt: Optional[str] = None
+    model: Optional[str] = None  # e.g., "claude-3-5-sonnet-20241022"
 
 
 class CreateSessionResponse(BaseModel):
@@ -124,6 +126,13 @@ class SessionStatus(BaseModel):
     session_id: str
     status: str
     pending_permission: Optional[PermissionRequest] = None
+    current_model: Optional[str] = None
+
+
+class SetModelRequest(BaseModel):
+    """Request to change the model for a session."""
+
+    model: Optional[str] = None  # None means use default model
 
 
 # ============================================================================
@@ -146,7 +155,10 @@ class SessionManager:
         self.session_dir = Path.home() / ".claude" / "projects"
 
     async def create_session(
-        self, resume_session_id: Optional[str] = None, system_prompt: Optional[str] = None
+        self,
+        resume_session_id: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> str:
         """
         Create a new session or resume an existing one.
@@ -154,6 +166,7 @@ class SessionManager:
         Args:
             resume_session_id: Optional session ID to resume
             system_prompt: Optional system prompt override
+            model: Optional model name override
 
         Returns:
             The session ID (new or resumed)
@@ -163,7 +176,7 @@ class SessionManager:
         if session_id in self.sessions:
             raise HTTPException(status_code=400, detail="Session already active")
 
-        session = AgentSession(session_id, system_prompt)
+        session = AgentSession(session_id, system_prompt, model)
         await session.connect(resume_session_id)
 
         self.sessions[session_id] = session
@@ -294,13 +307,19 @@ class AgentSession:
     for one interactive session.
     """
 
-    def __init__(self, session_id: str, system_prompt: Optional[str] = None):
+    def __init__(
+        self,
+        session_id: str,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
+    ):
         """
         Initialize an agent session.
 
         Args:
             session_id: Unique session identifier
             system_prompt: Optional system prompt override
+            model: Optional model name (defaults to ANTHROPIC_MODEL env var)
         """
         self.session_id = session_id
         self.client: Optional[ClaudeSDKClient] = None
@@ -316,6 +335,9 @@ class AgentSession:
 
         # Session configuration
         self.system_prompt = system_prompt or "You are a helpful AI assistant."
+        # Model: use provided, or env var, or None (SDK default)
+        self.model = model or os.environ.get("ANTHROPIC_MODEL")
+        self.current_model = self.model  # Track current model for status
 
     async def connect(self, resume_session_id: Optional[str] = None):
         """
@@ -334,6 +356,9 @@ class AgentSession:
 
         if resume_session_id:
             options_dict["resume"] = resume_session_id
+
+        if self.model:
+            options_dict["model"] = self.model
 
         options = ClaudeAgentOptions(**options_dict)
 
@@ -491,6 +516,42 @@ class AgentSession:
             num_turns=num_turns,
         )
 
+    async def set_model(self, model: Optional[str]):
+        """
+        Change the model for this session.
+
+        Args:
+            model: Model name to use (None for default)
+
+        Raises:
+            HTTPException: If session not connected or SDK call fails
+        """
+        if not self.client or self.status != "connected":
+            raise HTTPException(status_code=400, detail="Session not connected")
+
+        try:
+            await self.client.set_model(model)
+            self.current_model = model
+            self.last_activity = datetime.now()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to set model: {str(e)}")
+
+    async def interrupt(self):
+        """
+        Interrupt the current operation.
+
+        Raises:
+            HTTPException: If session not connected or SDK call fails
+        """
+        if not self.client or self.status != "connected":
+            raise HTTPException(status_code=400, detail="Session not connected")
+
+        try:
+            await self.client.interrupt()
+            self.last_activity = datetime.now()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to interrupt: {str(e)}")
+
     def get_status(self) -> SessionStatus:
         """
         Get current session status.
@@ -506,6 +567,7 @@ class AgentSession:
             session_id=self.session_id,
             status=self.status,
             pending_permission=pending_perm,
+            current_model=self.current_model,
         )
 
 
@@ -553,6 +615,7 @@ async def create_session(request: CreateSessionRequest):
     session_id = await session_manager.create_session(
         resume_session_id=request.resume_session_id,
         system_prompt=request.system_prompt,
+        model=request.model,
     )
 
     return CreateSessionResponse(
@@ -636,6 +699,39 @@ async def respond_to_permission(session_id: str, response: PermissionResponse):
         apply_suggestions=response.apply_suggestions,
     )
     return {"status": "ok"}
+
+
+@app.post("/sessions/{session_id}/model")
+async def set_model(session_id: str, request: SetModelRequest):
+    """
+    Change the model for a session.
+
+    Args:
+        session_id: The session ID
+        request: Model change request
+
+    Returns:
+        Success message with new model
+    """
+    session = session_manager.get_session(session_id)
+    await session.set_model(request.model)
+    return {"status": "ok", "model": request.model}
+
+
+@app.post("/sessions/{session_id}/interrupt")
+async def interrupt_session(session_id: str):
+    """
+    Interrupt the current operation in a session.
+
+    Args:
+        session_id: The session ID
+
+    Returns:
+        Success message
+    """
+    session = session_manager.get_session(session_id)
+    await session.interrupt()
+    return {"status": "interrupted"}
 
 
 @app.delete("/sessions/{session_id}")
@@ -748,6 +844,21 @@ async def invocations(request: dict[str, Any]):
                 raise HTTPException(status_code=400, detail="Missing session_id in path_params")
             resp = PermissionResponse(**payload)
             return await respond_to_permission(session_id, resp)
+
+        elif path.startswith("/sessions/") and path.endswith("/model") and method == "POST":
+            # Set model
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(status_code=400, detail="Missing session_id in path_params")
+            req = SetModelRequest(**payload)
+            return await set_model(session_id, req)
+
+        elif path.startswith("/sessions/") and path.endswith("/interrupt") and method == "POST":
+            # Interrupt session
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(status_code=400, detail="Missing session_id in path_params")
+            return await interrupt_session(session_id)
 
         elif path.startswith("/sessions/") and method == "DELETE":
             # Close session

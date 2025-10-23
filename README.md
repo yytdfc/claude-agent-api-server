@@ -146,7 +146,29 @@ Once the client is running, you can use these commands:
 - **`exit` or `quit`**: Exit the program
 - **`clear`**: Start a new session
 - **`sessions`**: List all available sessions
+- **`model <name>`**: Change model (haiku/sonnet/default)
+- **`interrupt`**: Stop the current operation
 - **`help`**: Show help information
+
+### Model Configuration
+
+You can configure the model in three ways:
+
+1. **Environment variable**: Set `ANTHROPIC_MODEL` env var (e.g., `claude-3-5-sonnet-20241022`)
+2. **Session creation**: Specify model when creating a session
+3. **Runtime switching**: Use `model` command to switch during conversation
+
+Examples:
+```bash
+# Set default model via environment variable
+export ANTHROPIC_MODEL=claude-3-5-haiku-20241022
+uv run src/client.py
+
+# Switch model during conversation
+👤 You: model haiku     # Switch to Haiku
+👤 You: model sonnet    # Switch to Sonnet
+👤 You: model default   # Use default model
+```
 
 ### Permission Workflow
 
@@ -218,6 +240,25 @@ Get status:
 {
   "path": "/sessions/{session_id}/status",
   "method": "GET",
+  "path_params": {"session_id": "abc123"}
+}
+```
+
+Change model:
+```json
+{
+  "path": "/sessions/{session_id}/model",
+  "method": "POST",
+  "path_params": {"session_id": "abc123"},
+  "payload": {"model": "claude-3-5-haiku-20241022"}
+}
+```
+
+Interrupt session:
+```json
+{
+  "path": "/sessions/{session_id}/interrupt",
+  "method": "POST",
   "path_params": {"session_id": "abc123"}
 }
 ```
@@ -359,6 +400,40 @@ Response:
   "session_id": "uuid-here",
   "cost_usd": 0.001234,
   "num_turns": 3
+}
+```
+
+### Model Control
+
+#### Change Model
+```http
+POST /sessions/{session_id}/model
+Content-Type: application/json
+
+{
+  "model": "claude-3-5-haiku-20241022"  // or null for default
+}
+```
+
+Response:
+```json
+{
+  "status": "ok",
+  "model": "claude-3-5-haiku-20241022"
+}
+```
+
+### Session Control
+
+#### Interrupt Session
+```http
+POST /sessions/{session_id}/interrupt
+```
+
+Response:
+```json
+{
+  "status": "interrupted"
 }
 ```
 

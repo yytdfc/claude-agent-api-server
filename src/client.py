@@ -159,6 +159,35 @@ class APIClient:
         )
         response.raise_for_status()
 
+    async def set_model(self, session_id: str, model: Optional[str] = None):
+        """
+        Change the model for a session.
+
+        Args:
+            session_id: The session ID
+            model: Model name (None for default)
+        """
+        payload = {"model": model}
+        response = await self.client.post(
+            f"{self.base_url}/sessions/{session_id}/model",
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def interrupt(self, session_id: str):
+        """
+        Interrupt the current operation in a session.
+
+        Args:
+            session_id: The session ID
+        """
+        response = await self.client.post(
+            f"{self.base_url}/sessions/{session_id}/interrupt"
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def close_session(self, session_id: str):
         """
         Close a session.
@@ -199,6 +228,8 @@ class InteractiveClient:
         print("  • Type 'exit' or 'quit' to exit")
         print("  • Type 'clear' to start a new session")
         print("  • Type 'sessions' to list available sessions")
+        print("  • Type 'model <name>' to change model (haiku/sonnet/default)")
+        print("  • Type 'interrupt' to stop current operation")
         print("  • Type 'help' for more information")
         print("\n💡 Tip:")
         print("  • Read-only tools are automatically allowed")
@@ -211,10 +242,12 @@ class InteractiveClient:
         print("📖 Help Information")
         print("=" * 60)
         print("\nAvailable Commands:")
-        print("  exit/quit  - Exit the program")
-        print("  clear      - Start a new session")
-        print("  sessions   - List all available sessions")
-        print("  help       - Show this help message")
+        print("  exit/quit      - Exit the program")
+        print("  clear          - Start a new session")
+        print("  sessions       - List all available sessions")
+        print("  model <name>   - Change model (haiku/sonnet/default)")
+        print("  interrupt      - Stop current operation")
+        print("  help           - Show this help message")
         print("\nAvailable Tools:")
         print("  📄 Read    - Read file contents (auto-approved)")
         print("  🔍 Glob    - Find files (auto-approved)")
@@ -478,6 +511,33 @@ class InteractiveClient:
 
                     if user_input.lower() == "sessions":
                         await self.display_available_sessions()
+                        continue
+
+                    if user_input.lower().startswith("model "):
+                        # Change model: "model haiku" or "model default"
+                        model_name = user_input[6:].strip()
+                        if model_name.lower() == "default":
+                            model_name = None
+                        elif model_name.lower() == "haiku":
+                            model_name = "claude-3-5-haiku-20241022"
+                        elif model_name.lower() == "sonnet":
+                            model_name = "claude-3-5-sonnet-20241022"
+
+                        try:
+                            result = await self.api_client.set_model(self.current_session_id, model_name)
+                            model_display = model_name or "default"
+                            print(f"{Colors.GREEN}✅ Model changed to: {model_display}{Colors.RESET}\n")
+                        except Exception as e:
+                            print(f"{Colors.RED}❌ Failed to change model: {e}{Colors.RESET}\n")
+                        continue
+
+                    if user_input.lower() == "interrupt":
+                        # Interrupt current operation
+                        try:
+                            await self.api_client.interrupt(self.current_session_id)
+                            print(f"{Colors.YELLOW}⚠️ Interrupt signal sent{Colors.RESET}\n")
+                        except Exception as e:
+                            print(f"{Colors.RED}❌ Failed to interrupt: {e}{Colors.RESET}\n")
                         continue
 
                     if not user_input:
