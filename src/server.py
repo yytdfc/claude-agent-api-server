@@ -383,11 +383,22 @@ class AgentSession:
         if self.model:
             options_dict["model"] = self.model
 
-        # Enable proxy mode by setting ANTHROPIC_BASE_URL in env
+        # Build environment variables
+        env_vars = {}
+
+        # Enable proxy mode by setting ANTHROPIC_BASE_URL
         if self.enable_proxy:
-            options_dict["env"] = {
-                "ANTHROPIC_BASE_URL": f"http://127.0.0.1:{self.server_port}",
-            }
+            env_vars["ANTHROPIC_BASE_URL"] = f"http://127.0.0.1:{self.server_port}"
+            # Disable Bedrock when using proxy mode
+            env_vars["CLAUDE_CODE_USE_BEDROCK"] = "0"
+
+        # Disable prompt caching for non-Claude models
+        if self.model and "claude" not in self.model.lower():
+            env_vars["DISABLE_PROMPT_CACHING"] = "0"
+
+        # Add env vars if any were set
+        if env_vars:
+            options_dict["env"] = env_vars
 
         options = ClaudeAgentOptions(**options_dict)
 

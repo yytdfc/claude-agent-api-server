@@ -650,6 +650,39 @@ If LiteLLM is not installed:
 - LiteLLM automatically handles authentication via environment variables (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
 - The SDK client automatically uses `ANTHROPIC_BASE_URL` when set - no code changes required
 
+**Automatic Environment Variables**:
+
+The server automatically configures environment variables based on session settings:
+
+1. **Proxy Mode** (`enable_proxy: true`):
+   - `ANTHROPIC_BASE_URL`: Set to `http://127.0.0.1:8000` (routes to `/v1/messages`)
+   - `CLAUDE_CODE_USE_BEDROCK`: Set to `"0"` (disables AWS Bedrock)
+
+2. **Non-Claude Models** (model ID doesn't contain "claude"):
+   - `DISABLE_PROMPT_CACHING`: Set to `"0"` (disables prompt caching for compatibility)
+
+Example scenarios:
+```bash
+# Using GPT-4 with proxy mode
+curl -X POST http://localhost:8000/sessions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4",
+    "enable_proxy": true
+  }'
+# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0, DISABLE_PROMPT_CACHING=0
+
+# Using Claude with proxy mode
+curl -X POST http://localhost:8000/sessions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022",
+    "enable_proxy": true
+  }'
+# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0
+# (DISABLE_PROMPT_CACHING not set because model contains "claude")
+```
+
 ## Architecture Details
 
 ### Session Lifecycle
