@@ -165,15 +165,18 @@ uv run src/client.py --server http://localhost:8000 --proxy --model gpt-4
 
 ### Using the Web Client
 
-The web client provides a modern browser-based interface for interacting with Claude Agent.
+The web client provides a modern browser-based interface built with Vite.
 
 ```bash
-# Start the web client server
+# Install dependencies (first time only)
 cd web_client
-python serve.py
+npm install
 
-# Or specify a custom port
-python serve.py 8080
+# Start the development server
+npm run dev
+
+# Or build for production
+npm run build
 ```
 
 Then open your browser to `http://localhost:8080`

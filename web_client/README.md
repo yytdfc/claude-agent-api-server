@@ -1,6 +1,6 @@
 # Claude Agent Web Client
 
-A modern, web-based client for interacting with the Claude Agent API Server. This client provides a user-friendly chat interface with session management, model configuration, and real-time permission handling.
+A modern, web-based client for interacting with the Claude Agent API Server. Built with Vite for fast development and optimized production builds.
 
 ## Features
 
@@ -14,7 +14,13 @@ A modern, web-based client for interacting with the Claude Agent API Server. Thi
 
 ## Quick Start
 
-### 1. Start the API Server
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Start the API Server
 
 First, make sure the API server is running:
 
@@ -23,20 +29,22 @@ First, make sure the API server is running:
 python -m uvicorn src.server:app --host 127.0.0.1 --port 8000
 ```
 
-### 2. Open the Web Client
-
-Simply open `index.html` in your web browser:
+### 3. Start the Development Server
 
 ```bash
-# Option 1: Open directly in browser
-open index.html
+# Development mode with hot reload
+npm run dev
 
-# Option 2: Use a simple HTTP server (recommended)
-python -m http.server 8080
-# Then visit http://localhost:8080 in your browser
+# Or build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
-### 3. Configure and Connect
+Then visit `http://localhost:8080` in your browser
+
+### 4. Configure and Connect
 
 1. **Server URL**: Enter your API server URL (default: `http://127.0.0.1:8000`)
 2. **Main Model**: Choose your main model (e.g., `claude-3-5-sonnet-20241022` or `gpt-4`)
@@ -146,11 +154,31 @@ When available, the client displays the cost of each interaction in USD.
 
 ```
 web_client/
-├── index.html      # Main HTML structure
-├── style.css       # All styling and layout
-├── app.js          # Client logic and API communication
-└── README.md       # This file
+├── index.html          # Main HTML structure
+├── src/
+│   ├── main.js         # Application entry point
+│   ├── client.js       # ClaudeAgentClient class
+│   └── style.css       # All styling and layout
+├── vite.config.js      # Vite configuration
+├── package.json        # Project dependencies and scripts
+├── .gitignore          # Git ignore file
+└── README.md           # This file
 ```
+
+## Technology Stack
+
+- **Build Tool**: Vite 7.x (fast HMR, optimized builds)
+- **Frontend**: Vanilla JavaScript (ES modules)
+- **Styling**: CSS3 with custom properties
+- **HTTP Client**: Fetch API
+- **Module System**: ES6+ modules
+- **Development**: Hot Module Replacement (HMR)
+
+## NPM Scripts
+
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
 
 ## Browser Compatibility
 
@@ -202,10 +230,18 @@ app.add_middleware(
 To modify the web client:
 
 1. **HTML** (`index.html`): Update structure and layout
-2. **CSS** (`style.css`): Modify styling and appearance
-3. **JavaScript** (`app.js`): Add features or change behavior
+2. **CSS** (`src/style.css`): Modify styling and appearance
+3. **JavaScript** (`src/client.js`): Add features or change behavior
 
-The client is built with vanilla JavaScript - no build process or dependencies required!
+The development server automatically reloads on file changes (Hot Module Replacement).
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+This creates an optimized build in the `dist/` directory that can be deployed to any static hosting service.
 
 ## API Integration
 

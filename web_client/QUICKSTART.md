@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get up and running with the Claude Agent Web Client in 3 simple steps!
+Get up and running with the Claude Agent Web Client in 4 simple steps!
 
 ## Step 1: Start the API Server
 
@@ -18,34 +18,32 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 
 **Important**: The server includes CORS middleware to allow web browser access. If you previously started the server, please restart it to pick up the CORS configuration.
 
-## Step 2: Start the Web Client
+## Step 2: Install Dependencies
 
-In a new terminal, navigate to the web_client directory and start the web server:
+In a new terminal, navigate to the web_client directory and install dependencies:
 
 ```bash
 cd web_client
-python serve.py
+npm install
+```
+
+## Step 3: Start the Web Client
+
+Start the Vite development server:
+
+```bash
+npm run dev
 ```
 
 You should see:
 ```
-============================================================
-🚀 Claude Agent Web Client
-============================================================
+  VITE v7.1.12  ready in XXX ms
 
-📡 Server running at: http://localhost:8080
-📂 Directory: /path/to/web_client
-
-🔗 Open in browser: http://localhost:8080
-
-⚠️  Make sure the API server is running at http://127.0.0.1:8000
-
-🛑 Press Ctrl+C to stop
-
-============================================================
+  ➜  Local:   http://localhost:8080/
+  ➜  press h + enter to show help
 ```
 
-## Step 3: Open in Browser
+## Step 4: Open in Browser
 
 Open your web browser and go to:
 ```

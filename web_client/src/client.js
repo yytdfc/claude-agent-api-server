@@ -4,7 +4,7 @@
  * A web-based client for interacting with the Claude Agent API Server.
  */
 
-class ClaudeAgentClient {
+export class ClaudeAgentClient {
     constructor() {
         this.serverUrl = 'http://127.0.0.1:8000';
         this.sessionId = null;
@@ -385,8 +385,3 @@ class ClaudeAgentClient {
         this.messagesDiv.scrollTop = this.messagesDiv.scrollHeight;
     }
 }
-
-// Initialize the client when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    new ClaudeAgentClient();
-});
