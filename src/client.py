@@ -56,12 +56,15 @@ class APIClient:
         """Close the HTTP client."""
         await self.client.aclose()
 
-    async def create_session(self, resume_session_id: Optional[str] = None) -> dict:
+    async def create_session(
+        self, resume_session_id: Optional[str] = None, enable_proxy: bool = False
+    ) -> dict:
         """
         Create a new session or resume an existing one.
 
         Args:
             resume_session_id: Optional session ID to resume
+            enable_proxy: Enable LiteLLM proxy mode
 
         Returns:
             Session information dictionary
@@ -69,7 +72,7 @@ class APIClient:
         Raises:
             Exception: If API request fails
         """
-        payload = {}
+        payload = {"enable_proxy": enable_proxy}
         if resume_session_id:
             payload["resume_session_id"] = resume_session_id
 
@@ -239,16 +242,18 @@ class InteractiveClient:
     management, and permission handling.
     """
 
-    def __init__(self, api_client: APIClient):
+    def __init__(self, api_client: APIClient, enable_proxy: bool = False):
         """
         Initialize the interactive client.
 
         Args:
             api_client: The API client instance
+            enable_proxy: Enable LiteLLM proxy mode
         """
         self.api_client = api_client
         self.current_session_id: Optional[str] = None
         self.permission_check_task: Optional[asyncio.Task] = None
+        self.enable_proxy = enable_proxy
 
     def print_welcome(self):
         """Print welcome banner and instructions."""
@@ -504,13 +509,18 @@ class InteractiveClient:
         # Create/resume session
         try:
             print("🔄 Connecting to server...")
-            session_info = await self.api_client.create_session(resume_session_id=session_choice)
+            session_info = await self.api_client.create_session(
+                resume_session_id=session_choice, enable_proxy=self.enable_proxy
+            )
             self.current_session_id = session_info["session_id"]
 
             if session_choice:
                 print("✅ Resumed session\n")
             else:
-                print("✅ Connected to Claude Agent\n")
+                status_msg = "✅ Connected to Claude Agent"
+                if self.enable_proxy:
+                    status_msg += " (Proxy Mode Enabled)"
+                print(status_msg + "\n")
 
         except Exception as e:
             print(f"{Colors.RED}❌ Failed to connect: {e}{Colors.RESET}")
@@ -536,7 +546,9 @@ class InteractiveClient:
                         # Close old session
                         await self.api_client.close_session(self.current_session_id)
                         # Create new session
-                        session_info = await self.api_client.create_session()
+                        session_info = await self.api_client.create_session(
+                            enable_proxy=self.enable_proxy
+                        )
                         self.current_session_id = session_info["session_id"]
                         print("✅ New session started\n")
                         continue
@@ -659,10 +671,11 @@ async def main():
 Claude Agent Interactive Client
 
 Usage:
-    python client.py [--server SERVER_URL]
+    python client.py [--server SERVER_URL] [--proxy]
 
 Options:
     --server URL    API server URL (default: http://127.0.0.1:8000)
+    --proxy         Enable LiteLLM proxy mode
     -h, --help      Show this help message
 
 Description:
@@ -670,9 +683,14 @@ Description:
     Supports multi-turn conversations, session management, and
     permission control for tool usage.
 
+    When --proxy is enabled, the SDK will route requests through
+    the server's /v1/messages endpoint, allowing use of alternative
+    LLM providers via LiteLLM.
+
 Examples:
     python client.py
     python client.py --server http://localhost:8000
+    python client.py --proxy
         """
         )
         sys.exit(0)
@@ -683,6 +701,9 @@ Examples:
         idx = sys.argv.index("--server")
         if idx + 1 < len(sys.argv):
             server_url = sys.argv[idx + 1]
+
+    # Parse proxy flag
+    enable_proxy = "--proxy" in sys.argv
 
     # Create client
     api_client = APIClient(base_url=server_url)
@@ -701,7 +722,7 @@ Examples:
         return
 
     # Run interactive client
-    interactive_client = InteractiveClient(api_client)
+    interactive_client = InteractiveClient(api_client, enable_proxy=enable_proxy)
     try:
         await interactive_client.run()
     finally:

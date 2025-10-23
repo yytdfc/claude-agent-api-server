@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "claude-agent-sdk",
     "fastapi>=0.119.1",
+    "litellm>=1.78.7",
 ]
 
 [tool.uv.sources]

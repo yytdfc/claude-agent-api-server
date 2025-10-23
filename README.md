@@ -138,7 +138,15 @@ uv run src/client.py
 
 # With custom server URL
 uv run src/client.py --server http://localhost:8000
+
+# With LiteLLM proxy mode enabled
+uv run src/client.py --proxy
+
+# Combine options
+uv run src/client.py --server http://localhost:8000 --proxy
 ```
+
+**Proxy Mode**: When `--proxy` is enabled, the SDK routes requests through the server's `/v1/messages` endpoint, allowing you to use alternative LLM providers (OpenAI, Azure, Cohere, etc.) via LiteLLM. This requires LiteLLM to be installed on the server.
 
 ### Interactive Commands
 
@@ -318,9 +326,19 @@ Content-Type: application/json
 
 {
   "resume_session_id": "optional-session-id",
-  "system_prompt": "Optional custom system prompt"
+  "system_prompt": "Optional custom system prompt",
+  "model": "claude-3-5-sonnet-20241022",
+  "enable_proxy": false
 }
 ```
+
+**Request Fields**:
+- `resume_session_id` (optional): Session ID to resume from disk
+- `system_prompt` (optional): Custom system prompt
+- `model` (optional): Model name (defaults to ANTHROPIC_MODEL env var)
+- `enable_proxy` (optional, default: false): Enable LiteLLM proxy mode
+
+When `enable_proxy` is `true`, the SDK will route requests through the server's `/v1/messages` endpoint, allowing use of alternative LLM providers via LiteLLM.
 
 Response:
 ```json

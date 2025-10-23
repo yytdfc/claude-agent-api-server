@@ -54,6 +54,7 @@ class CreateSessionRequest(BaseModel):
     resume_session_id: Optional[str] = None
     system_prompt: Optional[str] = None
     model: Optional[str] = None  # e.g., "claude-3-5-sonnet-20241022"
+    enable_proxy: bool = False  # Enable LiteLLM proxy mode
 
 
 class CreateSessionResponse(BaseModel):
@@ -166,6 +167,8 @@ class SessionManager:
         resume_session_id: Optional[str] = None,
         system_prompt: Optional[str] = None,
         model: Optional[str] = None,
+        enable_proxy: bool = False,
+        server_port: int = 8000,
     ) -> str:
         """
         Create a new session or resume an existing one.
@@ -174,6 +177,8 @@ class SessionManager:
             resume_session_id: Optional session ID to resume
             system_prompt: Optional system prompt override
             model: Optional model name override
+            enable_proxy: Enable LiteLLM proxy mode
+            server_port: Server port for proxy mode
 
         Returns:
             The session ID (new or resumed)
@@ -183,7 +188,7 @@ class SessionManager:
         if session_id in self.sessions:
             raise HTTPException(status_code=400, detail="Session already active")
 
-        session = AgentSession(session_id, system_prompt, model)
+        session = AgentSession(session_id, system_prompt, model, enable_proxy, server_port)
         await session.connect(resume_session_id)
 
         self.sessions[session_id] = session
@@ -319,6 +324,8 @@ class AgentSession:
         session_id: str,
         system_prompt: Optional[str] = None,
         model: Optional[str] = None,
+        enable_proxy: bool = False,
+        server_port: int = 8000,
     ):
         """
         Initialize an agent session.
@@ -327,6 +334,8 @@ class AgentSession:
             session_id: Unique session identifier
             system_prompt: Optional system prompt override
             model: Optional model name (defaults to ANTHROPIC_MODEL env var)
+            enable_proxy: Enable LiteLLM proxy mode (sets ANTHROPIC_BASE_URL)
+            server_port: Server port for proxy mode (default: 8000)
         """
         self.session_id = session_id
         self.client: Optional[ClaudeSDKClient] = None
@@ -345,6 +354,10 @@ class AgentSession:
         # Model: use provided, or env var, or None (SDK default)
         self.model = model or os.environ.get("ANTHROPIC_MODEL")
         self.current_model = self.model  # Track current model for status
+
+        # Proxy configuration
+        self.enable_proxy = enable_proxy
+        self.server_port = server_port
 
         # Server info cache
         self.server_info: Optional[dict[str, Any]] = None
@@ -369,6 +382,12 @@ class AgentSession:
 
         if self.model:
             options_dict["model"] = self.model
+
+        # Enable proxy mode by setting ANTHROPIC_BASE_URL in env
+        if self.enable_proxy:
+            options_dict["env"] = {
+                "ANTHROPIC_BASE_URL": f"http://127.0.0.1:{self.server_port}",
+            }
 
         options = ClaudeAgentOptions(**options_dict)
 
@@ -671,6 +690,8 @@ async def create_session(request: CreateSessionRequest):
         resume_session_id=request.resume_session_id,
         system_prompt=request.system_prompt,
         model=request.model,
+        enable_proxy=request.enable_proxy,
+        server_port=8000,  # Using hardcoded port from uvicorn.run
     )
 
     return CreateSessionResponse(
