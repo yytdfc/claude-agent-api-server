@@ -139,14 +139,24 @@ uv run src/client.py
 # With custom server URL
 uv run src/client.py --server http://localhost:8000
 
-# With LiteLLM proxy mode enabled
-uv run src/client.py --proxy
+# With specific model
+uv run src/client.py --model claude-3-5-haiku-20241022
 
-# Combine options
-uv run src/client.py --server http://localhost:8000 --proxy
+# With LiteLLM proxy mode enabled
+uv run src/client.py --proxy --model gpt-4
+
+# Combine all options
+uv run src/client.py --server http://localhost:8000 --proxy --model gpt-4
 ```
 
+**Command-line Options**:
+- `--server URL`: API server URL (default: http://127.0.0.1:8000)
+- `--proxy`: Enable LiteLLM proxy mode
+- `--model MODEL`: Specify initial model (e.g., claude-3-5-sonnet-20241022, gpt-4)
+
 **Proxy Mode**: When `--proxy` is enabled, the SDK routes requests through the server's `/v1/messages` endpoint, allowing you to use alternative LLM providers (OpenAI, Azure, Cohere, etc.) via LiteLLM. This requires LiteLLM to be installed on the server.
+
+**Model Selection**: Using `--model` ensures proper environment configuration from the start. For non-Claude models, `DISABLE_PROMPT_CACHING` is automatically set. This is recommended over runtime model switching for cross-model workflows.
 
 ### Interactive Commands
 

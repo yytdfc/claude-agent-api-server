@@ -57,7 +57,10 @@ class APIClient:
         await self.client.aclose()
 
     async def create_session(
-        self, resume_session_id: Optional[str] = None, enable_proxy: bool = False
+        self,
+        resume_session_id: Optional[str] = None,
+        enable_proxy: bool = False,
+        model: Optional[str] = None,
     ) -> dict:
         """
         Create a new session or resume an existing one.
@@ -65,6 +68,7 @@ class APIClient:
         Args:
             resume_session_id: Optional session ID to resume
             enable_proxy: Enable LiteLLM proxy mode
+            model: Model to use for the session
 
         Returns:
             Session information dictionary
@@ -75,6 +79,8 @@ class APIClient:
         payload = {"enable_proxy": enable_proxy}
         if resume_session_id:
             payload["resume_session_id"] = resume_session_id
+        if model:
+            payload["model"] = model
 
         response = await self.client.post(f"{self.base_url}/sessions", json=payload)
         response.raise_for_status()
@@ -242,18 +248,22 @@ class InteractiveClient:
     management, and permission handling.
     """
 
-    def __init__(self, api_client: APIClient, enable_proxy: bool = False):
+    def __init__(
+        self, api_client: APIClient, enable_proxy: bool = False, model: Optional[str] = None
+    ):
         """
         Initialize the interactive client.
 
         Args:
             api_client: The API client instance
             enable_proxy: Enable LiteLLM proxy mode
+            model: Initial model to use for the session
         """
         self.api_client = api_client
         self.current_session_id: Optional[str] = None
         self.permission_check_task: Optional[asyncio.Task] = None
         self.enable_proxy = enable_proxy
+        self.model = model
 
     def print_welcome(self):
         """Print welcome banner and instructions."""
@@ -510,7 +520,9 @@ class InteractiveClient:
         try:
             print("🔄 Connecting to server...")
             session_info = await self.api_client.create_session(
-                resume_session_id=session_choice, enable_proxy=self.enable_proxy
+                resume_session_id=session_choice,
+                enable_proxy=self.enable_proxy,
+                model=self.model,
             )
             self.current_session_id = session_info["session_id"]
 
@@ -519,7 +531,9 @@ class InteractiveClient:
             else:
                 status_msg = "✅ Connected to Claude Agent"
                 if self.enable_proxy:
-                    status_msg += " (Proxy Mode Enabled)"
+                    status_msg += " (Proxy Mode)"
+                if self.model:
+                    status_msg += f" [{self.model}]"
                 print(status_msg + "\n")
 
         except Exception as e:
@@ -547,7 +561,7 @@ class InteractiveClient:
                         await self.api_client.close_session(self.current_session_id)
                         # Create new session
                         session_info = await self.api_client.create_session(
-                            enable_proxy=self.enable_proxy
+                            enable_proxy=self.enable_proxy, model=self.model
                         )
                         self.current_session_id = session_info["session_id"]
                         print("✅ New session started\n")
@@ -671,11 +685,12 @@ async def main():
 Claude Agent Interactive Client
 
 Usage:
-    python client.py [--server SERVER_URL] [--proxy]
+    python client.py [--server SERVER_URL] [--proxy] [--model MODEL]
 
 Options:
     --server URL    API server URL (default: http://127.0.0.1:8000)
     --proxy         Enable LiteLLM proxy mode
+    --model MODEL   Model to use (e.g., claude-3-5-sonnet-20241022, gpt-4)
     -h, --help      Show this help message
 
 Description:
@@ -687,10 +702,15 @@ Description:
     the server's /v1/messages endpoint, allowing use of alternative
     LLM providers via LiteLLM.
 
+    The --model parameter sets the initial model for the session,
+    ensuring proper environment configuration (e.g., DISABLE_PROMPT_CACHING
+    for non-Claude models).
+
 Examples:
     python client.py
     python client.py --server http://localhost:8000
-    python client.py --proxy
+    python client.py --proxy --model gpt-4
+    python client.py --model claude-3-5-haiku-20241022
         """
         )
         sys.exit(0)
@@ -704,6 +724,13 @@ Examples:
 
     # Parse proxy flag
     enable_proxy = "--proxy" in sys.argv
+
+    # Parse model
+    model = None
+    if "--model" in sys.argv:
+        idx = sys.argv.index("--model")
+        if idx + 1 < len(sys.argv):
+            model = sys.argv[idx + 1]
 
     # Create client
     api_client = APIClient(base_url=server_url)
@@ -722,7 +749,9 @@ Examples:
         return
 
     # Run interactive client
-    interactive_client = InteractiveClient(api_client, enable_proxy=enable_proxy)
+    interactive_client = InteractiveClient(
+        api_client, enable_proxy=enable_proxy, model=model
+    )
     try:
         await interactive_client.run()
     finally:
