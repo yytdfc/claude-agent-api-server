@@ -37,6 +37,13 @@ A client-server architecture for the Claude Agent SDK that separates the SDK log
    - Interactive permission approval
    - Session management commands
 
+3. **Web Client (`web_client/`)**
+   - Modern web-based chat interface
+   - Real-time message streaming
+   - Visual permission management
+   - Mobile-responsive design
+   - No dependencies - pure HTML/CSS/JS
+
 ## Features
 
 ### API Server
@@ -155,6 +162,37 @@ uv run src/client.py --server http://localhost:8000 --proxy --model gpt-4
 - `--model MODEL`: Specify initial model (e.g., claude-3-5-sonnet-20241022, gpt-4)
 
 **Proxy Mode**: When `--proxy` is enabled, the SDK routes requests through the server's `/v1/messages` endpoint, allowing you to use alternative LLM providers (OpenAI, Azure, Cohere, etc.) via LiteLLM. This requires LiteLLM to be installed on the server. The server automatically removes `cache_control` fields for non-Claude models to ensure compatibility.
+
+### Using the Web Client
+
+The web client provides a modern browser-based interface for interacting with Claude Agent.
+
+```bash
+# Start the web client server
+cd web_client
+python serve.py
+
+# Or specify a custom port
+python serve.py 8080
+```
+
+Then open your browser to `http://localhost:8080`
+
+**Features**:
+- 💬 Interactive chat interface with real-time updates
+- 🔧 Visual model configuration (main + background models)
+- 🔒 Interactive permission approval dialogs
+- 📊 Session management (create, clear sessions)
+- 🎨 Beautiful, responsive UI that works on mobile
+- ⚡ Live connection status indicator
+
+**Quick Start**:
+1. Make sure the API server is running at `http://127.0.0.1:8000`
+2. Open the web client in your browser
+3. Configure your models and proxy settings
+4. Click "Connect" to start chatting
+
+See [web_client/README.md](web_client/README.md) for detailed documentation.
 
 ### Interactive Commands
 

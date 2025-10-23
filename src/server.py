@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -687,6 +688,15 @@ app = FastAPI(
     description="Stateful API server for Claude Agent SDK",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# Add CORS middleware to allow web client access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 
