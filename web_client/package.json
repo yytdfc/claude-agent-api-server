@@ -8,10 +8,20 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "keywords": ["claude", "agent", "chat", "web-client"],
+  "keywords": [
+    "claude",
+    "agent",
+    "chat",
+    "web-client"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
     "vite": "^7.1.12"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }

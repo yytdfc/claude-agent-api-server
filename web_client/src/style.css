@@ -459,3 +459,38 @@ body {
 .messages::-webkit-scrollbar-thumb:hover {
     background-color: var(--secondary-color);
 }
+
+/* Chat Actions */
+.chat-actions {
+    display: flex;
+    gap: 12px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+}
+
+.chat-actions button {
+    flex: 1;
+}
+
+.permission-info {
+    margin-bottom: 20px;
+}
+
+.permission-info p {
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.permission-info strong {
+    color: var(--text-primary);
+}
+
+.permission-info pre {
+    background-color: var(--bg-color);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 12px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
