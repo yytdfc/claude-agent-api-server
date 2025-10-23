@@ -4,50 +4,60 @@ Get up and running with the Claude Agent API Server in 5 minutes.
 
 ## Prerequisites
 
-- Python 3.8 or higher
+- Python 3.12 or higher
+- [uv](https://github.com/astral-sh/uv) - Fast Python package installer
 - Claude Code CLI installed: `npm install -g @anthropic-ai/claude-code`
 
 ## Installation
 
-### 1. Install the SDK
+### 1. Install uv
 
 ```bash
-# From the project root directory
-cd /path/to/claude-agent-sdk-python
-pip install -e .
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or with pip
+pip install uv
 ```
 
-### 2. Install API Server Dependencies
+### 2. Install Dependencies
 
 ```bash
-cd api_server
-pip install -r requirements.txt
+# From the workspace root (claude-agent-sdk-python)
+cd /path/to/claude-agent-sdk-python
+uv sync
+
+# This will install both the SDK and api_server dependencies
 ```
 
 ## Running the Server and Client
 
-### Option 1: Using the Start Script (Easiest)
+### Option 1: Using uv (Recommended)
 
 ```bash
 # Terminal 1: Start the server
+cd api_server
+uv run src/server.py
+```
+
+```bash
+# Terminal 2: Start the client
+cd api_server
+uv run src/client.py
+```
+
+### Option 2: Using the Start Script
+
+```bash
+# Terminal 1: Start the server
+cd api_server
 ./start.sh
 ```
 
 ```bash
 # Terminal 2: Start the client
-python client.py
-```
-
-### Option 2: Manual Start
-
-```bash
-# Terminal 1: Start the server
-python server.py
-```
-
-```bash
-# Terminal 2: Start the client
-python client.py
+cd api_server
+uv run src/client.py
 ```
 
 ## First Conversation
@@ -89,10 +99,14 @@ Allow? [Y/n/d]:
 
 ## Testing the API
 
-Run the example script:
+Run the example and test scripts:
 
 ```bash
-python example.py
+# Run usage examples
+uv run src/example.py
+
+# Run invocations endpoint tests
+uv run src/test_invocations.py
 ```
 
 This will demonstrate:
@@ -100,6 +114,7 @@ This will demonstrate:
 - Session management
 - Multi-turn dialogues
 - Permission handling
+- Unified /invocations endpoint
 
 ## API Documentation
 
@@ -137,8 +152,11 @@ npm install -g @anthropic-ai/claude-code
 
 Make sure all dependencies are installed:
 ```bash
-pip install -r requirements.txt
-pip install -e ..  # Install SDK
+# From workspace root
+uv sync
+
+# Or reinstall if needed
+uv sync --reinstall
 ```
 
 ## Next Steps
@@ -151,14 +169,20 @@ pip install -e ..  # Install SDK
 
 ```
 api_server/
-├── server.py          # FastAPI server implementation
-├── client.py          # Interactive CLI client
-├── example.py         # Usage examples
-├── requirements.txt   # Python dependencies
-├── start.sh          # Quick start script
-├── README.md         # Full documentation
-├── QUICKSTART.md     # This file
-└── __init__.py       # Package initialization
+├── src/
+│   ├── __init__.py           # Package initialization
+│   ├── server.py             # FastAPI server implementation
+│   ├── client.py             # Interactive CLI client
+│   ├── example.py            # Usage examples
+│   ├── test_invocations.py  # Test suite
+│   └── main.py               # Entry points
+├── pyproject.toml            # Project config (uv managed)
+├── uv.lock                   # Dependency lock file
+├── .python-version           # Python version specification
+├── start.sh                  # Quick start script
+├── README.md                 # Full documentation
+├── QUICKSTART.md             # This file
+└── LICENSE                   # MIT License
 ```
 
 ## Key Features

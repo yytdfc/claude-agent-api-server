@@ -21,10 +21,9 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from claude_agent_sdk import (
@@ -41,7 +40,6 @@ from claude_agent_sdk import (
     ToolUseBlock,
     UserMessage,
 )
-
 
 # ============================================================================
 # Data Models
@@ -75,13 +73,13 @@ class MessageBlock(BaseModel):
     type: str  # "text", "tool_use", "thinking"
     content: Optional[str] = None
     tool_name: Optional[str] = None
-    tool_input: Optional[Dict[str, Any]] = None
+    tool_input: Optional[dict[str, Any]] = None
 
 
 class SendMessageResponse(BaseModel):
     """Response containing assistant's reply."""
 
-    messages: List[MessageBlock]
+    messages: list[MessageBlock]
     session_id: str
     cost_usd: Optional[float] = None
     num_turns: Optional[int] = None
@@ -100,7 +98,7 @@ class SessionInfo(BaseModel):
 class ListSessionsResponse(BaseModel):
     """Response containing list of sessions."""
 
-    sessions: List[SessionInfo]
+    sessions: list[SessionInfo]
 
 
 class PermissionRequest(BaseModel):
@@ -108,8 +106,8 @@ class PermissionRequest(BaseModel):
 
     request_id: str
     tool_name: str
-    tool_input: Dict[str, Any]
-    suggestions: List[Dict[str, Any]]
+    tool_input: dict[str, Any]
+    suggestions: list[dict[str, Any]]
 
 
 class PermissionResponse(BaseModel):
@@ -144,7 +142,7 @@ class SessionManager:
 
     def __init__(self):
         """Initialize the session manager."""
-        self.sessions: Dict[str, "AgentSession"] = {}
+        self.sessions: dict[str, "AgentSession"] = {}
         self.session_dir = Path.home() / ".claude" / "projects"
 
     async def create_session(
@@ -200,7 +198,7 @@ class SessionManager:
             await session.disconnect()
             del self.sessions[session_id]
 
-    def list_sessions(self) -> List[SessionInfo]:
+    def list_sessions(self) -> list[SessionInfo]:
         """
         List all active sessions.
 
@@ -220,7 +218,7 @@ class SessionManager:
             )
         return result
 
-    def list_available_sessions(self) -> List[Dict[str, Any]]:
+    def list_available_sessions(self) -> list[dict[str, Any]]:
         """
         List all available sessions from disk.
 
@@ -247,7 +245,7 @@ class SessionManager:
                     preview = "No preview"
                     summary = None
 
-                    with open(session_file, "r", encoding="utf-8") as f:
+                    with open(session_file, encoding="utf-8") as f:
                         for line in f:
                             line = line.strip()
                             if not line:
@@ -312,7 +310,7 @@ class AgentSession:
         self.message_count = 0
 
         # Permission management
-        self.pending_permission: Optional[Dict[str, Any]] = None
+        self.pending_permission: Optional[dict[str, Any]] = None
         self.permission_event: Optional[asyncio.Event] = None
         self.permission_result: Optional[Any] = None
 
@@ -656,7 +654,7 @@ async def close_session(session_id: str):
 
 
 @app.post("/invocations")
-async def invocations(request: Dict[str, Any]):
+async def invocations(request: dict[str, Any]):
     """
     Unified invocation endpoint that routes to other API endpoints.
 

@@ -6,31 +6,31 @@ echo "Claude Agent API Server - Quick Start"
 echo "=========================================="
 echo ""
 
-# Check if Python is available
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python 3 is not installed"
+# Check if uv is available
+if ! command -v uv &> /dev/null; then
+    echo "❌ uv is not installed"
+    echo "💡 Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
 fi
 
 # Check if in correct directory
-if [ ! -f "server.py" ]; then
+if [ ! -f "pyproject.toml" ]; then
     echo "❌ Please run this script from the api_server directory"
     exit 1
 fi
 
-# Check if dependencies are installed
-echo "Checking dependencies..."
-python3 -c "import fastapi, uvicorn, httpx" 2>/dev/null
-if [ $? -ne 0 ]; then
-    echo "⚠️  Dependencies not found. Installing..."
-    pip install -r requirements.txt
+# Check if src/server.py exists
+if [ ! -f "src/server.py" ]; then
+    echo "❌ src/server.py not found"
+    exit 1
 fi
 
-# Check if SDK is installed
-python3 -c "import claude_agent_sdk" 2>/dev/null
+# Ensure dependencies are installed
+echo "Checking dependencies..."
+uv sync --quiet 2>/dev/null
 if [ $? -ne 0 ]; then
-    echo "⚠️  Claude Agent SDK not found. Installing from parent directory..."
-    pip install -e ..
+    echo "⚠️  Running uv sync to install dependencies..."
+    uv sync
 fi
 
 echo ""
@@ -43,4 +43,4 @@ echo "=========================================="
 echo ""
 
 # Start the server
-python3 server.py
+uv run src/server.py

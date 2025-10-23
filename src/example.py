@@ -7,6 +7,7 @@ Useful for testing, automation, or building custom integrations.
 """
 
 import asyncio
+
 import httpx
 
 
@@ -43,7 +44,7 @@ async def example_simple_conversation():
 
         # Close session
         await client.delete(f"http://127.0.0.1:8000/sessions/{session_id}")
-        print(f"\nSession closed\n")
+        print("\nSession closed\n")
 
 
 async def example_list_sessions():
@@ -199,7 +200,7 @@ async def example_permission_handling():
 
             if status.get("pending_permission"):
                 pending_permission = status["pending_permission"]
-                print(f"\nPermission request detected:")
+                print("\nPermission request detected:")
                 print(f"  Tool: {pending_permission['tool_name']}")
                 print(f"  Request ID: {pending_permission['request_id']}")
                 break

@@ -61,53 +61,81 @@ A client-server architecture for the Claude Agent SDK that separates the SDK log
 
 ### Prerequisites
 
-1. Install the Claude Agent SDK:
+- Python 3.12+
+- [uv](https://github.com/astral-sh/uv) - Fast Python package installer
+
+### Installing uv
+
 ```bash
-# From the parent directory
-pip install -e .
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or with pip
+pip install uv
 ```
 
-2. Install API server dependencies:
+### Setup
+
+This project uses `uv` for dependency management and is configured as a workspace member.
+
 ```bash
+# Install all dependencies (from parent directory)
+cd /path/to/claude-agent-sdk-python
+uv sync
+
+# Or install just for api_server
 cd api_server
-pip install -r requirements.txt
+uv sync
 ```
 
-### Requirements
+The project structure uses a `src/` layout:
+```
+api_server/
+├── src/
+│   ├── __init__.py
+│   ├── server.py          # FastAPI server
+│   ├── client.py          # CLI client
+│   ├── example.py         # Usage examples
+│   ├── test_invocations.py # Tests
+│   └── main.py            # Entry points
+├── pyproject.toml         # Project config (uv managed)
+├── uv.lock               # Lock file
+└── README.md
+```
 
-- Python 3.8+
-- FastAPI
-- Uvicorn
-- httpx
-- Claude Agent SDK
+### Dependencies
+
+All dependencies are managed via `pyproject.toml`:
+- `claude-agent-sdk` (workspace dependency)
+- `fastapi>=0.119.1`
+- `uvicorn` (auto-installed with FastAPI)
+- `httpx` (auto-installed with FastAPI)
 
 ## Usage
 
 ### Starting the Server
 
 ```bash
-# Start the API server (from api_server directory)
-python server.py
+# Using uv (recommended)
+uv run src/server.py
+
+# Or use the start script
+./start.sh
+
+# Or with uvicorn directly for development
+uv run uvicorn src.server:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 The server will start on `http://127.0.0.1:8000` by default.
 
-You can also run it with custom settings:
-```bash
-# Using uvicorn directly
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-```
-
 ### Using the Client
 
 ```bash
-# Start the interactive client (from api_server directory)
-python client.py
-```
+# Start the interactive client
+uv run src/client.py
 
-With custom server URL:
-```bash
-python client.py --server http://localhost:8000
+# With custom server URL
+uv run src/client.py --server http://localhost:8000
 ```
 
 ### Interactive Commands
@@ -439,10 +467,16 @@ Sessions are automatically cleaned up on:
 
 ```bash
 # Start server in one terminal
-python server.py
+uv run src/server.py
 
-# In another terminal, test with curl
+# In another terminal, run tests
+uv run src/test_invocations.py
+
+# Or test with curl
 curl http://localhost:8000/health
+
+# Run examples
+uv run src/example.py
 ```
 
 ### API Documentation
@@ -451,31 +485,52 @@ Once the server is running, visit:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+### Code Quality
+
+```bash
+# Format code
+uv run ruff format src/
+
+# Check linting
+uv run ruff check src/
+
+# Type checking (if mypy is added)
+uv run mypy src/
+```
+
 ### Extending the API
 
 To add new endpoints:
 
-1. Define Pydantic models for request/response
-2. Add endpoint function to `server.py`
-3. Update `APIClient` in `client.py`
+1. Define Pydantic models for request/response in `src/server.py`
+2. Add endpoint function to `src/server.py`
+3. Update `APIClient` in `src/client.py`
 4. Add client command/feature as needed
+5. Update `/invocations` routing if necessary
 
 ## Troubleshooting
 
 ### Server won't start
 - Check if port 8000 is already in use
-- Verify all dependencies are installed
+- Verify all dependencies are installed: `uv sync`
 - Check Claude CLI is installed: `npx @anthropic-ai/claude-code --version`
+- Try running with: `uv run src/server.py`
 
 ### Client can't connect
 - Verify server is running: `curl http://localhost:8000/health`
 - Check firewall settings
 - Verify correct server URL
+- Ensure uv environment is activated
 
 ### Permission requests hang
 - Check server logs for errors
 - Verify client is polling for permissions
 - Check network connectivity
+
+### uv sync fails
+- Ensure you're in the workspace root or api_server directory
+- Check Python version: `python --version` (requires 3.12+)
+- Try: `uv sync --reinstall`
 
 ## License
 

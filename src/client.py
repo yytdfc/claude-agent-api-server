@@ -326,7 +326,7 @@ class InteractiveClient:
 
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except Exception:
                 # Ignore errors in background task
                 await asyncio.sleep(1)
 
@@ -439,7 +439,7 @@ class InteractiveClient:
             self.current_session_id = session_info["session_id"]
 
             if session_choice:
-                print(f"✅ Resumed session\n")
+                print("✅ Resumed session\n")
             else:
                 print("✅ Connected to Claude Agent\n")
 
