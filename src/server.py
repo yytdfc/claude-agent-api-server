@@ -54,6 +54,7 @@ class CreateSessionRequest(BaseModel):
     resume_session_id: Optional[str] = None
     system_prompt: Optional[str] = None
     model: Optional[str] = None  # e.g., "claude-3-5-sonnet-20241022"
+    background_model: Optional[str] = None  # Background model for agents (sets ANTHROPIC_DEFAULT_HAIKU_MODEL)
     enable_proxy: bool = False  # Enable LiteLLM proxy mode
 
 
@@ -167,6 +168,7 @@ class SessionManager:
         resume_session_id: Optional[str] = None,
         system_prompt: Optional[str] = None,
         model: Optional[str] = None,
+        background_model: Optional[str] = None,
         enable_proxy: bool = False,
         server_port: int = 8000,
     ) -> str:
@@ -177,6 +179,7 @@ class SessionManager:
             resume_session_id: Optional session ID to resume
             system_prompt: Optional system prompt override
             model: Optional model name override
+            background_model: Optional background model for agents
             enable_proxy: Enable LiteLLM proxy mode
             server_port: Server port for proxy mode
 
@@ -188,7 +191,7 @@ class SessionManager:
         if session_id in self.sessions:
             raise HTTPException(status_code=400, detail="Session already active")
 
-        session = AgentSession(session_id, system_prompt, model, enable_proxy, server_port)
+        session = AgentSession(session_id, system_prompt, model, background_model, enable_proxy, server_port)
         await session.connect(resume_session_id)
 
         self.sessions[session_id] = session
@@ -324,6 +327,7 @@ class AgentSession:
         session_id: str,
         system_prompt: Optional[str] = None,
         model: Optional[str] = None,
+        background_model: Optional[str] = None,
         enable_proxy: bool = False,
         server_port: int = 8000,
     ):
@@ -334,6 +338,7 @@ class AgentSession:
             session_id: Unique session identifier
             system_prompt: Optional system prompt override
             model: Optional model name (defaults to ANTHROPIC_MODEL env var)
+            background_model: Optional background model for agents
             enable_proxy: Enable LiteLLM proxy mode (sets ANTHROPIC_BASE_URL)
             server_port: Server port for proxy mode (default: 8000)
         """
@@ -353,6 +358,7 @@ class AgentSession:
         self.system_prompt = system_prompt or "You are a helpful AI assistant."
         # Model: use provided, or env var, or None (SDK default)
         self.model = model or os.environ.get("ANTHROPIC_MODEL")
+        self.background_model = background_model  # Background model for agents
         self.current_model = self.model  # Track current model for status
 
         # Proxy configuration
@@ -394,9 +400,9 @@ class AgentSession:
             # Add placeholder API key (not actually used, just a placeholder)
             env_vars["ANTHROPIC_API_KEY"] = "placeholder"
 
-        # Disable prompt caching for non-Claude models
-        if self.model and "claude" not in self.model.lower():
-            env_vars["DISABLE_PROMPT_CACHING"] = "0"
+            # If a background model is specified, set it as the default Haiku model for agents
+            if self.background_model:
+                env_vars["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = self.background_model
 
         # Add env vars if any were set
         if env_vars:
@@ -567,12 +573,6 @@ class AgentSession:
 
         Raises:
             HTTPException: If session not connected or SDK call fails
-
-        Note:
-            Environment variables like DISABLE_PROMPT_CACHING are set during
-            session creation and cannot be changed dynamically. If you need to
-            switch between Claude and non-Claude models with proper environment
-            configuration, create a new session instead.
         """
         if not self.client or self.status != "connected":
             raise HTTPException(status_code=400, detail="Session not connected")
@@ -710,6 +710,7 @@ async def create_session(request: CreateSessionRequest):
         resume_session_id=request.resume_session_id,
         system_prompt=request.system_prompt,
         model=request.model,
+        background_model=request.background_model,
         enable_proxy=request.enable_proxy,
         server_port=8000,  # Using hardcoded port from uvicorn.run
     )
@@ -1042,6 +1043,29 @@ async def health_check():
 # ============================================================================
 
 
+def remove_cache_control(obj: Any) -> Any:
+    """
+    Recursively remove all cache_control fields from a data structure.
+
+    This is needed for non-Claude models that don't support prompt caching.
+
+    Args:
+        obj: The object to process (dict, list, or primitive)
+
+    Returns:
+        The object with all cache_control fields removed
+    """
+    if isinstance(obj, dict):
+        # Create a new dict without cache_control
+        return {k: remove_cache_control(v) for k, v in obj.items() if k != "cache_control"}
+    elif isinstance(obj, list):
+        # Process each item in the list
+        return [remove_cache_control(item) for item in obj]
+    else:
+        # Return primitives as-is
+        return obj
+
+
 @app.post("/v1/messages")
 async def litellm_messages_proxy(request: Request):
     """
@@ -1054,6 +1078,7 @@ async def litellm_messages_proxy(request: Request):
     - Streaming responses
     - Multiple model providers via LiteLLM
     - Compatible with Anthropic Messages API format
+    - Automatic removal of cache_control for non-Claude models
     """
     try:
         # Try to import litellm
@@ -1066,6 +1091,14 @@ async def litellm_messages_proxy(request: Request):
             )
 
         body = await request.json()
+
+        # Check if model is a Claude model
+        model = body.get("model", "")
+        is_claude_model = "claude" in model.lower()
+
+        # Remove cache_control if not a Claude model
+        if not is_claude_model:
+            body = remove_cache_control(body)
 
         # Check if streaming is requested
         is_streaming = body.get("stream", False)

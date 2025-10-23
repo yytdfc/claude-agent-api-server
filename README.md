@@ -154,9 +154,7 @@ uv run src/client.py --server http://localhost:8000 --proxy --model gpt-4
 - `--proxy`: Enable LiteLLM proxy mode
 - `--model MODEL`: Specify initial model (e.g., claude-3-5-sonnet-20241022, gpt-4)
 
-**Proxy Mode**: When `--proxy` is enabled, the SDK routes requests through the server's `/v1/messages` endpoint, allowing you to use alternative LLM providers (OpenAI, Azure, Cohere, etc.) via LiteLLM. This requires LiteLLM to be installed on the server.
-
-**Model Selection**: Using `--model` ensures proper environment configuration from the start. For non-Claude models, `DISABLE_PROMPT_CACHING` is automatically set. This is recommended over runtime model switching for cross-model workflows.
+**Proxy Mode**: When `--proxy` is enabled, the SDK routes requests through the server's `/v1/messages` endpoint, allowing you to use alternative LLM providers (OpenAI, Azure, Cohere, etc.) via LiteLLM. This requires LiteLLM to be installed on the server. The server automatically removes `cache_control` fields for non-Claude models to ensure compatibility.
 
 ### Interactive Commands
 
@@ -194,12 +192,9 @@ uv run src/client.py
 
 **Important Note on Runtime Model Switching**:
 
-When you switch models at runtime using the `model` command, the environment variables (like `DISABLE_PROMPT_CACHING` and `CLAUDE_CODE_USE_BEDROCK`) set during session creation cannot be changed. These environment variables are passed to the Claude Code CLI process at startup and remain fixed for the session lifetime.
+When you switch models at runtime using the `model` command, the environment variables (like `CLAUDE_CODE_USE_BEDROCK`) set during session creation cannot be changed. These environment variables are passed to the Claude Code CLI process at startup and remain fixed for the session lifetime.
 
-**Best Practices**:
-- If switching between Claude and non-Claude models (e.g., GPT-4), create a new session with appropriate configuration
-- Use `clear` command to start a new session with the same proxy settings
-- For cross-model workflows, plan your model choices before starting the session
+The server automatically handles `cache_control` removal for non-Claude models, so you can freely switch between different model types within the same session.
 
 ### Permission Workflow
 
@@ -347,6 +342,7 @@ Content-Type: application/json
   "resume_session_id": "optional-session-id",
   "system_prompt": "Optional custom system prompt",
   "model": "claude-3-5-sonnet-20241022",
+  "background_model": "claude-3-5-haiku-20241022",
   "enable_proxy": false
 }
 ```
@@ -354,10 +350,11 @@ Content-Type: application/json
 **Request Fields**:
 - `resume_session_id` (optional): Session ID to resume from disk
 - `system_prompt` (optional): Custom system prompt
-- `model` (optional): Model name (defaults to ANTHROPIC_MODEL env var)
+- `model` (optional): Model name for main interactions (defaults to ANTHROPIC_MODEL env var)
+- `background_model` (optional): Model name for background agents (sets ANTHROPIC_DEFAULT_HAIKU_MODEL)
 - `enable_proxy` (optional, default: false): Enable LiteLLM proxy mode
 
-When `enable_proxy` is `true`, the SDK will route requests through the server's `/v1/messages` endpoint, allowing use of alternative LLM providers via LiteLLM.
+When `enable_proxy` is `true`, the SDK will route requests through the server's `/v1/messages` endpoint, allowing use of alternative LLM providers via LiteLLM. The `background_model` parameter sets which model background agents will use.
 
 Response:
 ```json
@@ -483,7 +480,7 @@ Response:
 }
 ```
 
-**Note**: Environment variables like `DISABLE_PROMPT_CACHING` and `CLAUDE_CODE_USE_BEDROCK` are set during session creation and cannot be changed at runtime. To switch between Claude and non-Claude models with proper environment configuration, create a new session.
+**Note**: The server automatically removes `cache_control` fields for non-Claude models, allowing you to switch between different model types within the same session.
 
 ### Session Control
 
@@ -673,37 +670,52 @@ If LiteLLM is not installed:
 
 **Automatic Environment Variables**:
 
-The server automatically configures environment variables based on session settings:
+The server automatically configures environment variables and request payloads based on session settings:
 
 1. **Proxy Mode** (`enable_proxy: true`):
    - `ANTHROPIC_BASE_URL`: Set to `http://127.0.0.1:8000` (routes to `/v1/messages`)
    - `CLAUDE_CODE_USE_BEDROCK`: Set to `"0"` (disables AWS Bedrock)
    - `ANTHROPIC_API_KEY`: Set to `"placeholder"` (required by SDK, not actually used)
+   - `ANTHROPIC_DEFAULT_HAIKU_MODEL`: Set to the `background_model` value (if provided)
 
-2. **Non-Claude Models** (model ID doesn't contain "claude"):
-   - `DISABLE_PROMPT_CACHING`: Set to `"0"` (disables prompt caching for compatibility)
+2. **Model Configuration**:
+   - `model`: Sets the main model for user interactions
+   - `background_model`: Sets the model used by background agents (via `ANTHROPIC_DEFAULT_HAIKU_MODEL` env var)
+
+3. **Non-Claude Models** (model ID doesn't contain "claude"):
+   - The `/v1/messages` endpoint automatically removes all `cache_control` fields from requests to ensure compatibility
 
 Example scenarios:
 ```bash
-# Using GPT-4 with proxy mode
+# Using GPT-4 for main model and GPT-3.5 for background agents
 curl -X POST http://localhost:8000/sessions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "gpt-4",
+    "background_model": "gpt-3.5-turbo",
     "enable_proxy": true
   }'
-# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0,
-#                     ANTHROPIC_API_KEY=placeholder, DISABLE_PROMPT_CACHING=0
+# Automatically sets:
+#   ANTHROPIC_BASE_URL=http://127.0.0.1:8000
+#   CLAUDE_CODE_USE_BEDROCK=0
+#   ANTHROPIC_API_KEY=placeholder
+#   ANTHROPIC_DEFAULT_HAIKU_MODEL=gpt-3.5-turbo
+# The server automatically removes cache_control fields for non-Claude models
 
-# Using Claude with proxy mode
+# Using Claude Sonnet for main model and Haiku for background agents
 curl -X POST http://localhost:8000/sessions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "claude-3-5-sonnet-20241022",
+    "background_model": "claude-3-5-haiku-20241022",
     "enable_proxy": true
   }'
-# Automatically sets: ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK=0, ANTHROPIC_API_KEY=placeholder
-# (DISABLE_PROMPT_CACHING not set because model contains "claude")
+# Automatically sets:
+#   ANTHROPIC_BASE_URL=http://127.0.0.1:8000
+#   CLAUDE_CODE_USE_BEDROCK=0
+#   ANTHROPIC_API_KEY=placeholder
+#   ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-3-5-haiku-20241022
+# cache_control fields are preserved for Claude models
 ```
 
 ## Architecture Details
