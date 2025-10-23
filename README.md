@@ -182,6 +182,15 @@ uv run src/client.py
 👤 You: model default   # Use default model
 ```
 
+**Important Note on Runtime Model Switching**:
+
+When you switch models at runtime using the `model` command, the environment variables (like `DISABLE_PROMPT_CACHING` and `CLAUDE_CODE_USE_BEDROCK`) set during session creation cannot be changed. These environment variables are passed to the Claude Code CLI process at startup and remain fixed for the session lifetime.
+
+**Best Practices**:
+- If switching between Claude and non-Claude models (e.g., GPT-4), create a new session with appropriate configuration
+- Use `clear` command to start a new session with the same proxy settings
+- For cross-model workflows, plan your model choices before starting the session
+
 ### Permission Workflow
 
 When Claude needs to use a write tool (Write, Edit, Bash), you'll be prompted:
@@ -463,6 +472,8 @@ Response:
   "model": "claude-3-5-haiku-20241022"
 }
 ```
+
+**Note**: Environment variables like `DISABLE_PROMPT_CACHING` and `CLAUDE_CODE_USE_BEDROCK` are set during session creation and cannot be changed at runtime. To switch between Claude and non-Claude models with proper environment configuration, create a new session.
 
 ### Session Control
 

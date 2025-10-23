@@ -565,6 +565,12 @@ class AgentSession:
 
         Raises:
             HTTPException: If session not connected or SDK call fails
+
+        Note:
+            Environment variables like DISABLE_PROMPT_CACHING are set during
+            session creation and cannot be changed dynamically. If you need to
+            switch between Claude and non-Claude models with proper environment
+            configuration, create a new session instead.
         """
         if not self.client or self.status != "connected":
             raise HTTPException(status_code=400, detail="Session not connected")
@@ -572,6 +578,7 @@ class AgentSession:
         try:
             await self.client.set_model(model)
             self.current_model = model
+            self.model = model  # Update tracked model for consistency
             self.last_activity = datetime.now()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to set model: {str(e)}")
