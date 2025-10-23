@@ -135,6 +135,12 @@ class SetModelRequest(BaseModel):
     model: Optional[str] = None  # None means use default model
 
 
+class SetPermissionModeRequest(BaseModel):
+    """Request to change the permission mode for a session."""
+
+    mode: str  # "default", "acceptEdits", "plan", "bypassPermissions"
+
+
 # ============================================================================
 # Session Manager
 # ============================================================================
@@ -338,6 +344,9 @@ class AgentSession:
         # Model: use provided, or env var, or None (SDK default)
         self.model = model or os.environ.get("ANTHROPIC_MODEL")
         self.current_model = self.model  # Track current model for status
+
+        # Server info cache
+        self.server_info: Optional[dict[str, Any]] = None
 
     async def connect(self, resume_session_id: Optional[str] = None):
         """
@@ -552,6 +561,51 @@ class AgentSession:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to interrupt: {str(e)}")
 
+    async def set_permission_mode(self, mode: str):
+        """
+        Change the permission mode for this session.
+
+        Args:
+            mode: Permission mode ("default", "acceptEdits", "plan", "bypassPermissions")
+
+        Raises:
+            HTTPException: If session not connected or SDK call fails
+        """
+        if not self.client or self.status != "connected":
+            raise HTTPException(status_code=400, detail="Session not connected")
+
+        try:
+            await self.client.set_permission_mode(mode)
+            self.last_activity = datetime.now()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to set permission mode: {str(e)}")
+
+    async def get_server_info(self) -> dict[str, Any]:
+        """
+        Get server initialization info.
+
+        Returns:
+            Dictionary with server info (commands, output styles, etc.)
+
+        Raises:
+            HTTPException: If session not connected or info not available
+        """
+        if not self.client or self.status != "connected":
+            raise HTTPException(status_code=400, detail="Session not connected")
+
+        try:
+            # Cache server info if not already cached
+            if self.server_info is None:
+                self.server_info = await self.client.get_server_info()
+
+            if self.server_info is None:
+                # Return empty dict if not available
+                return {}
+
+            return self.server_info
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get server info: {str(e)}")
+
     def get_status(self) -> SessionStatus:
         """
         Get current session status.
@@ -734,6 +788,39 @@ async def interrupt_session(session_id: str):
     return {"status": "interrupted"}
 
 
+@app.post("/sessions/{session_id}/permission_mode")
+async def set_permission_mode(session_id: str, request: SetPermissionModeRequest):
+    """
+    Change the permission mode for a session.
+
+    Args:
+        session_id: The session ID
+        request: Permission mode change request
+
+    Returns:
+        Success message with new mode
+    """
+    session = session_manager.get_session(session_id)
+    await session.set_permission_mode(request.mode)
+    return {"status": "ok", "mode": request.mode}
+
+
+@app.get("/sessions/{session_id}/server_info")
+async def get_server_info(session_id: str):
+    """
+    Get server initialization info for a session.
+
+    Args:
+        session_id: The session ID
+
+    Returns:
+        Server info dictionary with commands, output styles, etc.
+    """
+    session = session_manager.get_session(session_id)
+    info = await session.get_server_info()
+    return info
+
+
 @app.delete("/sessions/{session_id}")
 async def close_session(session_id: str):
     """
@@ -859,6 +946,21 @@ async def invocations(request: dict[str, Any]):
             if not session_id:
                 raise HTTPException(status_code=400, detail="Missing session_id in path_params")
             return await interrupt_session(session_id)
+
+        elif path.startswith("/sessions/") and path.endswith("/permission_mode") and method == "POST":
+            # Set permission mode
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(status_code=400, detail="Missing session_id in path_params")
+            req = SetPermissionModeRequest(**payload)
+            return await set_permission_mode(session_id, req)
+
+        elif path.startswith("/sessions/") and path.endswith("/server_info") and method == "GET":
+            # Get server info
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(status_code=400, detail="Missing session_id in path_params")
+            return await get_server_info(session_id)
 
         elif path.startswith("/sessions/") and method == "DELETE":
             # Close session

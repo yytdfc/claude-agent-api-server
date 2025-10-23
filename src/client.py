@@ -188,6 +188,38 @@ class APIClient:
         response.raise_for_status()
         return response.json()
 
+    async def set_permission_mode(self, session_id: str, mode: str):
+        """
+        Change the permission mode for a session.
+
+        Args:
+            session_id: The session ID
+            mode: Permission mode (default, acceptEdits, plan, bypassPermissions)
+        """
+        payload = {"mode": mode}
+        response = await self.client.post(
+            f"{self.base_url}/sessions/{session_id}/permission_mode",
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def get_server_info(self, session_id: str):
+        """
+        Get server initialization info for a session.
+
+        Args:
+            session_id: The session ID
+
+        Returns:
+            Dictionary with server info
+        """
+        response = await self.client.get(
+            f"{self.base_url}/sessions/{session_id}/server_info"
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def close_session(self, session_id: str):
         """
         Close a session.
@@ -229,7 +261,9 @@ class InteractiveClient:
         print("  • Type 'clear' to start a new session")
         print("  • Type 'sessions' to list available sessions")
         print("  • Type 'model <name>' to change model (haiku/sonnet/default)")
+        print("  • Type 'mode <name>' to change permission mode")
         print("  • Type 'interrupt' to stop current operation")
+        print("  • Type 'info' to show server information")
         print("  • Type 'help' for more information")
         print("\n💡 Tip:")
         print("  • Read-only tools are automatically allowed")
@@ -242,12 +276,14 @@ class InteractiveClient:
         print("📖 Help Information")
         print("=" * 60)
         print("\nAvailable Commands:")
-        print("  exit/quit      - Exit the program")
-        print("  clear          - Start a new session")
-        print("  sessions       - List all available sessions")
-        print("  model <name>   - Change model (haiku/sonnet/default)")
-        print("  interrupt      - Stop current operation")
-        print("  help           - Show this help message")
+        print("  exit/quit         - Exit the program")
+        print("  clear             - Start a new session")
+        print("  sessions          - List all available sessions")
+        print("  model <name>      - Change model (haiku/sonnet/default)")
+        print("  mode <name>       - Change permission mode (default/acceptEdits/plan/bypassPermissions)")
+        print("  interrupt         - Stop current operation")
+        print("  info              - Show server information")
+        print("  help              - Show this help message")
         print("\nAvailable Tools:")
         print("  📄 Read    - Read file contents (auto-approved)")
         print("  🔍 Glob    - Find files (auto-approved)")
@@ -538,6 +574,34 @@ class InteractiveClient:
                             print(f"{Colors.YELLOW}⚠️ Interrupt signal sent{Colors.RESET}\n")
                         except Exception as e:
                             print(f"{Colors.RED}❌ Failed to interrupt: {e}{Colors.RESET}\n")
+                        continue
+
+                    if user_input.lower().startswith("mode "):
+                        # Change permission mode: "mode default" or "mode acceptEdits"
+                        mode_name = user_input[5:].strip()
+                        try:
+                            result = await self.api_client.set_permission_mode(
+                                self.current_session_id, mode_name
+                            )
+                            print(f"{Colors.GREEN}✅ Permission mode changed to: {mode_name}{Colors.RESET}\n")
+                        except Exception as e:
+                            print(f"{Colors.RED}❌ Failed to change permission mode: {e}{Colors.RESET}\n")
+                        continue
+
+                    if user_input.lower() == "info":
+                        # Get server info
+                        try:
+                            info = await self.api_client.get_server_info(self.current_session_id)
+                            print(f"\n{Colors.CYAN}📋 Server Information:{Colors.RESET}")
+                            if info:
+                                # Pretty print the info
+                                import json
+                                print(json.dumps(info, indent=2, ensure_ascii=False))
+                            else:
+                                print("  No server info available")
+                            print()
+                        except Exception as e:
+                            print(f"{Colors.RED}❌ Failed to get server info: {e}{Colors.RESET}\n")
                         continue
 
                     if not user_input:

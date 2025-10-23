@@ -147,7 +147,9 @@ Once the client is running, you can use these commands:
 - **`clear`**: Start a new session
 - **`sessions`**: List all available sessions
 - **`model <name>`**: Change model (haiku/sonnet/default)
+- **`mode <name>`**: Change permission mode (default/acceptEdits/plan/bypassPermissions)
 - **`interrupt`**: Stop the current operation
+- **`info`**: Show server information (commands, output styles, etc.)
 - **`help`**: Show help information
 
 ### Model Configuration
@@ -259,6 +261,25 @@ Interrupt session:
 {
   "path": "/sessions/{session_id}/interrupt",
   "method": "POST",
+  "path_params": {"session_id": "abc123"}
+}
+```
+
+Set permission mode:
+```json
+{
+  "path": "/sessions/{session_id}/permission_mode",
+  "method": "POST",
+  "path_params": {"session_id": "abc123"},
+  "payload": {"mode": "acceptEdits"}
+}
+```
+
+Get server info:
+```json
+{
+  "path": "/sessions/{session_id}/server_info",
+  "method": "GET",
   "path_params": {"session_id": "abc123"}
 }
 ```
@@ -434,6 +455,38 @@ Response:
 ```json
 {
   "status": "interrupted"
+}
+```
+
+#### Set Permission Mode
+```http
+POST /sessions/{session_id}/permission_mode
+Content-Type: application/json
+
+{
+  "mode": "acceptEdits"  // "default", "acceptEdits", "plan", "bypassPermissions"
+}
+```
+
+Response:
+```json
+{
+  "status": "ok",
+  "mode": "acceptEdits"
+}
+```
+
+#### Get Server Info
+```http
+GET /sessions/{session_id}/server_info
+```
+
+Response:
+```json
+{
+  "commands": [...],
+  "output_style": "default",
+  "capabilities": {...}
 }
 ```
 
