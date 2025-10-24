@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Send, X, Loader2 } from 'lucide-react'
 import Message from './Message'
 
 function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onClearSession }) {
@@ -36,8 +37,17 @@ function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onC
 
   return (
     <div className="chat-container">
-      {/* Session Info */}
-      <div className="session-info">{sessionInfo}</div>
+      {/* Header with Session Info and Close Button */}
+      <div className="chat-header">
+        <div className="session-info">{sessionInfo}</div>
+        <button
+          onClick={onDisconnect}
+          className="btn-icon btn-close-session"
+          title="Close Session"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
       {/* Messages */}
       <div className="messages">
@@ -59,20 +69,11 @@ function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onC
         />
         <button
           onClick={handleSubmit}
-          className="btn btn-primary"
+          className="btn-icon btn-send"
           disabled={sending || !input.trim()}
+          title={sending ? 'Sending...' : 'Send message'}
         >
-          {sending ? 'Sending...' : 'Send'}
-        </button>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="chat-actions">
-        <button onClick={onClearSession} className="btn btn-secondary">
-          New Session
-        </button>
-        <button onClick={onDisconnect} className="btn btn-secondary">
-          Disconnect
+          {sending ? <Loader2 size={20} className="spinning" /> : <Send size={20} />}
         </button>
       </div>
     </div>

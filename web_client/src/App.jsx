@@ -17,7 +17,6 @@ const DEFAULT_SETTINGS = {
 }
 
 function App() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
 
   // Load settings from localStorage or use defaults
@@ -81,27 +80,17 @@ function App() {
       <Header connected={connected} onSettingsClick={() => setShowSettings(true)} />
 
       <div className="main-content">
-        {showSidebar && (
-          <aside className="sidebar">
-            <SessionList
-              serverUrl={settings.serverUrl}
-              currentSessionId={sessionId}
-              onSessionSelect={handleSessionSelect}
-              onNewSession={handleNewSession}
-              cwd={settings.cwd}
-            />
-          </aside>
-        )}
+        <aside className="sidebar">
+          <SessionList
+            serverUrl={settings.serverUrl}
+            currentSessionId={sessionId}
+            onSessionSelect={handleSessionSelect}
+            onNewSession={handleNewSession}
+            cwd={settings.cwd}
+          />
+        </aside>
 
         <main className="content-area">
-          <button
-            className="sidebar-toggle"
-            onClick={() => setShowSidebar(!showSidebar)}
-            title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-          >
-            {showSidebar ? '◀' : '▶'}
-          </button>
-
           {!connected ? (
             <div className="welcome-screen">
               <div className="welcome-content">

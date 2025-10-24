@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
+// Helper function to format model names
+const formatModel = (model) => {
+  if (!model) return ''
+  // Shorten common model names for better readability
+  return model
+    .replace('claude-3-5-sonnet-', 'sonnet-')
+    .replace('claude-3-5-haiku-', 'haiku-')
+    .replace('claude-3-opus-', 'opus-')
+}
+
 export function useClaudeAgent() {
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
@@ -92,11 +102,11 @@ export function useClaudeAgent() {
       setSessionId(data.session_id)
       setConnected(true)
 
-      // Update session info
-      let info = '📋 Session: '
-      if (config.model) info += `Main: ${config.model}`
-      if (config.backgroundModel) info += `, Background: ${config.backgroundModel}`
-      if (config.enableProxy) info += ' (Proxy Mode)'
+      // Update session info with full details
+      let info = `📁 ${config.cwd || '/workspace'}`
+      if (config.model) info += ` | 🤖 ${formatModel(config.model)}`
+      if (config.backgroundModel) info += ` | ⚡ ${formatModel(config.backgroundModel)}`
+      if (config.enableProxy) info += ' | 🔌 Proxy'
       setSessionInfo(info)
 
       addSystemMessage('✅ Connected to Claude Agent')
@@ -315,12 +325,15 @@ export function useClaudeAgent() {
 
           // Update session info with metadata
           const metadata = historyData.metadata
-          let info = `📋 Session: ${existingSessionId.slice(0, 8)}...`
-          if (metadata.cwd) {
-            info += ` | ${metadata.cwd.split('/').pop()}`
+          let info = `📁 ${metadata.cwd || config.cwd || '/workspace'}`
+          if (config.model) {
+            info += ` | 🤖 ${formatModel(config.model)}`
+          }
+          if (config.backgroundModel) {
+            info += ` | ⚡ ${formatModel(config.backgroundModel)}`
           }
           if (metadata.git_branch) {
-            info += ` (${metadata.git_branch})`
+            info += ` | 🌿 ${metadata.git_branch}`
           }
           setSessionInfo(info)
 
@@ -329,14 +342,24 @@ export function useClaudeAgent() {
           // No history available, start fresh
           setMessages([])
           addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}...`)
-          setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}...`)
+
+          // Build session info from config
+          let info = `📁 ${config.cwd || '/workspace'}`
+          if (config.model) info += ` | 🤖 ${formatModel(config.model)}`
+          if (config.backgroundModel) info += ` | ⚡ ${formatModel(config.backgroundModel)}`
+          setSessionInfo(info)
         }
       } catch (historyError) {
         // History loading failed, start fresh
         console.warn('Failed to load history:', historyError)
         setMessages([])
         addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}... (history unavailable)`)
-        setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}...`)
+
+        // Build session info from config
+        let info = `📁 ${config.cwd || '/workspace'}`
+        if (config.model) info += ` | 🤖 ${formatModel(config.model)}`
+        if (config.backgroundModel) info += ` | ⚡ ${formatModel(config.backgroundModel)}`
+        setSessionInfo(info)
       }
     } catch (error) {
       addErrorMessage(`Failed to load session: ${error.message}`)

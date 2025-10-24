@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Plus, Circle } from 'lucide-react'
 
 function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd }) {
   const [sessions, setSessions] = useState([])
@@ -32,6 +33,21 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
           const activeData = await activeResponse.json()
           const activeIds = new Set(activeData.sessions.map(s => s.session_id))
           setActiveSessions(activeIds)
+
+          // Sort sessions: active first, then by time (newest first)
+          setSessions(prev => {
+            return [...prev].sort((a, b) => {
+              const aIsActive = activeIds.has(a.session_id)
+              const bIsActive = activeIds.has(b.session_id)
+
+              // Active sessions always come first
+              if (aIsActive && !bIsActive) return -1
+              if (!aIsActive && bIsActive) return 1
+
+              // If both active or both inactive, sort by modified time (newest first)
+              return new Date(b.modified) - new Date(a.modified)
+            })
+          })
         }
       } catch (error) {
         console.error('Failed to fetch sessions:', error)
@@ -75,7 +91,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
           onClick={onNewSession}
           title="Create new session"
         >
-          + New
+          <Plus size={16} /> New
         </button>
       </div>
 
@@ -97,7 +113,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
               >
                 <div className="session-item-header">
                   <div className="session-id-wrapper">
-                    {isActive && <span className="active-indicator" title="Active session"></span>}
+                    {isActive && <Circle size={8} className="active-indicator" fill="currentColor" title="Active session" />}
                     <span className="session-id" title={session.session_id}>
                       {session.session_id.slice(0, 8)}...
                     </span>
