@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession }) {
+function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd }) {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(false)
 
@@ -10,7 +10,12 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     const fetchSessions = async () => {
       setLoading(true)
       try {
-        const response = await fetch(`${serverUrl}/sessions`)
+        // Add cwd as query parameter if provided
+        const url = cwd
+          ? `${serverUrl}/sessions?cwd=${encodeURIComponent(cwd)}`
+          : `${serverUrl}/sessions`
+
+        const response = await fetch(url)
         if (response.ok) {
           const data = await response.json()
           setSessions(data.sessions || [])
@@ -26,7 +31,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     // Refresh session list every 5 seconds
     const interval = setInterval(fetchSessions, 5000)
     return () => clearInterval(interval)
-  }, [serverUrl])
+  }, [serverUrl, cwd])
 
   const formatDate = (dateStr) => {
     try {

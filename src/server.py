@@ -100,6 +100,7 @@ class SessionInfo(BaseModel):
     last_activity: str
     status: str
     message_count: int
+    cwd: Optional[str] = None
 
 
 class ListSessionsResponse(BaseModel):
@@ -230,15 +231,22 @@ class SessionManager:
             await session.disconnect()
             del self.sessions[session_id]
 
-    def list_sessions(self) -> list[SessionInfo]:
+    def list_sessions(self, cwd: Optional[str] = None) -> list[SessionInfo]:
         """
-        List all active sessions.
+        List all active sessions, optionally filtered by cwd.
+
+        Args:
+            cwd: Optional working directory to filter by
 
         Returns:
             List of SessionInfo objects
         """
         result = []
         for session_id, session in self.sessions.items():
+            # Filter by cwd if provided
+            if cwd and session.cwd != cwd:
+                continue
+
             result.append(
                 SessionInfo(
                     session_id=session_id,
@@ -246,13 +254,17 @@ class SessionManager:
                     last_activity=session.last_activity.isoformat(),
                     status=session.status,
                     message_count=session.message_count,
+                    cwd=session.cwd,
                 )
             )
         return result
 
-    def list_available_sessions(self) -> list[dict[str, Any]]:
+    def list_available_sessions(self, cwd: Optional[str] = None) -> list[dict[str, Any]]:
         """
-        List all available sessions from disk.
+        List all available sessions from disk, optionally filtered by cwd.
+
+        Args:
+            cwd: Optional working directory to filter by
 
         Returns:
             List of session information dictionaries
@@ -262,9 +274,16 @@ class SessionManager:
         if not self.session_dir.exists():
             return sessions
 
-        # Scan all project directories
-        for project_dir in self.session_dir.iterdir():
-            if not project_dir.is_dir():
+        # If cwd is provided, only scan that specific project directory
+        if cwd:
+            path_key = cwd.replace('/', '-').replace('_', '-')
+            project_dirs = [self.session_dir / path_key]
+        else:
+            # Scan all project directories
+            project_dirs = list(self.session_dir.iterdir())
+
+        for project_dir in project_dirs:
+            if not project_dir.exists() or not project_dir.is_dir():
                 continue
 
             for session_file in project_dir.glob("*.jsonl"):
@@ -743,31 +762,37 @@ async def create_session(request: CreateSessionRequest):
 
 
 @app.get("/sessions", response_model=ListSessionsResponse)
-async def list_sessions():
+async def list_sessions(cwd: Optional[str] = None):
     """
-    List all active sessions.
+    List all active sessions, optionally filtered by cwd.
+
+    Args:
+        cwd: Optional working directory to filter by
 
     Returns:
         List of active sessions
     """
-    sessions = session_manager.list_sessions()
+    sessions = session_manager.list_sessions(cwd=cwd)
     return ListSessionsResponse(sessions=sessions)
 
 
 @app.get("/sessions/available")
-async def list_available_sessions():
+async def list_available_sessions(cwd: Optional[str] = None):
     """
-    List all available sessions from disk.
+    List all available sessions from disk, optionally filtered by cwd.
+
+    Args:
+        cwd: Optional working directory to filter by
 
     Returns:
         List of available sessions
     """
-    sessions = session_manager.list_available_sessions()
+    sessions = session_manager.list_available_sessions(cwd=cwd)
     return {"sessions": sessions}
 
 
 @app.get("/sessions/{session_id}/history")
-async def get_session_history(session_id: str, cwd: str = None):
+async def get_session_history(session_id: str, cwd: Optional[str] = None):
     """
     Get the conversation history for a session from disk.
 

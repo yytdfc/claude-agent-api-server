@@ -4,10 +4,16 @@ import ConfigPanel from './components/ConfigPanel'
 import ChatContainer from './components/ChatContainer'
 import PermissionModal from './components/PermissionModal'
 import SessionList from './components/SessionList'
+import SettingsModal from './components/SettingsModal'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
 
 function App() {
   const [showSidebar, setShowSidebar] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
+  const [settings, setSettings] = useState({
+    cwd: '/workspace',
+    serverUrl: 'http://localhost:8000'
+  })
 
   const {
     connected,
@@ -31,18 +37,23 @@ function App() {
     }
   }
 
+  const handleSaveSettings = (newSettings) => {
+    setSettings(newSettings)
+  }
+
   return (
     <div className="app-layout">
-      <Header connected={connected} />
+      <Header connected={connected} onSettingsClick={() => setShowSettings(true)} />
 
       <div className="main-content">
         {showSidebar && (
           <aside className="sidebar">
             <SessionList
-              serverUrl={serverUrl}
+              serverUrl={settings.serverUrl}
               currentSessionId={sessionId}
               onSessionSelect={loadSession}
               onNewSession={handleNewSession}
+              cwd={settings.cwd}
             />
           </aside>
         )}
@@ -77,6 +88,15 @@ function App() {
         <PermissionModal
           permission={pendingPermission}
           onRespond={respondToPermission}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          settings={settings}
+          onSave={handleSaveSettings}
         />
       )}
     </div>
