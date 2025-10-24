@@ -19,9 +19,9 @@ if [ ! -f "pyproject.toml" ]; then
     exit 1
 fi
 
-# Check if src/server.py exists
-if [ ! -f "src/server.py" ]; then
-    echo "❌ src/server.py not found"
+# Check if backend/server.py exists
+if [ ! -f "backend/server.py" ]; then
+    echo "❌ backend/server.py not found"
     exit 1
 fi
 
@@ -43,4 +43,4 @@ echo "=========================================="
 echo ""
 
 # Start the server
-uv run src/server.py
+uv run backend/server.py

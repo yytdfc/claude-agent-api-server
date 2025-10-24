@@ -126,13 +126,13 @@ All dependencies are managed via `pyproject.toml`:
 
 ```bash
 # Using uv (recommended)
-uv run src/server.py
+uv run backend/server.py
 
 # Or use the start script
 ./start.sh
 
 # Or with uvicorn directly for development
-uv run uvicorn src.server:app --host 127.0.0.1 --port 8000 --reload
+uv run uvicorn backend.server:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 The server will start on `http://127.0.0.1:8000` by default.
@@ -141,19 +141,19 @@ The server will start on `http://127.0.0.1:8000` by default.
 
 ```bash
 # Start the interactive client
-uv run src/client.py
+uv run cli_client/client.py
 
 # With custom server URL
-uv run src/client.py --server http://localhost:8000
+uv run cli_client/client.py --server http://localhost:8000
 
 # With specific model
-uv run src/client.py --model claude-3-5-haiku-20241022
+uv run cli_client/client.py --model claude-3-5-haiku-20241022
 
 # With LiteLLM proxy mode enabled
-uv run src/client.py --proxy --model gpt-4
+uv run cli_client/client.py --proxy --model gpt-4
 
 # Combine all options
-uv run src/client.py --server http://localhost:8000 --proxy --model gpt-4
+uv run cli_client/client.py --server http://localhost:8000 --proxy --model gpt-4
 ```
 
 **Command-line Options**:
@@ -226,7 +226,7 @@ Examples:
 ```bash
 # Set default model via environment variable
 export ANTHROPIC_MODEL=claude-3-5-haiku-20241022
-uv run src/client.py
+uv run cli_client/client.py
 
 # Switch model during conversation
 👤 You: model haiku     # Switch to Haiku
@@ -623,7 +623,7 @@ export ANTHROPIC_BASE_URL=http://127.0.0.1:8000
 
 3. Start the server:
 ```bash
-uv run src/server.py
+uv run backend/server.py
 ```
 
 4. Use the SDK normally - it will automatically route through the server:
@@ -838,16 +838,16 @@ Sessions are automatically cleaned up on:
 
 ```bash
 # Start server in one terminal
-uv run src/server.py
+uv run backend/server.py
 
 # In another terminal, run tests
-uv run src/test_invocations.py
+uv run backend/test_invocations.py
 
 # Or test with curl
 curl http://localhost:8000/health
 
 # Run examples
-uv run src/example.py
+uv run backend/example.py
 ```
 
 ### API Documentation
@@ -873,9 +873,9 @@ uv run mypy src/
 
 To add new endpoints:
 
-1. Define Pydantic models for request/response in `src/server.py`
-2. Add endpoint function to `src/server.py`
-3. Update `APIClient` in `src/client.py`
+1. Define Pydantic models for request/response in `backend/server.py`
+2. Add endpoint function to `backend/server.py`
+3. Update `APIClient` in `cli_client/client.py`
 4. Add client command/feature as needed
 5. Update `/invocations` routing if necessary
 
@@ -885,7 +885,7 @@ To add new endpoints:
 - Check if port 8000 is already in use
 - Verify all dependencies are installed: `uv sync`
 - Check Claude CLI is installed: `npx @anthropic-ai/claude-code --version`
-- Try running with: `uv run src/server.py`
+- Try running with: `uv run backend/server.py`
 
 ### Client can't connect
 - Verify server is running: `curl http://localhost:8000/health`
