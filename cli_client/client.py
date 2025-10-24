@@ -126,7 +126,9 @@ class APIClient:
         Returns:
             Session status dictionary
         """
-        response = await self.client.get(f"{self.base_url}/sessions/{session_id}/status")
+        response = await self.client.get(
+            f"{self.base_url}/sessions/{session_id}/status"
+        )
         response.raise_for_status()
         return response.json()
 
@@ -312,7 +314,9 @@ class InteractiveClient:
         print("  clear             - Start a new session")
         print("  sessions          - List and switch between sessions")
         print("  model <name>      - Change model (haiku/sonnet/default)")
-        print("  mode <name>       - Change permission mode (default/acceptEdits/plan/bypassPermissions)")
+        print(
+            "  mode <name>       - Change permission mode (default/acceptEdits/plan/bypassPermissions)"
+        )
         print("  interrupt         - Stop current operation")
         print("  info              - Show server information")
         print("  help              - Show this help message")
@@ -394,13 +398,19 @@ class InteractiveClient:
                 index = int(choice) - 1
                 if 0 <= index < len(sessions):
                     selected = sessions[index]
-                    print(f"\n✅ Will resume session: {selected['session_id'][:40]}...\n")
+                    print(
+                        f"\n✅ Will resume session: {selected['session_id'][:40]}...\n"
+                    )
                     return selected["session_id"]
                 else:
-                    print(f"\n{Colors.YELLOW}⚠️ Invalid choice, starting new session{Colors.RESET}\n")
+                    print(
+                        f"\n{Colors.YELLOW}⚠️ Invalid choice, starting new session{Colors.RESET}\n"
+                    )
                     return None
             except ValueError:
-                print(f"\n{Colors.YELLOW}⚠️ Invalid input, starting new session{Colors.RESET}\n")
+                print(
+                    f"\n{Colors.YELLOW}⚠️ Invalid input, starting new session{Colors.RESET}\n"
+                )
                 return None
 
     async def check_permission_requests(self):
@@ -417,7 +427,9 @@ class InteractiveClient:
                     continue
 
                 # Check session status
-                status = await self.api_client.get_session_status(self.current_session_id)
+                status = await self.api_client.get_session_status(
+                    self.current_session_id
+                )
 
                 pending = status.get("pending_permission")
                 if pending:
@@ -455,7 +467,9 @@ class InteractiveClient:
             dangerous = ["rm -rf", "sudo", "chmod 777", "> /dev/", "dd if="]
             for pattern in dangerous:
                 if pattern in command:
-                    print(f"{Colors.RED}🚨 Warning: Detected dangerous pattern: {pattern}{Colors.RESET}")
+                    print(
+                        f"{Colors.RED}🚨 Warning: Detected dangerous pattern: {pattern}{Colors.RESET}"
+                    )
 
         elif tool_name in ["Write", "Edit"]:
             file_path = tool_input.get("file_path", "")
@@ -465,12 +479,16 @@ class InteractiveClient:
             system_dirs = ["/etc/", "/usr/", "/bin/", "/sbin/", "/System/"]
             for sys_dir in system_dirs:
                 if file_path.startswith(sys_dir):
-                    print(f"{Colors.RED}🚨 Warning: Attempting to modify system directory{Colors.RESET}")
+                    print(
+                        f"{Colors.RED}🚨 Warning: Attempting to modify system directory{Colors.RESET}"
+                    )
 
         # Show suggestions
         has_suggestions = len(suggestions) > 0
         if has_suggestions:
-            print(f"{Colors.GRAY}💡 System has {len(suggestions)} suggestion(s){Colors.RESET}")
+            print(
+                f"{Colors.GRAY}💡 System has {len(suggestions)} suggestion(s){Colors.RESET}"
+            )
             for suggestion in suggestions:
                 if suggestion.get("type") == "setMode":
                     mode = suggestion.get("mode")
@@ -506,9 +524,14 @@ class InteractiveClient:
                 break
 
             elif choice == "a" and has_suggestions:
-                print(f"{Colors.GREEN}✅ Applying {len(suggestions)} suggestion(s){Colors.RESET}")
+                print(
+                    f"{Colors.GREEN}✅ Applying {len(suggestions)} suggestion(s){Colors.RESET}"
+                )
                 await self.api_client.respond_to_permission(
-                    self.current_session_id, request_id, allowed=True, apply_suggestions=True
+                    self.current_session_id,
+                    request_id,
+                    allowed=True,
+                    apply_suggestions=True,
                 )
                 break
 
@@ -562,7 +585,9 @@ class InteractiveClient:
             return
 
         # Start permission checking task
-        self.permission_check_task = asyncio.create_task(self.check_permission_requests())
+        self.permission_check_task = asyncio.create_task(
+            self.check_permission_requests()
+        )
 
         # Main interaction loop
         try:
@@ -600,7 +625,9 @@ class InteractiveClient:
                         sessions = await self.display_available_sessions()
                         if sessions:
                             print("💡 Options:")
-                            print(f"  Enter number (1-{min(10, len(sessions))}) - Switch to that session")
+                            print(
+                                f"  Enter number (1-{min(10, len(sessions))}) - Switch to that session"
+                            )
                             print("  Press Enter - Continue with current session\n")
 
                             choice = input("Your choice: ").strip()
@@ -609,26 +636,40 @@ class InteractiveClient:
                                 try:
                                     index = int(choice) - 1
                                     if 0 <= index < len(sessions):
-                                        selected_session_id = sessions[index]["session_id"]
-                                        print(f"\n🔄 Switching to session: {selected_session_id[:40]}...\n")
+                                        selected_session_id = sessions[index][
+                                            "session_id"
+                                        ]
+                                        print(
+                                            f"\n🔄 Switching to session: {selected_session_id[:40]}...\n"
+                                        )
 
                                         # Close current session
-                                        await self.api_client.close_session(self.current_session_id)
+                                        await self.api_client.close_session(
+                                            self.current_session_id
+                                        )
 
                                         # Resume selected session
-                                        session_info = await self.api_client.create_session(
-                                            resume_session_id=selected_session_id,
-                                            enable_proxy=self.enable_proxy,
-                                            model=self.model,
-                                            background_model=self.background_model,
-                                            cwd=self.cwd,
+                                        session_info = (
+                                            await self.api_client.create_session(
+                                                resume_session_id=selected_session_id,
+                                                enable_proxy=self.enable_proxy,
+                                                model=self.model,
+                                                background_model=self.background_model,
+                                                cwd=self.cwd,
+                                            )
                                         )
-                                        self.current_session_id = session_info["session_id"]
+                                        self.current_session_id = session_info[
+                                            "session_id"
+                                        ]
                                         print("✅ Session switched\n")
                                     else:
-                                        print(f"\n{Colors.YELLOW}⚠️ Invalid choice{Colors.RESET}\n")
+                                        print(
+                                            f"\n{Colors.YELLOW}⚠️ Invalid choice{Colors.RESET}\n"
+                                        )
                                 except ValueError:
-                                    print(f"\n{Colors.YELLOW}⚠️ Invalid input{Colors.RESET}\n")
+                                    print(
+                                        f"\n{Colors.YELLOW}⚠️ Invalid input{Colors.RESET}\n"
+                                    )
                         continue
 
                     if user_input.lower().startswith("model "):
@@ -642,20 +683,30 @@ class InteractiveClient:
                             model_name = "claude-3-5-sonnet-20241022"
 
                         try:
-                            result = await self.api_client.set_model(self.current_session_id, model_name)
+                            result = await self.api_client.set_model(
+                                self.current_session_id, model_name
+                            )
                             model_display = model_name or "default"
-                            print(f"{Colors.GREEN}✅ Model changed to: {model_display}{Colors.RESET}\n")
+                            print(
+                                f"{Colors.GREEN}✅ Model changed to: {model_display}{Colors.RESET}\n"
+                            )
                         except Exception as e:
-                            print(f"{Colors.RED}❌ Failed to change model: {e}{Colors.RESET}\n")
+                            print(
+                                f"{Colors.RED}❌ Failed to change model: {e}{Colors.RESET}\n"
+                            )
                         continue
 
                     if user_input.lower() == "interrupt":
                         # Interrupt current operation
                         try:
                             await self.api_client.interrupt(self.current_session_id)
-                            print(f"{Colors.YELLOW}⚠️ Interrupt signal sent{Colors.RESET}\n")
+                            print(
+                                f"{Colors.YELLOW}⚠️ Interrupt signal sent{Colors.RESET}\n"
+                            )
                         except Exception as e:
-                            print(f"{Colors.RED}❌ Failed to interrupt: {e}{Colors.RESET}\n")
+                            print(
+                                f"{Colors.RED}❌ Failed to interrupt: {e}{Colors.RESET}\n"
+                            )
                         continue
 
                     if user_input.lower().startswith("mode "):
@@ -665,40 +716,57 @@ class InteractiveClient:
                             result = await self.api_client.set_permission_mode(
                                 self.current_session_id, mode_name
                             )
-                            print(f"{Colors.GREEN}✅ Permission mode changed to: {mode_name}{Colors.RESET}\n")
+                            print(
+                                f"{Colors.GREEN}✅ Permission mode changed to: {mode_name}{Colors.RESET}\n"
+                            )
                         except Exception as e:
-                            print(f"{Colors.RED}❌ Failed to change permission mode: {e}{Colors.RESET}\n")
+                            print(
+                                f"{Colors.RED}❌ Failed to change permission mode: {e}{Colors.RESET}\n"
+                            )
                         continue
 
                     if user_input.lower() == "info":
                         # Get server info
                         try:
-                            info = await self.api_client.get_server_info(self.current_session_id)
-                            print(f"\n{Colors.CYAN}📋 Server Information:{Colors.RESET}")
+                            info = await self.api_client.get_server_info(
+                                self.current_session_id
+                            )
+                            print(
+                                f"\n{Colors.CYAN}📋 Server Information:{Colors.RESET}"
+                            )
                             if info:
                                 # Pretty print the info
                                 import json
+
                                 print(json.dumps(info, indent=2, ensure_ascii=False))
                             else:
                                 print("  No server info available")
                             print()
                         except Exception as e:
-                            print(f"{Colors.RED}❌ Failed to get server info: {e}{Colors.RESET}\n")
+                            print(
+                                f"{Colors.RED}❌ Failed to get server info: {e}{Colors.RESET}\n"
+                            )
                         continue
 
                     if not user_input:
                         continue
 
                     # Send message
-                    response = await self.api_client.send_message(self.current_session_id, user_input)
+                    response = await self.api_client.send_message(
+                        self.current_session_id, user_input
+                    )
 
                     # Display response
                     for msg_block in response["messages"]:
                         if msg_block["type"] == "text":
-                            print(f"{Colors.BLUE}🤖 Claude: {msg_block['content']}{Colors.RESET}")
+                            print(
+                                f"{Colors.BLUE}🤖 Claude: {msg_block['content']}{Colors.RESET}"
+                            )
                         elif msg_block["type"] == "tool_use":
                             tool_name = msg_block["tool_name"]
-                            print(f"{Colors.YELLOW}🔧 Using tool: {tool_name}{Colors.RESET}")
+                            print(
+                                f"{Colors.YELLOW}🔧 Using tool: {tool_name}{Colors.RESET}"
+                            )
 
                     # Show cost if available
                     if response.get("cost_usd"):
@@ -823,7 +891,11 @@ Examples:
 
     # Run interactive client
     interactive_client = InteractiveClient(
-        api_client, enable_proxy=enable_proxy, model=model, background_model=background_model, cwd=cwd
+        api_client,
+        enable_proxy=enable_proxy,
+        model=model,
+        background_model=background_model,
+        cwd=cwd,
     )
     try:
         await interactive_client.run()
