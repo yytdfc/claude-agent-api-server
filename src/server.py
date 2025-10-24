@@ -410,7 +410,33 @@ class AgentSession:
         }
 
         if resume_session_id:
-            options_dict["resume"] = resume_session_id
+            # SDK expects full path to session file, not just session ID
+            # Construct the path based on cwd
+            if self.cwd:
+                path_key = self.cwd.replace('/', '-').replace('_', '-')
+                session_file = Path.home() / ".claude" / "projects" / path_key / f"{resume_session_id}.jsonl"
+                if session_file.exists():
+                    options_dict["resume"] = str(session_file)
+                else:
+                    # Fall back to searching all project directories
+                    session_dir = Path.home() / ".claude" / "projects"
+                    for project_dir in session_dir.iterdir():
+                        if not project_dir.is_dir():
+                            continue
+                        potential_file = project_dir / f"{resume_session_id}.jsonl"
+                        if potential_file.exists():
+                            options_dict["resume"] = str(potential_file)
+                            break
+            else:
+                # No cwd provided, search all project directories
+                session_dir = Path.home() / ".claude" / "projects"
+                for project_dir in session_dir.iterdir():
+                    if not project_dir.is_dir():
+                        continue
+                    potential_file = project_dir / f"{resume_session_id}.jsonl"
+                    if potential_file.exists():
+                        options_dict["resume"] = str(potential_file)
+                        break
 
         if self.model:
             options_dict["model"] = self.model

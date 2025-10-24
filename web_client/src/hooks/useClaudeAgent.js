@@ -226,9 +226,35 @@ export function useClaudeAgent() {
   }, [sessionId, addErrorMessage])
 
   // Load existing session
-  const loadSession = useCallback(async (existingSessionId) => {
+  const loadSession = useCallback(async (existingSessionId, settings = null) => {
     try {
       setConnecting(true)
+
+      // Use provided settings or fall back to configRef
+      const config = settings || configRef.current
+      if (!config) {
+        throw new Error('No configuration available. Please check settings.')
+      }
+
+      // Update serverUrl if settings provided
+      if (settings) {
+        serverUrlRef.current = settings.serverUrl.trim()
+        configRef.current = settings
+      }
+
+      // First, try to get the session's original cwd from history
+      let sessionCwd = config.cwd
+      try {
+        const historyResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/history`)
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json()
+          if (historyData.metadata && historyData.metadata.cwd) {
+            sessionCwd = historyData.metadata.cwd
+          }
+        }
+      } catch (error) {
+        console.warn('Could not fetch session history for cwd:', error)
+      }
 
       // Check session status
       const statusResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/status`)
@@ -236,11 +262,6 @@ export function useClaudeAgent() {
       // If session doesn't exist (404), create it with resume
       if (statusResponse.status === 404) {
         // Session not active, need to create/resume it
-        if (!configRef.current) {
-          throw new Error('No configuration available. Please connect first.')
-        }
-
-        const config = configRef.current
         const payload = {
           resume_session_id: existingSessionId,
           enable_proxy: config.enableProxy
@@ -251,8 +272,9 @@ export function useClaudeAgent() {
         if (config.backgroundModel && config.backgroundModel.trim()) {
           payload.background_model = config.backgroundModel.trim()
         }
-        if (config.cwd && config.cwd.trim()) {
-          payload.cwd = config.cwd.trim()
+        // Use the session's original cwd (from history) or fall back to config.cwd
+        if (sessionCwd && sessionCwd.trim()) {
+          payload.cwd = sessionCwd.trim()
         }
 
         const createResponse = await fetch(`${serverUrlRef.current}/sessions`, {
