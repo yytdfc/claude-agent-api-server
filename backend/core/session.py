@@ -178,8 +178,22 @@ class AgentSession:
     async def disconnect(self):
         """Disconnect the SDK client and cleanup."""
         if self.client:
-            await self.client.disconnect()
-            self.status = "disconnected"
+            try:
+                await self.client.disconnect()
+            except RuntimeError as e:
+                # Handle anyio TaskGroup exit in different task error
+                # This can happen when closing sessions due to asyncio event loop differences
+                if "cancel scope" in str(e) or "different task" in str(e):
+                    # Log the error but don't fail - the session is being closed anyway
+                    import logging
+
+                    logging.warning(
+                        f"Session {self.session_id}: Disconnect cleanup error (non-fatal): {e}"
+                    )
+                else:
+                    raise
+            finally:
+                self.status = "disconnected"
 
     async def permission_callback(
         self, tool_name: str, input_data: dict, context: ToolPermissionContext
