@@ -232,15 +232,49 @@ export function useClaudeAgent() {
 
       // Check session status
       const statusResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/status`)
-      if (!statusResponse.ok) {
-        throw new Error('Session not found or inactive')
+
+      // If session doesn't exist (404), create it with resume
+      if (statusResponse.status === 404) {
+        // Session not active, need to create/resume it
+        if (!configRef.current) {
+          throw new Error('No configuration available. Please connect first.')
+        }
+
+        const config = configRef.current
+        const payload = {
+          resume_session_id: existingSessionId,
+          enable_proxy: config.enableProxy
+        }
+        if (config.model && config.model.trim()) {
+          payload.model = config.model.trim()
+        }
+        if (config.backgroundModel && config.backgroundModel.trim()) {
+          payload.background_model = config.backgroundModel.trim()
+        }
+        if (config.cwd && config.cwd.trim()) {
+          payload.cwd = config.cwd.trim()
+        }
+
+        const createResponse = await fetch(`${serverUrlRef.current}/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        if (!createResponse.ok) {
+          throw new Error('Failed to resume session')
+        }
+
+        const createData = await createResponse.json()
+        setSessionId(createData.session_id)
+        setConnected(true)
+      } else if (!statusResponse.ok) {
+        throw new Error('Session error')
+      } else {
+        // Session is already active
+        setSessionId(existingSessionId)
+        setConnected(true)
       }
-
-      const statusData = await statusResponse.json()
-
-      // Set session as current
-      setSessionId(existingSessionId)
-      setConnected(true)
 
       // Try to load message history from disk
       try {
@@ -273,14 +307,14 @@ export function useClaudeAgent() {
           // No history available, start fresh
           setMessages([])
           addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}...`)
-          setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}... (${statusData.message_count} messages)`)
+          setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}...`)
         }
       } catch (historyError) {
         // History loading failed, start fresh
         console.warn('Failed to load history:', historyError)
         setMessages([])
         addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}... (history unavailable)`)
-        setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}... (${statusData.message_count} messages)`)
+        setSessionInfo(`📋 Session: ${existingSessionId.slice(0, 8)}...`)
       }
     } catch (error) {
       addErrorMessage(`Failed to load session: ${error.message}`)
