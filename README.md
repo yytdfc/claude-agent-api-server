@@ -96,16 +96,18 @@ cd api_server
 uv sync
 ```
 
-The project structure uses a `src/` layout:
+The project structure:
 ```
 api_server/
-├── src/
-│   ├── __init__.py
-│   ├── server.py          # FastAPI server
-│   ├── client.py          # CLI client
-│   ├── example.py         # Usage examples
-│   ├── test_invocations.py # Tests
-│   └── main.py            # Entry points
+├── backend/
+│   ├── api/               # API endpoints
+│   ├── core/              # Core business logic
+│   ├── models/            # Data models
+│   ├── proxy/             # LiteLLM proxy
+│   └── server.py          # FastAPI server
+├── cli_client/
+│   └── client.py          # CLI client
+├── web_client/            # Web UI
 ├── pyproject.toml         # Project config (uv managed)
 ├── uv.lock               # Lock file
 └── README.md
@@ -363,10 +365,7 @@ Close session:
 
 **Testing:**
 ```bash
-# Run the test suite
-python test_invocations.py
-
-# Or test with curl
+# Test with curl
 curl -X POST http://localhost:8000/invocations \
   -H "Content-Type: application/json" \
   -d '{
@@ -834,20 +833,20 @@ Sessions are automatically cleaned up on:
 
 ## Development
 
-### Running Tests
+### Testing
 
 ```bash
 # Start server in one terminal
 uv run backend/server.py
 
-# In another terminal, run tests
-uv run backend/test_invocations.py
-
-# Or test with curl
+# In another terminal, test with curl
 curl http://localhost:8000/health
 
-# Run examples
-uv run backend/example.py
+# Or use the CLI client
+uv run cli_client/client.py
+
+# Or use the web client
+cd web_client && npm run dev
 ```
 
 ### API Documentation

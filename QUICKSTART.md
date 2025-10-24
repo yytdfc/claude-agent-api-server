@@ -37,13 +37,13 @@ uv sync
 ```bash
 # Terminal 1: Start the server
 cd api_server
-uv run src/server.py
+uv run backend/server.py
 ```
 
 ```bash
 # Terminal 2: Start the client
 cd api_server
-uv run src/client.py
+uv run cli_client/client.py
 ```
 
 ### Option 2: Using the Start Script
@@ -57,7 +57,7 @@ cd api_server
 ```bash
 # Terminal 2: Start the client
 cd api_server
-uv run src/client.py
+uv run cli_client/client.py
 ```
 
 ## First Conversation
@@ -99,22 +99,18 @@ Allow? [Y/n/d]:
 
 ## Testing the API
 
-Run the example and test scripts:
+Test the API using curl or the clients:
 
 ```bash
-# Run usage examples
-uv run src/example.py
+# Test with curl
+curl http://localhost:8000/health
 
-# Run invocations endpoint tests
-uv run src/test_invocations.py
+# Or use the CLI client
+uv run cli_client/client.py
+
+# Or use the web client
+cd web_client && npm run dev
 ```
-
-This will demonstrate:
-- Simple conversations
-- Session management
-- Multi-turn dialogues
-- Permission handling
-- Unified /invocations endpoint
 
 ## API Documentation
 
@@ -125,11 +121,11 @@ Once the server is running, visit:
 ## Architecture
 
 ```
-Client (client.py) ←→ HTTP API ←→ Server (server.py) ←→ Claude Agent SDK
+Clients (CLI/Web) ←→ HTTP API ←→ Backend Server ←→ Claude Agent SDK
 ```
 
-- **Client**: Lightweight CLI with no SDK dependencies
-- **Server**: Stateful API wrapper around the SDK
+- **Clients**: CLI (cli_client/) and Web UI (web_client/)
+- **Backend**: Stateful API server (backend/)
 - **SDK**: Claude Agent SDK for Claude Code
 
 ## Troubleshooting
@@ -162,27 +158,28 @@ uv sync --reinstall
 ## Next Steps
 
 - Read the full [README.md](README.md) for detailed documentation
-- Explore [example.py](example.py) for programmatic usage
 - Check out the API docs at http://localhost:8000/docs
+- Try the web client for a modern UI experience
 
 ## File Structure
 
 ```
 api_server/
-├── src/
-│   ├── __init__.py           # Package initialization
-│   ├── server.py             # FastAPI server implementation
-│   ├── client.py             # Interactive CLI client
-│   ├── example.py            # Usage examples
-│   ├── test_invocations.py  # Test suite
-│   └── main.py               # Entry points
+├── backend/
+│   ├── api/                  # API endpoints
+│   ├── core/                 # Business logic
+│   ├── models/               # Data models
+│   ├── proxy/                # LiteLLM proxy
+│   └── server.py             # FastAPI server
+├── cli_client/
+│   └── client.py             # CLI client
+├── web_client/               # Web UI
 ├── pyproject.toml            # Project config (uv managed)
 ├── uv.lock                   # Dependency lock file
-├── .python-version           # Python version specification
 ├── start.sh                  # Quick start script
 ├── README.md                 # Full documentation
 ├── QUICKSTART.md             # This file
-└── LICENSE                   # MIT License
+└── ARCHITECTURE.md           # Architecture details
 ```
 
 ## Key Features

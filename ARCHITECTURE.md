@@ -9,7 +9,7 @@ The server has been refactored from a single monolithic file (1351 lines) into a
 ## Directory Structure
 
 ```
-src/
+backend/
 ├── server.py                    # Main FastAPI app (~110 lines)
 ├── models/                      # Data models
 │   ├── __init__.py
@@ -27,6 +27,12 @@ src/
 └── proxy/                       # LiteLLM integration
     ├── __init__.py
     └── litellm_proxy.py        # Proxy endpoint (~130 lines)
+
+cli_client/                      # CLI client
+└── client.py                   # Interactive CLI (~700 lines)
+
+web_client/                      # Web UI
+└── src/                        # React components
 ```
 
 ## Module Descriptions
@@ -106,10 +112,11 @@ Provides LiteLLM proxy functionality:
 
 ## Migration Notes
 
-- The original `server.py` has been preserved as `server_old.py`
+- The original monolithic `server.py` was split into modular components
 - All functionality remains the same
 - No changes needed to API clients
-- Import paths have changed for internal components
+- Directory renamed from `src/` to `backend/` for clarity
+- CLI client moved to root-level `cli_client/` directory
 
 ## Testing
 
@@ -117,13 +124,16 @@ To verify the refactored server:
 
 ```bash
 # Test imports
-python -c "from src.server import app; print('✓ Server imports successfully')"
+python -c "from backend.server import app; print('✓ Server imports successfully')"
 
 # Run the server
-python -m src.server
+python -m backend.server
 
 # Or use uvicorn
-uvicorn src.server:app --host 127.0.0.1 --port 8000
+uvicorn backend.server:app --host 127.0.0.1 --port 8000
+
+# Or use the start script
+./start.sh
 ```
 
 ## Future Improvements
