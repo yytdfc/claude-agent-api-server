@@ -57,6 +57,7 @@ class CreateSessionRequest(BaseModel):
     model: Optional[str] = None  # e.g., "claude-3-5-sonnet-20241022"
     background_model: Optional[str] = None  # Background model for agents (sets ANTHROPIC_DEFAULT_HAIKU_MODEL)
     enable_proxy: bool = False  # Enable LiteLLM proxy mode
+    cwd: Optional[str] = None  # Working directory for the session
 
 
 class CreateSessionResponse(BaseModel):
@@ -172,6 +173,7 @@ class SessionManager:
         background_model: Optional[str] = None,
         enable_proxy: bool = False,
         server_port: int = 8000,
+        cwd: Optional[str] = None,
     ) -> str:
         """
         Create a new session or resume an existing one.
@@ -183,6 +185,7 @@ class SessionManager:
             background_model: Optional background model for agents
             enable_proxy: Enable LiteLLM proxy mode
             server_port: Server port for proxy mode
+            cwd: Working directory for the session
 
         Returns:
             The session ID (new or resumed)
@@ -192,7 +195,7 @@ class SessionManager:
         if session_id in self.sessions:
             raise HTTPException(status_code=400, detail="Session already active")
 
-        session = AgentSession(session_id, system_prompt, model, background_model, enable_proxy, server_port)
+        session = AgentSession(session_id, system_prompt, model, background_model, enable_proxy, server_port, cwd)
         await session.connect(resume_session_id)
 
         self.sessions[session_id] = session
@@ -331,6 +334,7 @@ class AgentSession:
         background_model: Optional[str] = None,
         enable_proxy: bool = False,
         server_port: int = 8000,
+        cwd: Optional[str] = None,
     ):
         """
         Initialize an agent session.
@@ -342,6 +346,7 @@ class AgentSession:
             background_model: Optional background model for agents
             enable_proxy: Enable LiteLLM proxy mode (sets ANTHROPIC_BASE_URL)
             server_port: Server port for proxy mode (default: 8000)
+            cwd: Working directory for the session
         """
         self.session_id = session_id
         self.client: Optional[ClaudeSDKClient] = None
@@ -356,6 +361,7 @@ class AgentSession:
         self.permission_result: Optional[Any] = None
 
         # Session configuration
+        self.cwd = cwd
         self.system_prompt = system_prompt or "You are a helpful AI assistant."
         # Model: use provided, or env var, or None (SDK default)
         self.model = model or os.environ.get("ANTHROPIC_MODEL")
@@ -389,6 +395,9 @@ class AgentSession:
 
         if self.model:
             options_dict["model"] = self.model
+
+        if self.cwd:
+            options_dict["cwd"] = self.cwd
 
         # Build environment variables
         env_vars = {}
@@ -723,6 +732,7 @@ async def create_session(request: CreateSessionRequest):
         background_model=request.background_model,
         enable_proxy=request.enable_proxy,
         server_port=8000,  # Using hardcoded port from uvicorn.run
+        cwd=request.cwd,
     )
 
     return CreateSessionResponse(

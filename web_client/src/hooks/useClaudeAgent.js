@@ -74,6 +74,9 @@ export function useClaudeAgent() {
       if (config.backgroundModel.trim()) {
         payload.background_model = config.backgroundModel.trim()
       }
+      if (config.cwd.trim()) {
+        payload.cwd = config.cwd.trim()
+      }
 
       const response = await fetch(`${serverUrlRef.current}/sessions`, {
         method: 'POST',

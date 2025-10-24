@@ -62,6 +62,7 @@ class APIClient:
         enable_proxy: bool = False,
         model: Optional[str] = None,
         background_model: Optional[str] = None,
+        cwd: Optional[str] = None,
     ) -> dict:
         """
         Create a new session or resume an existing one.
@@ -71,6 +72,7 @@ class APIClient:
             enable_proxy: Enable LiteLLM proxy mode
             model: Model to use for the session
             background_model: Background model for agents
+            cwd: Working directory for the session
 
         Returns:
             Session information dictionary
@@ -85,6 +87,8 @@ class APIClient:
             payload["model"] = model
         if background_model:
             payload["background_model"] = background_model
+        if cwd:
+            payload["cwd"] = cwd
 
         response = await self.client.post(f"{self.base_url}/sessions", json=payload)
         response.raise_for_status()
@@ -258,6 +262,7 @@ class InteractiveClient:
         enable_proxy: bool = False,
         model: Optional[str] = None,
         background_model: Optional[str] = None,
+        cwd: Optional[str] = None,
     ):
         """
         Initialize the interactive client.
@@ -267,6 +272,7 @@ class InteractiveClient:
             enable_proxy: Enable LiteLLM proxy mode
             model: Initial model to use for the session
             background_model: Background model for agents
+            cwd: Working directory for the session
         """
         self.api_client = api_client
         self.current_session_id: Optional[str] = None
@@ -274,6 +280,7 @@ class InteractiveClient:
         self.enable_proxy = enable_proxy
         self.background_model = background_model
         self.model = model
+        self.cwd = cwd
 
     def print_welcome(self):
         """Print welcome banner and instructions."""
@@ -534,6 +541,7 @@ class InteractiveClient:
                 enable_proxy=self.enable_proxy,
                 model=self.model,
                 background_model=self.background_model,
+                cwd=self.cwd,
             )
             self.current_session_id = session_info["session_id"]
 
@@ -577,6 +585,7 @@ class InteractiveClient:
                             enable_proxy=self.enable_proxy,
                             model=self.model,
                             background_model=self.background_model,
+                            cwd=self.cwd,
                         )
                         self.current_session_id = session_info["session_id"]
                         print("✅ New session started\n")
@@ -700,13 +709,14 @@ async def main():
 Claude Agent Interactive Client
 
 Usage:
-    python client.py [--server SERVER_URL] [--proxy] [--model MODEL] [--background-model MODEL]
+    python client.py [--server SERVER_URL] [--proxy] [--model MODEL] [--background-model MODEL] [--cwd PATH]
 
 Options:
     --server URL              API server URL (default: http://127.0.0.1:8000)
     --proxy                   Enable LiteLLM proxy mode
     --model MODEL             Main model to use (e.g., claude-3-5-sonnet-20241022, gpt-4)
     --background-model MODEL  Background model for agents (e.g., claude-3-5-haiku-20241022, gpt-3.5-turbo)
+    --cwd PATH                Working directory for the session (e.g., /workspace)
     -h, --help                Show this help message
 
 Description:
@@ -720,12 +730,14 @@ Description:
 
     The --model parameter sets the main model for user interactions.
     The --background-model parameter sets the model for background agents.
+    The --cwd parameter sets the working directory for the session.
 
 Examples:
     python client.py
     python client.py --server http://localhost:8000
     python client.py --proxy --model gpt-4 --background-model gpt-3.5-turbo
     python client.py --model claude-3-5-sonnet-20241022 --background-model claude-3-5-haiku-20241022
+    python client.py --cwd /workspace
         """
         )
         sys.exit(0)
@@ -754,6 +766,13 @@ Examples:
         if idx + 1 < len(sys.argv):
             background_model = sys.argv[idx + 1]
 
+    # Parse cwd
+    cwd = None
+    if "--cwd" in sys.argv:
+        idx = sys.argv.index("--cwd")
+        if idx + 1 < len(sys.argv):
+            cwd = sys.argv[idx + 1]
+
     # Create client
     api_client = APIClient(base_url=server_url)
 
@@ -772,7 +791,7 @@ Examples:
 
     # Run interactive client
     interactive_client = InteractiveClient(
-        api_client, enable_proxy=enable_proxy, model=model, background_model=background_model
+        api_client, enable_proxy=enable_proxy, model=model, background_model=background_model, cwd=cwd
     )
     try:
         await interactive_client.run()

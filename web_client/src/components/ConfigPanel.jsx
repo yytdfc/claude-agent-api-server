@@ -5,7 +5,8 @@ function ConfigPanel({ onConnect, connecting }) {
     serverUrl: 'http://127.0.0.1:8000',
     model: '',
     backgroundModel: '',
-    enableProxy: false
+    enableProxy: false,
+    cwd: ''
   })
 
   const handleSubmit = (e) => {
@@ -53,6 +54,18 @@ function ConfigPanel({ onConnect, connecting }) {
             onChange={(e) => handleChange('backgroundModel', e.target.value)}
             placeholder="e.g., claude-3-5-haiku-20241022 or gpt-3.5-turbo"
           />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="cwd">Working Directory:</label>
+          <input
+            type="text"
+            id="cwd"
+            value={config.cwd}
+            onChange={(e) => handleChange('cwd', e.target.value)}
+            placeholder="e.g., /workspace or /Users/name/project"
+          />
+          <small>Optional: Set the working directory for the session</small>
         </div>
 
         <div className="form-group">

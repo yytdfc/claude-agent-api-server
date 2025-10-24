@@ -140,6 +140,14 @@ body {
     margin-right: 8px;
 }
 
+.form-group small {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 .form-actions {
     display: flex;
     gap: 12px;
