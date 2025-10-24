@@ -757,27 +757,38 @@ async def list_available_sessions():
 
 
 @app.get("/sessions/{session_id}/history")
-async def get_session_history(session_id: str):
+async def get_session_history(session_id: str, cwd: str = None):
     """
     Get the conversation history for a session from disk.
 
     Args:
         session_id: The session ID
+        cwd: Optional current working directory to locate the session file
 
     Returns:
         Session history with messages and metadata
     """
-    session_dir = Path.home() / ".claude" / "projects"
+    base_dir = Path.home() / ".claude" / "projects"
 
     # Find the session file
     session_file = None
-    for project_dir in session_dir.iterdir():
-        if not project_dir.is_dir():
-            continue
-        potential_file = project_dir / f"{session_id}.jsonl"
+
+    # If cwd is provided, try to find it directly
+    if cwd:
+        path_key = cwd.replace('/', '-').replace('_', '-')
+        potential_file = base_dir / path_key / f"{session_id}.jsonl"
         if potential_file.exists():
             session_file = potential_file
-            break
+
+    # If not found, search all project directories
+    if not session_file:
+        for project_dir in base_dir.iterdir():
+            if not project_dir.is_dir():
+                continue
+            potential_file = project_dir / f"{session_id}.jsonl"
+            if potential_file.exists():
+                session_file = potential_file
+                break
 
     if not session_file:
         raise HTTPException(status_code=404, detail="Session history not found")
