@@ -620,6 +620,8 @@ class InteractiveClient:
                                             resume_session_id=selected_session_id,
                                             enable_proxy=self.enable_proxy,
                                             model=self.model,
+                                            background_model=self.background_model,
+                                            cwd=self.cwd,
                                         )
                                         self.current_session_id = session_info["session_id"]
                                         print("✅ Session switched\n")
