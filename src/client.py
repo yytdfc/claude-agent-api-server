@@ -291,7 +291,7 @@ class InteractiveClient:
         print("  • Type your questions or requests")
         print("  • Type 'exit' or 'quit' to exit")
         print("  • Type 'clear' to start a new session")
-        print("  • Type 'sessions' to list available sessions")
+        print("  • Type 'sessions' to list and switch between sessions")
         print("  • Type 'model <name>' to change model (haiku/sonnet/default)")
         print("  • Type 'mode <name>' to change permission mode")
         print("  • Type 'interrupt' to stop current operation")
@@ -310,7 +310,7 @@ class InteractiveClient:
         print("\nAvailable Commands:")
         print("  exit/quit         - Exit the program")
         print("  clear             - Start a new session")
-        print("  sessions          - List all available sessions")
+        print("  sessions          - List and switch between sessions")
         print("  model <name>      - Change model (haiku/sonnet/default)")
         print("  mode <name>       - Change permission mode (default/acceptEdits/plan/bypassPermissions)")
         print("  interrupt         - Stop current operation")
@@ -596,7 +596,37 @@ class InteractiveClient:
                         continue
 
                     if user_input.lower() == "sessions":
-                        await self.display_available_sessions()
+                        # Display sessions and allow switching
+                        sessions = await self.display_available_sessions()
+                        if sessions:
+                            print("💡 Options:")
+                            print(f"  Enter number (1-{min(10, len(sessions))}) - Switch to that session")
+                            print("  Press Enter - Continue with current session\n")
+
+                            choice = input("Your choice: ").strip()
+
+                            if choice:
+                                try:
+                                    index = int(choice) - 1
+                                    if 0 <= index < len(sessions):
+                                        selected_session_id = sessions[index]["session_id"]
+                                        print(f"\n🔄 Switching to session: {selected_session_id[:40]}...\n")
+
+                                        # Close current session
+                                        await self.api_client.close_session(self.current_session_id)
+
+                                        # Resume selected session
+                                        session_info = await self.api_client.create_session(
+                                            resume_session_id=selected_session_id,
+                                            enable_proxy=self.enable_proxy,
+                                            model=self.model,
+                                        )
+                                        self.current_session_id = session_info["session_id"]
+                                        print("✅ Session switched\n")
+                                    else:
+                                        print(f"\n{Colors.YELLOW}⚠️ Invalid choice{Colors.RESET}\n")
+                                except ValueError:
+                                    print(f"\n{Colors.YELLOW}⚠️ Invalid input{Colors.RESET}\n")
                         continue
 
                     if user_input.lower().startswith("model "):

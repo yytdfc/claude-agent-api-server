@@ -204,7 +204,10 @@ Once the client is running, you can use these commands:
 - **Regular conversation**: Just type your message
 - **`exit` or `quit`**: Exit the program
 - **`clear`**: Start a new session
-- **`sessions`**: List all available sessions
+- **`sessions`**: List and switch between available sessions
+  - Displays all saved sessions with previews
+  - Enter a number to switch to that session
+  - Press Enter to continue with current session
 - **`model <name>`**: Change model (haiku/sonnet/default)
 - **`mode <name>`**: Change permission mode (default/acceptEdits/plan/bypassPermissions)
 - **`interrupt`**: Stop the current operation
