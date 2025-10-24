@@ -315,11 +315,30 @@ export function useClaudeAgent() {
           const historyData = await historyResponse.json()
 
           // Convert history messages to UI format
-          const historyMessages = historyData.messages.map(msg => ({
-            type: 'text',
-            role: msg.role,
-            content: msg.content
-          }))
+          const historyMessages = historyData.messages.map(msg => {
+            // Check if it's a tool message
+            if (msg.type === 'tool_use') {
+              return {
+                type: 'tool',
+                toolName: msg.tool_name,
+                toolInput: msg.tool_input
+              }
+            } else if (msg.type === 'tool_result') {
+              return {
+                type: 'tool_result',
+                toolUseId: msg.tool_use_id,
+                content: msg.content,
+                isError: msg.is_error
+              }
+            } else {
+              // Regular text message
+              return {
+                type: 'text',
+                role: msg.role,
+                content: msg.content
+              }
+            }
+          })
 
           setMessages(historyMessages)
 

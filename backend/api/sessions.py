@@ -160,32 +160,77 @@ async def get_session_history(session_id: str, cwd: Optional[str] = None):
 
                         # Handle different content formats
                         if isinstance(content, str):
-                            text_content = content
+                            # Simple text message
+                            messages.append(
+                                {
+                                    "role": role,
+                                    "content": content,
+                                    "timestamp": entry.get("timestamp"),
+                                    "uuid": entry.get("uuid"),
+                                }
+                            )
                         elif isinstance(content, list):
-                            # Extract text from content blocks
-                            text_parts = []
+                            # Content blocks - process each separately
                             for block in content:
                                 if isinstance(block, dict):
-                                    if block.get("type") == "text":
-                                        text_parts.append(block.get("text", ""))
-                                    elif block.get("type") == "tool_use":
-                                        text_parts.append(
-                                            f"[Tool: {block.get('name', 'unknown')}]"
+                                    block_type = block.get("type")
+
+                                    if block_type == "text":
+                                        # Regular text block
+                                        messages.append(
+                                            {
+                                                "role": role,
+                                                "content": block.get("text", ""),
+                                                "timestamp": entry.get("timestamp"),
+                                                "uuid": entry.get("uuid"),
+                                            }
+                                        )
+                                    elif block_type == "tool_use":
+                                        # Tool use block
+                                        messages.append(
+                                            {
+                                                "type": "tool_use",
+                                                "role": role,
+                                                "tool_name": block.get("name"),
+                                                "tool_input": block.get("input"),
+                                                "tool_use_id": block.get("id"),
+                                                "timestamp": entry.get("timestamp"),
+                                                "uuid": entry.get("uuid"),
+                                            }
+                                        )
+                                    elif block_type == "tool_result":
+                                        # Tool result block
+                                        messages.append(
+                                            {
+                                                "type": "tool_result",
+                                                "role": role,
+                                                "tool_use_id": block.get("tool_use_id"),
+                                                "content": block.get("content"),
+                                                "is_error": block.get("is_error", False),
+                                                "timestamp": entry.get("timestamp"),
+                                                "uuid": entry.get("uuid"),
+                                            }
                                         )
                                 elif isinstance(block, str):
-                                    text_parts.append(block)
-                            text_content = "\n".join(text_parts)
+                                    # String block
+                                    messages.append(
+                                        {
+                                            "role": role,
+                                            "content": block,
+                                            "timestamp": entry.get("timestamp"),
+                                            "uuid": entry.get("uuid"),
+                                        }
+                                    )
                         else:
-                            text_content = str(content)
-
-                        messages.append(
-                            {
-                                "role": role,
-                                "content": text_content,
-                                "timestamp": entry.get("timestamp"),
-                                "uuid": entry.get("uuid"),
-                            }
-                        )
+                            # Unknown format, convert to string
+                            messages.append(
+                                {
+                                    "role": role,
+                                    "content": str(content),
+                                    "timestamp": entry.get("timestamp"),
+                                    "uuid": entry.get("uuid"),
+                                }
+                            )
 
                 except json.JSONDecodeError:
                     continue

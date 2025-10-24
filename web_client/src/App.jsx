@@ -11,8 +11,8 @@ const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
 const DEFAULT_SETTINGS = {
   serverUrl: 'http://127.0.0.1:8000',
   cwd: '/workspace',
-  model: '',
-  backgroundModel: '',
+  model: 'global.anthropic.claude-sonnet-4-5-20250929-v1:0',
+  backgroundModel: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
   enableProxy: false
 }
 

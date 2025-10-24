@@ -56,10 +56,23 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
       }
     }
 
+    // Initial fetch
     fetchSessions()
-    // Refresh session list every 5 seconds
-    const interval = setInterval(fetchSessions, 5000)
-    return () => clearInterval(interval)
+
+    // Refresh session list every 30 seconds (reduced from 5s)
+    // This is sufficient for most use cases and reduces server load
+    const interval = setInterval(fetchSessions, 30000)
+
+    // Also refresh on window focus (when user comes back to the tab)
+    const handleFocus = () => {
+      fetchSessions()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [serverUrl, cwd])
 
   const formatDate = (dateStr) => {
