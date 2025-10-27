@@ -1,15 +1,21 @@
 /**
  * AWS Cognito Configuration
+ *
+ * Configuration is loaded from environment variables:
+ * - VITE_COGNITO_REGION: AWS region (default: us-west-2)
+ * - VITE_COGNITO_USER_POOL_ID: Cognito User Pool ID
+ * - VITE_COGNITO_CLIENT_ID: Cognito User Pool Client ID
+ * - VITE_COGNITO_OAUTH_DOMAIN: OAuth domain for hosted UI (optional)
  */
 
 export const cognitoConfig = {
-  region: 'us-west-2',
-  userPoolId: 'us-west-2_Sw8yyFfBT',
-  userPoolClientId: '2d2cqqjvpf1ecqjg6gh1u6fivl',
+  region: import.meta.env.VITE_COGNITO_REGION || 'us-west-2',
+  userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || 'us-west-2_Sw8yyFfBT',
+  userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '2d2cqqjvpf1ecqjg6gh1u6fivl',
 
   // OAuth configuration (optional)
   oauth: {
-    domain: '', // Add if using Cognito hosted UI
+    domain: import.meta.env.VITE_COGNITO_OAUTH_DOMAIN || '', // Add if using Cognito hosted UI
     scope: ['email', 'openid', 'profile'],
     redirectSignIn: window.location.origin,
     redirectSignOut: window.location.origin,
