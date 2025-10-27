@@ -110,7 +110,19 @@ class InvocationsAPIClient {
     })
 
     if (!response.ok) {
-      throw new Error(`Invocation failed: ${path}`)
+      const error = new Error(`Invocation failed: ${path}`)
+      error.status = response.status
+      error.statusText = response.statusText
+
+      // Try to get error details from response
+      try {
+        const errorData = await response.json()
+        error.detail = errorData.detail || errorData.message
+      } catch {
+        // Ignore JSON parse errors
+      }
+
+      throw error
     }
 
     return response.json()
@@ -134,8 +146,8 @@ class InvocationsAPIClient {
       )
       return { response: { ok: true, status: 200 }, data }
     } catch (error) {
-      // Handle 404 case
-      if (error.message.includes('404') || error.message.includes('not found')) {
+      // Handle 404 case - check status code or error message
+      if (error.status === 404 || error.message.includes('404') || error.detail?.includes('not found')) {
         return { response: { ok: false, status: 404 }, data: null }
       }
       throw error
@@ -152,7 +164,9 @@ class InvocationsAPIClient {
       )
       return { response: { ok: true, status: 200 }, data }
     } catch (error) {
-      return { response: { ok: false, status: 500 }, data: null }
+      // Return appropriate status code
+      const status = error.status || 500
+      return { response: { ok: false, status }, data: null }
     }
   }
 
