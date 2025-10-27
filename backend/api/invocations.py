@@ -28,6 +28,7 @@ from .sessions import (
     close_session,
     create_session,
     get_server_info,
+    get_session_history,
     list_available_sessions,
     list_sessions,
 )
@@ -198,6 +199,20 @@ async def invocations(request: dict[str, Any]):
                     status_code=400, detail="Missing session_id in path_params"
                 )
             return await get_server_info(session_id)
+
+        elif (
+            path.startswith("/sessions/")
+            and path.endswith("/history")
+            and method == "GET"
+        ):
+            # Get session history
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            cwd = payload.get("cwd") if payload else None
+            return await get_session_history(session_id, cwd)
 
         elif path.startswith("/sessions/") and method == "DELETE":
             # Close session

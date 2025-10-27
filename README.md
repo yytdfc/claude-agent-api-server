@@ -354,6 +354,16 @@ Get server info:
 }
 ```
 
+Get session history:
+```json
+{
+  "path": "/sessions/{session_id}/history",
+  "method": "GET",
+  "path_params": {"session_id": "abc123"},
+  "payload": {"cwd": "/optional/working/directory"}
+}
+```
+
 Close session:
 ```json
 {
