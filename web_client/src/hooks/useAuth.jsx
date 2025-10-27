@@ -53,13 +53,13 @@ export function AuthProvider({ children }) {
     checkUser()
   }, [checkUser])
 
-  // Sign in
-  const login = useCallback(async (email, password) => {
+  // Sign in (accepts username or email)
+  const login = useCallback(async (usernameOrEmail, password) => {
     setLoading(true)
     setError(null)
     try {
       const result = await signIn({
-        username: email,
+        username: usernameOrEmail,
         password
       })
 
@@ -83,12 +83,12 @@ export function AuthProvider({ children }) {
   }, [checkUser])
 
   // Sign up
-  const signup = useCallback(async (email, password) => {
+  const signup = useCallback(async (username, email, password) => {
     setLoading(true)
     setError(null)
     try {
       const result = await signUp({
-        username: email,
+        username: username,
         password,
         options: {
           userAttributes: {
@@ -112,12 +112,12 @@ export function AuthProvider({ children }) {
   }, [])
 
   // Confirm sign up
-  const confirmSignup = useCallback(async (email, code) => {
+  const confirmSignup = useCallback(async (username, code) => {
     setLoading(true)
     setError(null)
     try {
       await confirmSignUp({
-        username: email,
+        username: username,
         confirmationCode: code
       })
       return { success: true }
@@ -131,10 +131,10 @@ export function AuthProvider({ children }) {
   }, [])
 
   // Resend confirmation code
-  const resendCode = useCallback(async (email) => {
+  const resendCode = useCallback(async (username) => {
     try {
       await resendSignUpCode({
-        username: email
+        username: username
       })
       return { success: true }
     } catch (err) {

@@ -26,7 +26,7 @@ export const authConfig = {
       region: cognitoConfig.region,
       loginWith: {
         email: true,
-        username: false
+        username: true  // Enable username login
       }
     }
   }

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { Mail, Lock, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { Mail, Lock, Loader2, AlertCircle, CheckCircle, User } from 'lucide-react'
 
 function Signup({ onSwitchToLogin }) {
   const [step, setStep] = useState('signup') // 'signup' or 'confirm'
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -34,7 +35,7 @@ function Signup({ onSwitchToLogin }) {
     setLoading(true)
 
     try {
-      const result = await signup(email, password)
+      const result = await signup(username, email, password)
 
       if (result.success) {
         setSuccess('Account created! Check your email for verification code.')
@@ -56,7 +57,7 @@ function Signup({ onSwitchToLogin }) {
     setLoading(true)
 
     try {
-      const result = await confirmSignup(email, code)
+      const result = await confirmSignup(username, code)
 
       if (result.success) {
         setSuccess('Email verified! Redirecting to login...')
@@ -79,7 +80,7 @@ function Signup({ onSwitchToLogin }) {
     setLoading(true)
 
     try {
-      const result = await resendCode(email)
+      const result = await resendCode(username)
       if (result.success) {
         setSuccess('Verification code sent! Check your email.')
       } else {
@@ -120,6 +121,25 @@ function Signup({ onSwitchToLogin }) {
                 <span>{success}</span>
               </div>
             )}
+
+            <div className="form-group">
+              <label htmlFor="username">
+                <User size={16} />
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="username"
+                required
+                autoComplete="username"
+                disabled={loading}
+                minLength={3}
+              />
+              <small>At least 3 characters, letters and numbers only</small>
+            </div>
 
             <div className="form-group">
               <label htmlFor="email">
@@ -178,7 +198,7 @@ function Signup({ onSwitchToLogin }) {
             <button
               type="submit"
               className="btn btn-primary btn-block"
-              disabled={loading || !email || !password || !confirmPassword}
+              disabled={loading || !username || !email || !password || !confirmPassword}
             >
               {loading ? (
                 <>
