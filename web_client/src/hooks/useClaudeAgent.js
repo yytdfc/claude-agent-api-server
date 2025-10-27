@@ -42,6 +42,11 @@ export function useClaudeAgent() {
 
       const data = await response.json()
       if (data.pending_permission && !pendingPermission) {
+        // Add permission request as a message in the chat
+        setMessages(prev => [...prev, {
+          type: 'permission',
+          permission: data.pending_permission
+        }])
         setPendingPermission(data.pending_permission)
       }
     } catch (error) {
@@ -49,15 +54,41 @@ export function useClaudeAgent() {
     }
   }, [sessionId, pendingPermission])
 
-  // Start permission checking interval
+  // Start permission checking interval (only when page is visible)
   useEffect(() => {
-    if (connected && sessionId) {
-      permissionCheckIntervalRef.current = setInterval(checkPermissions, 1000)
+    if (!connected || !sessionId) return
+
+    // Start interval if page is currently visible
+    const startInterval = () => {
+      if (!document.hidden && !permissionCheckIntervalRef.current) {
+        permissionCheckIntervalRef.current = setInterval(checkPermissions, 1000)
+      }
     }
-    return () => {
+
+    // Stop interval
+    const stopInterval = () => {
       if (permissionCheckIntervalRef.current) {
         clearInterval(permissionCheckIntervalRef.current)
+        permissionCheckIntervalRef.current = null
       }
+    }
+
+    // Handle visibility change
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopInterval()
+      } else {
+        startInterval()
+      }
+    }
+
+    // Start interval and listen for visibility changes
+    startInterval()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      stopInterval()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [connected, sessionId, checkPermissions])
 
@@ -229,6 +260,18 @@ export function useClaudeAgent() {
           apply_suggestions: false
         })
       })
+
+      // Remove the permission message from chat and add response
+      setMessages(prev => {
+        const filtered = prev.filter(msg =>
+          msg.type !== 'permission' || msg.permission?.request_id !== requestId
+        )
+        return [...filtered, {
+          type: 'system',
+          content: allowed ? '✓ Permission granted' : '✗ Permission denied'
+        }]
+      })
+
       setPendingPermission(null)
     } catch (error) {
       addErrorMessage(`Failed to respond to permission: ${error.message}`)
@@ -314,7 +357,7 @@ export function useClaudeAgent() {
         if (historyResponse.ok) {
           const historyData = await historyResponse.json()
 
-          // Convert history messages to UI format
+          // Convert history messages to UI format and filter out warmup messages
           const historyMessages = historyData.messages.map(msg => {
             // Check if it's a tool message
             if (msg.type === 'tool_use') {
@@ -340,7 +383,11 @@ export function useClaudeAgent() {
             }
           })
 
-          setMessages(historyMessages)
+          // Filter out the first 2 messages (warmup conversation)
+          // These are typically the initial greeting exchange
+          const filteredMessages = historyMessages.slice(2)
+
+          setMessages(filteredMessages)
 
           // Update session info with metadata
           const metadata = historyData.metadata

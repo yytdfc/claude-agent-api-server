@@ -108,17 +108,11 @@ function App() {
               onSendMessage={sendMessage}
               onDisconnect={disconnect}
               onClearSession={clearSession}
+              onPermissionRespond={respondToPermission}
             />
           )}
         </main>
       </div>
-
-      {pendingPermission && (
-        <PermissionModal
-          permission={pendingPermission}
-          onRespond={respondToPermission}
-        />
-      )}
 
       {showSettings && (
         <SettingsModal

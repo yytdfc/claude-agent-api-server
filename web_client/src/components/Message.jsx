@@ -1,7 +1,7 @@
-import { Wrench, CheckCircle, XCircle } from 'lucide-react'
+import { Wrench, CheckCircle, XCircle, ShieldAlert } from 'lucide-react'
 
-function Message({ message }) {
-  const { type, role, content, toolName, toolInput, isError } = message
+function Message({ message, onPermissionRespond }) {
+  const { type, role, content, toolName, toolInput, isError, permission } = message
 
   const formatContent = (text) => {
     if (!text) return ''
@@ -49,6 +49,52 @@ function Message({ message }) {
         </div>
         <div className="message-content tool-input">
           <pre>{JSON.stringify(toolInput, null, 2)}</pre>
+        </div>
+      </div>
+    )
+  }
+
+  if (type === 'permission') {
+    return (
+      <div className="message permission-request">
+        <div className="message-header">
+          <ShieldAlert size={16} className="message-icon" />
+          <span className="message-label">Permission Required</span>
+        </div>
+        <div className="message-content permission-content">
+          <div className="permission-details">
+            <div className="permission-field">
+              <strong>Tool:</strong> {permission.tool_name}
+            </div>
+            <div className="permission-field">
+              <strong>Input:</strong>
+              <pre>{JSON.stringify(permission.tool_input, null, 2)}</pre>
+            </div>
+            {permission.suggestions && permission.suggestions.length > 0 && (
+              <div className="permission-field">
+                <strong>Suggestions:</strong>
+                <ul>
+                  {permission.suggestions.map((s, i) => (
+                    <li key={i}>{s.message || JSON.stringify(s)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          <div className="permission-actions">
+            <button
+              className="btn-permission btn-allow"
+              onClick={() => onPermissionRespond(permission.request_id, true)}
+            >
+              ✓ Allow
+            </button>
+            <button
+              className="btn-permission btn-deny"
+              onClick={() => onPermissionRespond(permission.request_id, false)}
+            >
+              ✗ Deny
+            </button>
+          </div>
         </div>
       </div>
     )

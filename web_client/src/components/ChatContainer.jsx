@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, X, Loader2 } from 'lucide-react'
 import Message from './Message'
 
-function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onClearSession }) {
+function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onClearSession, onPermissionRespond }) {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef(null)
@@ -52,7 +52,7 @@ function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onC
       {/* Messages */}
       <div className="messages">
         {messages.map((msg, index) => (
-          <Message key={index} message={msg} />
+          <Message key={index} message={msg} onPermissionRespond={onPermissionRespond} />
         ))}
         <div ref={messagesEndRef} />
       </div>
