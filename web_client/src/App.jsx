@@ -4,7 +4,11 @@ import ChatContainer from './components/ChatContainer'
 import PermissionModal from './components/PermissionModal'
 import SessionList from './components/SessionList'
 import SettingsModal from './components/SettingsModal'
+import Login from './components/Login'
+import Signup from './components/Signup'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
+import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
+import { Loader2 } from 'lucide-react'
 
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
 
@@ -16,8 +20,10 @@ const DEFAULT_SETTINGS = {
   enableProxy: false
 }
 
-function App() {
+function AppContent() {
   const [showSettings, setShowSettings] = useState(false)
+  const [authView, setAuthView] = useState('login') // 'login' or 'signup'
+  const { user, loading: authLoading, logout } = useAuth()
 
   // Load settings from localStorage or use defaults
   const [settings, setSettings] = useState(() => {
@@ -75,9 +81,33 @@ function App() {
     await loadSession(sessionId, settings)
   }
 
+  // Show loading spinner during auth check
+  if (authLoading) {
+    return (
+      <div className="auth-loading">
+        <Loader2 size={48} className="spinning" />
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  // Show auth screens if not logged in
+  if (!user) {
+    if (authView === 'signup') {
+      return <Signup onSwitchToLogin={() => setAuthView('login')} />
+    }
+    return <Login onSwitchToSignup={() => setAuthView('signup')} />
+  }
+
+  // Main app content (user is authenticated)
   return (
     <div className="app-layout">
-      <Header connected={connected} onSettingsClick={() => setShowSettings(true)} />
+      <Header
+        connected={connected}
+        onSettingsClick={() => setShowSettings(true)}
+        user={user}
+        onLogout={logout}
+      />
 
       <div className="main-content">
         <aside className="sidebar">
@@ -123,6 +153,14 @@ function App() {
         />
       )}
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 
