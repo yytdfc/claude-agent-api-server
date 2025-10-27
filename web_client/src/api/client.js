@@ -79,6 +79,28 @@ class DirectAPIClient {
     })
     return response.ok
   }
+
+  async listSessions(cwd = null) {
+    const url = cwd
+      ? `${this.baseUrl}/sessions?cwd=${encodeURIComponent(cwd)}`
+      : `${this.baseUrl}/sessions`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error('Failed to list sessions')
+    }
+    return response.json()
+  }
+
+  async listAvailableSessions(cwd = null) {
+    const url = cwd
+      ? `${this.baseUrl}/sessions/available?cwd=${encodeURIComponent(cwd)}`
+      : `${this.baseUrl}/sessions/available`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error('Failed to list available sessions')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -204,6 +226,16 @@ class InvocationsAPIClient {
     } catch (error) {
       return false
     }
+  }
+
+  async listSessions(cwd = null) {
+    const payload = cwd ? { cwd } : null
+    return this._invoke('/sessions', 'GET', payload)
+  }
+
+  async listAvailableSessions(cwd = null) {
+    const payload = cwd ? { cwd } : null
+    return this._invoke('/sessions/available', 'GET', payload)
   }
 }
 

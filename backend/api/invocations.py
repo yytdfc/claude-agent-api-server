@@ -99,11 +99,13 @@ async def invocations(request: dict[str, Any]):
 
         elif path == "/sessions" and method == "GET":
             # List sessions
-            return await list_sessions()
+            cwd = payload.get("cwd") if payload else None
+            return await list_sessions(cwd)
 
         elif path == "/sessions/available" and method == "GET":
             # List available sessions
-            return await list_available_sessions()
+            cwd = payload.get("cwd") if payload else None
+            return await list_available_sessions(cwd)
 
         elif (
             path.startswith("/sessions/")

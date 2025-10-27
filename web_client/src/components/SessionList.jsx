@@ -1,54 +1,49 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Plus, Circle } from 'lucide-react'
+import { createAPIClient } from '../api/client'
 
 function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd }) {
   const [sessions, setSessions] = useState([])
   const [activeSessions, setActiveSessions] = useState(new Set())
   const [loading, setLoading] = useState(false)
+  const apiClientRef = useRef(null)
 
   useEffect(() => {
     if (!serverUrl) return
 
+    // Create or update API client when serverUrl changes
+    if (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl) {
+      apiClientRef.current = createAPIClient(serverUrl)
+    }
+
     const fetchSessions = async () => {
+      if (!apiClientRef.current) return
+
       setLoading(true)
       try {
         // Fetch available sessions from disk
-        const availableUrl = cwd
-          ? `${serverUrl}/sessions/available?cwd=${encodeURIComponent(cwd)}`
-          : `${serverUrl}/sessions/available`
-
-        const availableResponse = await fetch(availableUrl)
-        if (availableResponse.ok) {
-          const availableData = await availableResponse.json()
-          setSessions(availableData.sessions || [])
-        }
+        const availableData = await apiClientRef.current.listAvailableSessions(cwd)
+        setSessions(availableData.sessions || [])
 
         // Fetch active sessions to mark them with indicator
-        const activeUrl = cwd
-          ? `${serverUrl}/sessions?cwd=${encodeURIComponent(cwd)}`
-          : `${serverUrl}/sessions`
+        const activeData = await apiClientRef.current.listSessions(cwd)
+        const activeIds = new Set(activeData.sessions.map(s => s.session_id))
+        setActiveSessions(activeIds)
 
-        const activeResponse = await fetch(activeUrl)
-        if (activeResponse.ok) {
-          const activeData = await activeResponse.json()
-          const activeIds = new Set(activeData.sessions.map(s => s.session_id))
-          setActiveSessions(activeIds)
+        // Sort sessions: active first, then by time (newest first)
+        setSessions(prev => {
+          return [...prev].sort((a, b) => {
+            const aIsActive = activeIds.has(a.session_id)
+            const bIsActive = activeIds.has(b.session_id)
 
-          // Sort sessions: active first, then by time (newest first)
-          setSessions(prev => {
-            return [...prev].sort((a, b) => {
-              const aIsActive = activeIds.has(a.session_id)
-              const bIsActive = activeIds.has(b.session_id)
+            // Active sessions always come first
+            if (aIsActive && !bIsActive) return -1
+            if (!aIsActive && bIsActive) return 1
 
-              // Active sessions always come first
-              if (aIsActive && !bIsActive) return -1
-              if (!aIsActive && bIsActive) return 1
-
-              // If both active or both inactive, sort by modified time (newest first)
-              return new Date(b.modified) - new Date(a.modified)
-            })
+            // If both active or both inactive, sort by modified time (newest first)
+            return new Date(b.modified) - new Date(a.modified)
           })
-        }
+        })
       } catch (error) {
         console.error('Failed to fetch sessions:', error)
       } finally {
