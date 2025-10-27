@@ -57,6 +57,7 @@ async def litellm_messages_proxy(request: Request):
         # Try to import litellm
         try:
             import litellm
+            litellm.success_callback = ["langfuse"] 
         except ImportError:
             raise HTTPException(
                 status_code=503,
@@ -81,7 +82,7 @@ async def litellm_messages_proxy(request: Request):
             async def generate_stream():
                 try:
                     # Forward to LiteLLM with streaming
-                    response = await litellm.acompletion(**body)
+                    response = await litellm.litellm.anthropic.messages.acreate(**body)
 
                     async for chunk in response:
                         # Forward raw chunk in SSE format
@@ -108,7 +109,7 @@ async def litellm_messages_proxy(request: Request):
         else:
             # Non-streaming response
             try:
-                response = await litellm.acompletion(**body)
+                response = await litellm.litellm.anthropic.messages.acreate(**body)
 
                 # Convert response to dict
                 if hasattr(response, "model_dump"):
