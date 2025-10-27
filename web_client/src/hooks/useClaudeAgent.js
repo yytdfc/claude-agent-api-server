@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createAPIClient } from '../api/client'
 
 // Helper function to format model names
 const formatModel = (model) => {
@@ -21,6 +22,7 @@ export function useClaudeAgent() {
   const serverUrlRef = useRef('http://127.0.0.1:8000')
   const configRef = useRef(null)
   const permissionCheckIntervalRef = useRef(null)
+  const apiClientRef = useRef(null)
 
   // Add system message
   const addSystemMessage = useCallback((content) => {
@@ -34,13 +36,12 @@ export function useClaudeAgent() {
 
   // Check for pending permissions
   const checkPermissions = useCallback(async () => {
-    if (!sessionId) return
+    if (!sessionId || !apiClientRef.current) return
 
     try {
-      const response = await fetch(`${serverUrlRef.current}/sessions/${sessionId}/status`)
-      if (!response.ok) return
+      const { response, data } = await apiClientRef.current.getSessionStatus(sessionId)
+      if (!response.ok || !data) return
 
-      const data = await response.json()
       if (data.pending_permission && !pendingPermission) {
         // Add permission request as a message in the chat
         setMessages(prev => [...prev, {
@@ -98,12 +99,12 @@ export function useClaudeAgent() {
     serverUrlRef.current = config.serverUrl.trim()
     configRef.current = config
 
+    // Create API client
+    apiClientRef.current = createAPIClient(serverUrlRef.current)
+
     try {
       // Check server health
-      const healthResponse = await fetch(`${serverUrlRef.current}/health`)
-      if (!healthResponse.ok) {
-        throw new Error('Server is not healthy')
-      }
+      await apiClientRef.current.healthCheck()
 
       // Create session
       const payload = {
@@ -119,17 +120,7 @@ export function useClaudeAgent() {
         payload.cwd = config.cwd.trim()
       }
 
-      const response = await fetch(`${serverUrlRef.current}/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create session')
-      }
-
-      const data = await response.json()
+      const data = await apiClientRef.current.createSession(payload)
       setSessionId(data.session_id)
       setConnected(true)
 
@@ -151,10 +142,8 @@ export function useClaudeAgent() {
   // Disconnect from server
   const disconnect = useCallback(async () => {
     try {
-      if (sessionId) {
-        await fetch(`${serverUrlRef.current}/sessions/${sessionId}`, {
-          method: 'DELETE'
-        })
+      if (sessionId && apiClientRef.current) {
+        await apiClientRef.current.deleteSession(sessionId)
       }
     } catch (error) {
       console.error('Disconnect error:', error)
@@ -170,10 +159,8 @@ export function useClaudeAgent() {
   const clearSession = useCallback(async () => {
     try {
       // Close current session
-      if (sessionId) {
-        await fetch(`${serverUrlRef.current}/sessions/${sessionId}`, {
-          method: 'DELETE'
-        })
+      if (sessionId && apiClientRef.current) {
+        await apiClientRef.current.deleteSession(sessionId)
       }
 
       // Create new session with same config
@@ -188,13 +175,7 @@ export function useClaudeAgent() {
         payload.background_model = config.backgroundModel.trim()
       }
 
-      const response = await fetch(`${serverUrlRef.current}/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      const data = await response.json()
+      const data = await apiClientRef.current.createSession(payload)
       setSessionId(data.session_id)
       setMessages([])
       addSystemMessage('✅ New session started')
@@ -205,24 +186,14 @@ export function useClaudeAgent() {
 
   // Send message
   const sendMessage = useCallback(async (message) => {
-    if (!sessionId || !message.trim()) return
+    if (!sessionId || !message.trim() || !apiClientRef.current) return
 
     try {
       // Add user message to UI
       setMessages(prev => [...prev, { type: 'text', role: 'user', content: message }])
 
       // Send to API
-      const response = await fetch(`${serverUrlRef.current}/sessions/${sessionId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to send message')
-      }
-
-      const data = await response.json()
+      const data = await apiClientRef.current.sendMessage(sessionId, message)
 
       // Process response messages
       const newMessages = []
@@ -250,16 +221,10 @@ export function useClaudeAgent() {
 
   // Respond to permission request
   const respondToPermission = useCallback(async (requestId, allowed) => {
+    if (!apiClientRef.current) return
+
     try {
-      await fetch(`${serverUrlRef.current}/sessions/${sessionId}/permissions/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          request_id: requestId,
-          allowed: allowed,
-          apply_suggestions: false
-        })
-      })
+      await apiClientRef.current.respondToPermission(sessionId, requestId, allowed)
 
       // Remove the permission message from chat and add response
       setMessages(prev => {
@@ -293,24 +258,27 @@ export function useClaudeAgent() {
       if (settings) {
         serverUrlRef.current = settings.serverUrl.trim()
         configRef.current = settings
+        apiClientRef.current = createAPIClient(serverUrlRef.current)
+      }
+
+      // Ensure API client exists
+      if (!apiClientRef.current) {
+        apiClientRef.current = createAPIClient(serverUrlRef.current)
       }
 
       // First, try to get the session's original cwd from history
       let sessionCwd = config.cwd
       try {
-        const historyResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/history`)
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json()
-          if (historyData.metadata && historyData.metadata.cwd) {
-            sessionCwd = historyData.metadata.cwd
-          }
+        const { response: historyResponse, data: historyData } = await apiClientRef.current.getSessionHistory(existingSessionId)
+        if (historyResponse.ok && historyData && historyData.metadata && historyData.metadata.cwd) {
+          sessionCwd = historyData.metadata.cwd
         }
       } catch (error) {
         console.warn('Could not fetch session history for cwd:', error)
       }
 
       // Check session status
-      const statusResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/status`)
+      const { response: statusResponse } = await apiClientRef.current.getSessionStatus(existingSessionId)
 
       // If session doesn't exist (404), create it with resume
       if (statusResponse.status === 404) {
@@ -330,17 +298,7 @@ export function useClaudeAgent() {
           payload.cwd = sessionCwd.trim()
         }
 
-        const createResponse = await fetch(`${serverUrlRef.current}/sessions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-
-        if (!createResponse.ok) {
-          throw new Error('Failed to resume session')
-        }
-
-        const createData = await createResponse.json()
+        const createData = await apiClientRef.current.createSession(payload)
         setSessionId(createData.session_id)
         setConnected(true)
       } else if (!statusResponse.ok) {
@@ -353,9 +311,8 @@ export function useClaudeAgent() {
 
       // Try to load message history from disk
       try {
-        const historyResponse = await fetch(`${serverUrlRef.current}/sessions/${existingSessionId}/history`)
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json()
+        const { response: historyResponse, data: historyData } = await apiClientRef.current.getSessionHistory(existingSessionId)
+        if (historyResponse.ok && historyData) {
 
           // Convert history messages to UI format and filter out warmup messages
           const historyMessages = historyData.messages.map(msg => {

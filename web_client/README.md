@@ -20,7 +20,24 @@ A modern, web-based client for interacting with the Claude Agent API Server. Bui
 npm install
 ```
 
-### 2. Start the API Server
+### 2. Configure API Mode (Optional)
+
+The web client supports two API modes:
+
+- **Direct Mode** (default): Calls REST endpoints directly
+- **Invocations Mode**: Routes all calls through `/invocations` endpoint
+
+Create a `.env` file (copy from `.env.example`):
+
+```bash
+# Use direct REST API endpoints (default)
+VITE_USE_INVOCATIONS=false
+
+# Or use unified /invocations endpoint
+# VITE_USE_INVOCATIONS=true
+```
+
+### 3. Start the API Server
 
 First, make sure the API server is running:
 
@@ -29,7 +46,7 @@ First, make sure the API server is running:
 python -m uvicorn src.server:app --host 127.0.0.1 --port 8000
 ```
 
-### 3. Start the Development Server
+### 4. Start the Development Server
 
 ```bash
 # Development mode with hot reload
@@ -44,7 +61,7 @@ npm run preview
 
 Then visit `http://localhost:8080` in your browser
 
-### 4. Configure and Connect
+### 5. Configure and Connect
 
 1. **Server URL**: Enter your API server URL (default: `http://127.0.0.1:8000`)
 2. **Main Model**: Choose your main model (e.g., `claude-3-5-sonnet-20241022` or `gpt-4`)
@@ -150,17 +167,67 @@ The header displays your connection status:
 
 When available, the client displays the cost of each interaction in USD.
 
+## API Mode Configuration
+
+The web client supports two API modes for maximum flexibility:
+
+### Direct Mode (Default)
+
+Calls REST endpoints directly:
+- `GET /health`
+- `POST /sessions`
+- `GET /sessions/{id}/status`
+- `POST /sessions/{id}/messages`
+- `POST /sessions/{id}/permissions/respond`
+- `DELETE /sessions/{id}`
+
+**When to use**: Standard REST API pattern, easier debugging, better for development.
+
+### Invocations Mode
+
+Routes all calls through the unified `/invocations` endpoint:
+- Single entry point for all operations
+- Useful for AWS Lambda or API Gateway deployments
+- Simplifies proxy/middleware configuration
+
+**When to use**: Serverless deployments, API gateways, centralized logging/monitoring.
+
+### Switching Between Modes
+
+Set `VITE_USE_INVOCATIONS` in your `.env` file:
+
+```bash
+# Direct mode (default)
+VITE_USE_INVOCATIONS=false
+
+# Invocations mode
+VITE_USE_INVOCATIONS=true
+```
+
+The client will log the active mode in the browser console:
+- 📡 Using Direct API mode
+- 🔀 Using Invocations API mode
+
+**Note**: Restart the dev server after changing `.env` file.
+
 ## File Structure
 
 ```
 web_client/
 ├── index.html          # Main HTML structure
 ├── src/
-│   ├── main.js         # Application entry point
-│   ├── client.js       # ClaudeAgentClient class
+│   ├── main.jsx        # Application entry point
+│   ├── App.jsx         # Main App component
+│   ├── api/
+│   │   └── client.js   # API client abstraction layer
+│   ├── components/     # React components
+│   ├── hooks/
+│   │   └── useClaudeAgent.js  # Main API hook
 │   └── style.css       # All styling and layout
 ├── vite.config.js      # Vite configuration
 ├── package.json        # Project dependencies and scripts
+├── .env.example        # Environment variable template
+├── .env                # Environment configuration
 ├── .gitignore          # Git ignore file
 └── README.md           # This file
 ```
@@ -168,9 +235,10 @@ web_client/
 ## Technology Stack
 
 - **Build Tool**: Vite 7.x (fast HMR, optimized builds)
-- **Frontend**: Vanilla JavaScript (ES modules)
+- **Frontend**: React 19.x
 - **Styling**: CSS3 with custom properties
-- **HTTP Client**: Fetch API
+- **HTTP Client**: Fetch API with abstraction layer
+- **Icons**: Lucide React
 - **Module System**: ES6+ modules
 - **Development**: Hot Module Replacement (HMR)
 
