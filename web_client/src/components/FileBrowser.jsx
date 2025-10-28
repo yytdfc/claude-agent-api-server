@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 
-function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange }) {
+function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -50,9 +50,14 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange })
     }
   }
 
-  const handleDirectoryClick = (item) => {
+  const handleItemClick = (item) => {
     if (item.is_directory) {
       onPathChange(item.path)
+    } else {
+      // It's a file, trigger file preview
+      if (onFileClick) {
+        onFileClick(item.path)
+      }
     }
   }
 
@@ -178,7 +183,7 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange })
               <div
                 key={`${item.path}-${index}`}
                 className={`file-item ${item.is_directory ? 'directory' : 'file'}`}
-                onClick={() => handleDirectoryClick(item)}
+                onClick={() => handleItemClick(item)}
                 title={item.path}
               >
                 <div className="file-item-icon">

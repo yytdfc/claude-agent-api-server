@@ -24,7 +24,7 @@ from .messages import (
     set_permission_mode,
 )
 from .permissions import respond_to_permission
-from .files import list_files
+from .files import get_file_info, list_files
 from .sessions import (
     close_session,
     create_session,
@@ -230,6 +230,13 @@ async def invocations(request: dict[str, Any]):
             # List files
             file_path = payload.get("path", ".")
             return await list_files(path=file_path)
+
+        elif path == "/files/info" and method == "GET":
+            # Get file info
+            file_path = payload.get("path")
+            if not file_path:
+                raise HTTPException(status_code=400, detail="Missing 'path' in payload")
+            return await get_file_info(path=file_path)
 
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency

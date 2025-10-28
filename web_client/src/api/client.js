@@ -110,6 +110,15 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async getFileInfo(path) {
+    const url = `${this.baseUrl}/files/info?path=${encodeURIComponent(path)}`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error('Failed to get file info')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -249,6 +258,10 @@ class InvocationsAPIClient {
 
   async listFiles(path = '.') {
     return this._invoke('/files', 'GET', { path })
+  }
+
+  async getFileInfo(path) {
+    return this._invoke('/files/info', 'GET', { path })
   }
 }
 

@@ -4,6 +4,7 @@ import ChatContainer from './components/ChatContainer'
 import PermissionModal from './components/PermissionModal'
 import SessionList from './components/SessionList'
 import FileBrowser from './components/FileBrowser'
+import FilePreview from './components/FilePreview'
 import SettingsModal from './components/SettingsModal'
 import Login from './components/Login'
 import Signup from './components/Signup'
@@ -44,6 +45,9 @@ function AppContent() {
 
   // Separate browsing path from configured working directory
   const [currentBrowsePath, setCurrentBrowsePath] = useState(settings.cwd)
+
+  // File preview state
+  const [previewFilePath, setPreviewFilePath] = useState(null)
 
   const {
     connected,
@@ -97,6 +101,14 @@ function AppContent() {
     setCurrentBrowsePath(newPath)
   }
 
+  const handleFileClick = (filePath) => {
+    setPreviewFilePath(filePath)
+  }
+
+  const handleClosePreview = () => {
+    setPreviewFilePath(null)
+  }
+
   // Show loading spinner during auth check
   if (authLoading) {
     return (
@@ -133,6 +145,7 @@ function AppContent() {
             currentPath={currentBrowsePath}
             workingDirectory={workingDirectory}
             onPathChange={handleBrowsePathChange}
+            onFileClick={handleFileClick}
           />
           <SessionList
             serverUrl={settings.serverUrl}
@@ -165,6 +178,16 @@ function AppContent() {
             />
           )}
         </main>
+
+        {previewFilePath && (
+          <aside className="preview-panel">
+            <FilePreview
+              serverUrl={settings.serverUrl}
+              filePath={previewFilePath}
+              onClose={handleClosePreview}
+            />
+          </aside>
+        )}
       </div>
 
       {showSettings && (
