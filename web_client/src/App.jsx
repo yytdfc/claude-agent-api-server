@@ -39,8 +39,11 @@ function AppContent() {
     return DEFAULT_SETTINGS
   })
 
-  // Store the working directory from settings (for reset button)
+  // Store the working directory from settings (configuration, not changed by browsing)
   const [workingDirectory, setWorkingDirectory] = useState(settings.cwd)
+
+  // Separate browsing path from configured working directory
+  const [currentBrowsePath, setCurrentBrowsePath] = useState(settings.cwd)
 
   const {
     connected,
@@ -80,6 +83,8 @@ function AppContent() {
     setSettings(newSettings)
     // Update working directory when settings change
     setWorkingDirectory(newSettings.cwd)
+    // Also update current browse path to match new working directory
+    setCurrentBrowsePath(newSettings.cwd)
   }
 
   const handleSessionSelect = async (sessionId) => {
@@ -87,8 +92,9 @@ function AppContent() {
     await loadSession(sessionId, settings)
   }
 
-  const handlePathChange = (newPath) => {
-    setSettings({ ...settings, cwd: newPath })
+  const handleBrowsePathChange = (newPath) => {
+    // Only change the browsing path, don't modify settings
+    setCurrentBrowsePath(newPath)
   }
 
   // Show loading spinner during auth check
@@ -117,15 +123,16 @@ function AppContent() {
         onSettingsClick={() => setShowSettings(true)}
         user={user}
         onLogout={logout}
+        workingDirectory={workingDirectory}
       />
 
       <div className="main-content">
         <aside className="sidebar">
           <FileBrowser
             serverUrl={settings.serverUrl}
-            currentPath={settings.cwd}
+            currentPath={currentBrowsePath}
             workingDirectory={workingDirectory}
-            onPathChange={handlePathChange}
+            onPathChange={handleBrowsePathChange}
           />
           <SessionList
             serverUrl={settings.serverUrl}

@@ -1483,6 +1483,28 @@ body {
     color: var(--text-primary);
 }
 
+/* Working Directory Info in Header */
+.working-dir-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--assistant-message-bg);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+    color: var(--text-primary);
+    max-width: 300px;
+}
+
+.working-dir-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 12px;
+}
+
 .user-email {
     font-weight: 500;
     max-width: 200px;

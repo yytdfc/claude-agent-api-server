@@ -1,6 +1,6 @@
-import { Settings, Circle, Bot, LogOut, User } from 'lucide-react'
+import { Settings, Circle, Bot, LogOut, User, FolderOpen } from 'lucide-react'
 
-function Header({ connected, onSettingsClick, user, onLogout }) {
+function Header({ connected, onSettingsClick, user, onLogout, workingDirectory }) {
   return (
     <header className="header">
       <h1><Bot size={20} className="header-icon" /> Claude Agent Web Client</h1>
@@ -9,6 +9,12 @@ function Header({ connected, onSettingsClick, user, onLogout }) {
           <div className="user-info">
             <User size={16} />
             <span className="user-email">{user.username}</span>
+          </div>
+        )}
+        {workingDirectory && (
+          <div className="working-dir-info" title={`Working Directory: ${workingDirectory}`}>
+            <FolderOpen size={16} />
+            <span className="working-dir-path">{workingDirectory}</span>
           </div>
         )}
         <div className="connection-status">
