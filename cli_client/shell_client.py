@@ -10,12 +10,13 @@ Usage:
     # Local API server mode
     python shell_client.py [--url URL] [--cwd CWD]
 
-    # AgentCore mode (requires TOKEN and AGENT_ARN environment variables)
+    # AgentCore mode (requires TOKEN environment variable)
+    python shell_client.py --agentcore --agentcore-url https://your-agentcore-url/invocations
     python shell_client.py --agentcore --region us-west-2
 
 Environment Variables (for AgentCore mode):
     TOKEN        - Bearer token for authentication
-    AGENT_ARN    - Agent ARN for invocation
+    AGENT_ARN    - Agent ARN for invocation (optional if --agentcore-url provided)
     AWS_REGION   - AWS region (optional, can use --region)
 
 Examples:
@@ -23,7 +24,11 @@ Examples:
     python shell_client.py
     python shell_client.py --url http://localhost:8000
 
-    # AgentCore mode
+    # AgentCore mode with direct URL
+    export TOKEN="your-token"
+    python shell_client.py --agentcore --agentcore-url https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn/invocations
+
+    # AgentCore mode with ARN (auto-constructs URL)
     export TOKEN="your-token"
     export AGENT_ARN="your-agent-arn"
     python shell_client.py --agentcore --region us-west-2
@@ -48,6 +53,7 @@ class ShellClient:
         base_url: Optional[str] = None,
         initial_cwd: Optional[str] = None,
         agentcore_mode: bool = False,
+        agentcore_url: Optional[str] = None,
         region: Optional[str] = None,
         agent_arn: Optional[str] = None,
         auth_token: Optional[str] = None
@@ -57,18 +63,26 @@ class ShellClient:
 
         if agentcore_mode:
             # AgentCore mode setup
-            self.agent_arn = agent_arn or os.environ.get('AGENT_ARN')
             self.auth_token = auth_token or os.environ.get('TOKEN')
-            self.region = region or os.environ.get('AWS_REGION', 'us-west-2')
-
-            if not self.agent_arn:
-                raise ValueError("AGENT_ARN environment variable is required for AgentCore mode")
             if not self.auth_token:
                 raise ValueError("TOKEN environment variable is required for AgentCore mode")
 
-            # Construct AgentCore URL
-            escaped_agent_arn = urllib.parse.quote(self.agent_arn, safe='')
-            self.base_url = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_agent_arn}/invocations?qualifier=DEFAULT"
+            # Use direct URL if provided, otherwise construct from ARN
+            if agentcore_url:
+                self.base_url = agentcore_url
+                self.agent_arn = None
+                self.region = None
+            else:
+                self.agent_arn = agent_arn or os.environ.get('AGENT_ARN')
+                self.region = region or os.environ.get('AWS_REGION', 'us-west-2')
+
+                if not self.agent_arn:
+                    raise ValueError("AGENT_ARN environment variable or --agentcore-url is required for AgentCore mode")
+
+                # Construct AgentCore URL from ARN
+                escaped_agent_arn = urllib.parse.quote(self.agent_arn, safe='')
+                self.base_url = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_agent_arn}/invocations?qualifier=DEFAULT"
+
             # Generate session ID with full UUID (36 chars) + prefix = 50 chars total
             self.session_id = f"shell-session-{uuid.uuid4()}"
             self.current_cwd = initial_cwd or "/workspace"
@@ -228,7 +242,9 @@ class ShellClient:
         print("Shell CLI Client")
         if self.agentcore_mode:
             print(f"Mode: AWS Bedrock AgentCore")
-            print(f"Region: {self.region}")
+            print(f"URL: {self.base_url}")
+            if self.region:
+                print(f"Region: {self.region}")
             print(f"Session ID: {self.session_id}")
         else:
             print(f"Mode: Local API Server")
@@ -276,7 +292,7 @@ def main():
         epilog="""
 Environment Variables (for AgentCore mode):
   TOKEN        Bearer token for authentication
-  AGENT_ARN    Agent ARN for invocation
+  AGENT_ARN    Agent ARN for invocation (optional if --agentcore-url provided)
   AWS_REGION   AWS region (can override with --region)
 
 Examples:
@@ -284,7 +300,11 @@ Examples:
   python shell_client.py
   python shell_client.py --url http://localhost:8000
 
-  # AWS Bedrock AgentCore
+  # AWS Bedrock AgentCore with direct URL
+  export TOKEN="your-token"
+  python shell_client.py --agentcore --agentcore-url https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn/invocations
+
+  # AWS Bedrock AgentCore with ARN (auto-constructs URL)
   export TOKEN="your-token"
   export AGENT_ARN="your-agent-arn"
   python shell_client.py --agentcore --region us-west-2
@@ -311,6 +331,10 @@ Examples:
 
     # AgentCore mode options
     parser.add_argument(
+        "--agentcore-url",
+        help="Direct URL for AgentCore invocations (if not provided, constructs from AGENT_ARN and region)"
+    )
+    parser.add_argument(
         "--region",
         help="AWS region for AgentCore (default: from AWS_REGION env or us-west-2)"
     )
@@ -330,6 +354,7 @@ Examples:
             # AgentCore mode
             client = ShellClient(
                 agentcore_mode=True,
+                agentcore_url=args.agentcore_url,
                 region=args.region,
                 agent_arn=args.agent_arn,
                 auth_token=args.token,

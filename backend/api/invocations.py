@@ -41,20 +41,20 @@ router = APIRouter()
 
 def parse_session_and_user_from_headers(request: Request) -> tuple[Optional[str], Optional[str]]:
     """
-    Parse session_id and user_id from request headers.
+    Parse agentcore_session_id and user_id from request headers.
 
     Args:
         request: FastAPI Request object
 
     Returns:
-        Tuple of (session_id, user_id)
+        Tuple of (agentcore_session_id, user_id)
     """
-    session_id = None
+    agentcore_session_id = None
     user_id = None
 
-    # Extract session_id from X-Amzn-Bedrock-AgentCore-Runtime-Session-Id header
+    # Extract agentcore_session_id from X-Amzn-Bedrock-AgentCore-Runtime-Session-Id header
     # FastAPI headers are case-insensitive, but we try common variations
-    session_id = request.headers.get("x-amzn-bedrock-agentcore-runtime-session-id")
+    agentcore_session_id = request.headers.get("x-amzn-bedrock-agentcore-runtime-session-id")
 
     # Extract and decode JWT token from Authorization header (case-insensitive)
     auth_header = request.headers.get("authorization", "")
@@ -72,7 +72,7 @@ def parse_session_and_user_from_headers(request: Request) -> tuple[Optional[str]
             # Any other error, user_id remains None
             pass
 
-    return session_id, user_id
+    return agentcore_session_id, user_id
 
 
 @router.post("/invocations")
@@ -116,8 +116,8 @@ async def invocations(http_request: Request, request: dict[str, Any]):
             "path_params": {"session_id": "abc123"}
         }
     """
-    # Parse session_id and user_id from headers
-    session_id_header, user_id = parse_session_and_user_from_headers(http_request)
+    # Parse agentcore_session_id and user_id from headers
+    agentcore_session_id, user_id = parse_session_and_user_from_headers(http_request)
 
     path = request.get("path")
     method = request.get("method", "POST").upper()
@@ -134,8 +134,8 @@ async def invocations(http_request: Request, request: dict[str, Any]):
 
     # Log the invocation with session and user info
     log_parts = [f"🔀 Invocation → {method} {resolved_path}"]
-    if session_id_header:
-        log_parts.append(f"session_id={session_id_header}")
+    if agentcore_session_id:
+        log_parts.append(f"agentcore_session_id={agentcore_session_id}")
     if user_id:
         log_parts.append(f"user_id={user_id}")
     print(" | ".join(log_parts))
