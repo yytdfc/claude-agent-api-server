@@ -27,6 +27,7 @@ from .api import (
     messages_router,
     permissions_router,
     sessions_router,
+    shell_router,
 )
 from .core import SessionManager
 from .proxy import router as proxy_router
@@ -84,6 +85,9 @@ app.include_router(permissions_router, tags=["permissions"])
 
 # File browser endpoints
 app.include_router(files_router, tags=["files"])
+
+# Shell terminal endpoints
+app.include_router(shell_router, tags=["shell"])
 
 # Unified invocations endpoint
 app.include_router(invocations_router, tags=["invocations"])

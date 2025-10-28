@@ -485,7 +485,7 @@ body {
 }
 
 .btn-send {
-    align-self: flex-end;
+    align-self: center;
 }
 
 .btn-close-session {
@@ -719,6 +719,40 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.sidebar-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: ew-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    z-index: 10;
+    transition: background-color 0.2s;
+}
+
+.sidebar-resize-handle:hover {
+    background-color: var(--border-color);
+}
+
+.resize-handle-bar-vertical {
+    width: 3px;
+    height: 40px;
+    background-color: var(--text-secondary);
+    border-radius: 2px;
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+
+.sidebar-resize-handle:hover .resize-handle-bar-vertical {
+    opacity: 0.6;
 }
 
 /* File Browser */
@@ -746,6 +780,18 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
+    flex: 1;
+    min-width: 0;
+}
+
+.current-path-display {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
 
 .file-browser-actions {
@@ -1128,6 +1174,58 @@ body {
     color: var(--text-primary);
 }
 
+.file-preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-edit,
+.btn-download {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    width: 32px;
+    height: 32px;
+}
+
+.btn-edit:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-download:hover {
+    background-color: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+.btn-save {
+    background-color: var(--success-color);
+    color: white;
+    width: 32px;
+    height: 32px;
+}
+
+.btn-save:hover:not(:disabled) {
+    background-color: #15803d;
+}
+
+.btn-cancel {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    width: 32px;
+    height: 32px;
+}
+
+.btn-cancel:hover:not(:disabled) {
+    background-color: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+}
+
 .file-preview-empty,
 .file-preview-loading,
 .file-preview-error {
@@ -1213,6 +1311,16 @@ body {
     letter-spacing: 0.5px;
 }
 
+.edit-mode-hint {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    text-transform: none;
+    letter-spacing: normal;
+    font-style: italic;
+    margin-left: 8px;
+}
+
 .file-content-text {
     background-color: var(--bg-color);
     border: 1px solid var(--border-color);
@@ -1226,6 +1334,35 @@ body {
     word-break: break-word;
     max-height: 600px;
     overflow-y: auto;
+}
+
+/* CodeMirror Container */
+.codemirror-container {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    min-height: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.codemirror-container .cm-editor {
+    height: 100%;
+    font-size: 13px;
+    font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+}
+
+.codemirror-container .cm-scroller {
+    overflow: auto;
+}
+
+.codemirror-container .cm-focused {
+    outline: none !important;
+}
+
+.codemirror-container:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .file-content-error {
@@ -1462,6 +1599,16 @@ body {
     transform: scale(1.05);
 }
 
+.btn-apply-suggestions {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.btn-apply-suggestions:hover {
+    background-color: #d97706;
+    transform: scale(1.05);
+}
+
 .btn-deny {
     background-color: var(--danger-color);
     color: white;
@@ -1661,7 +1808,7 @@ body {
     border: 1px solid var(--border-color);
     font-size: 13px;
     color: var(--text-primary);
-    max-width: 300px;
+    max-width: 500px;
 }
 
 .working-dir-path {
@@ -1709,4 +1856,124 @@ body {
     .user-email {
         max-width: 120px;
     }
+}
+
+/* Terminal Styles */
+.btn-terminal-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s;
+    z-index: 1000;
+}
+
+.btn-terminal-toggle:hover {
+    background-color: var(--primary-hover);
+    transform: scale(1.1);
+}
+
+.terminal-panel {
+    width: 600px;
+    background-color: #1e1e1e;
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.terminal-resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 100%;
+    cursor: ew-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    z-index: 10;
+    transition: background-color 0.2s;
+}
+
+.terminal-resize-handle:hover {
+    background-color: var(--border-color);
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #3e3e3e;
+}
+
+.terminal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #cccccc;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-terminal-action {
+    background-color: transparent;
+    color: #cccccc;
+    border: 1px solid #3e3e3e;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.btn-terminal-action:hover {
+    background-color: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+.terminal-content {
+    flex: 1;
+    overflow: hidden;
+    padding: 0;
+    min-height: 0;
+}
+
+.terminal-content .xterm {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 8px;
+}
+
+.terminal-content .xterm-viewport {
+    overflow-y: auto !important;
+}
+
+.terminal-content .xterm-screen {
+    height: 100% !important;
 }

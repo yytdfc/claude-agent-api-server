@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 
-function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick }) {
+function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -25,6 +25,13 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
       loadFiles(currentPath)
     }
   }, [currentPath])
+
+  // Auto-refresh when refreshTrigger changes (messages update)
+  useEffect(() => {
+    if (refreshTrigger && currentPath && apiClientRef.current) {
+      loadFiles(currentPath)
+    }
+  }, [refreshTrigger])
 
   const loadFiles = async (path) => {
     if (!apiClientRef.current) return
@@ -122,7 +129,7 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
       <div className="file-browser-header">
         <div className="file-browser-title">
           <Folder size={16} />
-          <span>Files</span>
+          <span className="current-path-display" title={currentPath}>{currentPath || '/'}</span>
         </div>
         <div className="file-browser-actions">
           <button

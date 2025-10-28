@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Header from './components/Header'
 import ChatContainer from './components/ChatContainer'
 import PermissionModal from './components/PermissionModal'
@@ -6,11 +6,12 @@ import SessionList from './components/SessionList'
 import FileBrowser from './components/FileBrowser'
 import FilePreview from './components/FilePreview'
 import SettingsModal from './components/SettingsModal'
+import Terminal from './components/Terminal'
 import Login from './components/Login'
 import Signup from './components/Signup'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Terminal as TerminalIcon } from 'lucide-react'
 
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
 
@@ -48,6 +49,15 @@ function AppContent() {
 
   // File preview state
   const [previewFilePath, setPreviewFilePath] = useState(null)
+
+  // Sidebar width state
+  const [sidebarWidth, setSidebarWidth] = useState(300) // Default 300px
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false)
+
+  // Terminal state
+  const [showTerminal, setShowTerminal] = useState(false)
+  const [terminalWidth, setTerminalWidth] = useState(600) // Default 600px
+  const [isResizingTerminal, setIsResizingTerminal] = useState(false)
 
   const {
     connected,
@@ -109,6 +119,78 @@ function AppContent() {
     setPreviewFilePath(null)
   }
 
+  // Handle sidebar resize
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizingSidebar) return
+
+      const newWidth = e.clientX
+      // Constrain width between 200px and 600px
+      if (newWidth >= 200 && newWidth <= 600) {
+        setSidebarWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false)
+    }
+
+    if (isResizingSidebar) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'ew-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizingSidebar])
+
+  const handleResizeStart = (e) => {
+    e.preventDefault()
+    setIsResizingSidebar(true)
+  }
+
+  // Handle terminal resize
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizingTerminal) return
+
+      const newWidth = window.innerWidth - e.clientX
+      // Constrain width between 400px and 1000px
+      if (newWidth >= 400 && newWidth <= 1000) {
+        setTerminalWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizingTerminal(false)
+    }
+
+    if (isResizingTerminal) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'ew-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizingTerminal])
+
+  const handleTerminalResizeStart = (e) => {
+    e.preventDefault()
+    setIsResizingTerminal(true)
+  }
+
   // Show loading spinner during auth check
   if (authLoading) {
     return (
@@ -138,14 +220,24 @@ function AppContent() {
         workingDirectory={workingDirectory}
       />
 
+      {/* Terminal Toggle Button */}
+      <button
+        className="btn-terminal-toggle"
+        onClick={() => setShowTerminal(!showTerminal)}
+        title={showTerminal ? "Hide Terminal" : "Show Terminal"}
+      >
+        <TerminalIcon size={20} />
+      </button>
+
       <div className="main-content">
-        <aside className="sidebar">
+        <aside className="sidebar" style={{ width: `${sidebarWidth}px` }}>
           <FileBrowser
             serverUrl={settings.serverUrl}
             currentPath={currentBrowsePath}
             workingDirectory={workingDirectory}
             onPathChange={handleBrowsePathChange}
             onFileClick={handleFileClick}
+            refreshTrigger={messages.length}
           />
           <SessionList
             serverUrl={settings.serverUrl}
@@ -154,6 +246,13 @@ function AppContent() {
             onNewSession={handleNewSession}
             cwd={settings.cwd}
           />
+          <div
+            className="sidebar-resize-handle"
+            onMouseDown={handleResizeStart}
+            title="Drag to resize sidebar"
+          >
+            <div className="resize-handle-bar-vertical" />
+          </div>
         </aside>
 
         <main className="content-area">
@@ -185,6 +284,23 @@ function AppContent() {
               serverUrl={settings.serverUrl}
               filePath={previewFilePath}
               onClose={handleClosePreview}
+            />
+          </aside>
+        )}
+
+        {showTerminal && (
+          <aside className="terminal-panel" style={{ width: `${terminalWidth}px` }}>
+            <div
+              className="terminal-resize-handle"
+              onMouseDown={handleTerminalResizeStart}
+              title="Drag to resize terminal"
+            >
+              <div className="resize-handle-bar-vertical" />
+            </div>
+            <Terminal
+              serverUrl={settings.serverUrl}
+              initialCwd={workingDirectory}
+              onClose={() => setShowTerminal(false)}
             />
           </aside>
         )}

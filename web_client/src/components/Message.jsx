@@ -1,4 +1,4 @@
-import { Wrench, CheckCircle, XCircle, ShieldAlert } from 'lucide-react'
+import { Wrench, CheckCircle, XCircle, ShieldAlert, Zap } from 'lucide-react'
 
 function Message({ message, onPermissionRespond }) {
   const { type, role, content, toolName, toolInput, isError, permission } = message
@@ -84,13 +84,21 @@ function Message({ message, onPermissionRespond }) {
           <div className="permission-actions">
             <button
               className="btn-permission btn-allow"
-              onClick={() => onPermissionRespond(permission.request_id, true)}
+              onClick={() => onPermissionRespond(permission.request_id, true, false)}
             >
               ✓ Allow
             </button>
+            {permission.suggestions && permission.suggestions.length > 0 && (
+              <button
+                className="btn-permission btn-apply-suggestions"
+                onClick={() => onPermissionRespond(permission.request_id, true, true)}
+              >
+                <Zap size={16} /> Apply Suggestions
+              </button>
+            )}
             <button
               className="btn-permission btn-deny"
-              onClick={() => onPermissionRespond(permission.request_id, false)}
+              onClick={() => onPermissionRespond(permission.request_id, false, false)}
             >
               ✗ Deny
             </button>

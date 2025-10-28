@@ -57,14 +57,14 @@ class DirectAPIClient {
     return response.json()
   }
 
-  async respondToPermission(sessionId, requestId, allowed) {
+  async respondToPermission(sessionId, requestId, allowed, applySuggestions = false) {
     const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/permissions/respond`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         request_id: requestId,
         allowed: allowed,
-        apply_suggestions: false
+        apply_suggestions: applySuggestions
       })
     })
     if (!response.ok) {
@@ -116,6 +116,18 @@ class DirectAPIClient {
     const response = await fetch(url)
     if (!response.ok) {
       throw new Error('Failed to get file info')
+    }
+    return response.json()
+  }
+
+  async saveFile(path, content) {
+    const response = await fetch(`${this.baseUrl}/files/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, content })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to save file')
     }
     return response.json()
   }
@@ -219,14 +231,14 @@ class InvocationsAPIClient {
     )
   }
 
-  async respondToPermission(sessionId, requestId, allowed) {
+  async respondToPermission(sessionId, requestId, allowed, applySuggestions = false) {
     return this._invoke(
       '/sessions/{session_id}/permissions/respond',
       'POST',
       {
         request_id: requestId,
         allowed: allowed,
-        apply_suggestions: false
+        apply_suggestions: applySuggestions
       },
       { session_id: sessionId }
     )
@@ -262,6 +274,10 @@ class InvocationsAPIClient {
 
   async getFileInfo(path) {
     return this._invoke('/files/info', 'GET', { path })
+  }
+
+  async saveFile(path, content) {
+    return this._invoke('/files/save', 'POST', { path, content })
   }
 }
 

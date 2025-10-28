@@ -124,11 +124,17 @@ export function useClaudeAgent() {
       setSessionId(data.session_id)
       setConnected(true)
 
-      // Update session info with full details
-      let info = `📁 ${config.cwd || '/workspace'}`
-      if (config.model) info += ` | 🤖 ${formatModel(config.model)}`
-      if (config.backgroundModel) info += ` | ⚡ ${formatModel(config.backgroundModel)}`
-      if (config.enableProxy) info += ' | 🔌 Proxy'
+      // Update session info with model and proxy details (without working directory)
+      let info = ''
+      if (config.model) info += `🤖 ${formatModel(config.model)}`
+      if (config.backgroundModel) {
+        if (info) info += ' | '
+        info += `⚡ ${formatModel(config.backgroundModel)}`
+      }
+      if (config.enableProxy) {
+        if (info) info += ' | '
+        info += '🔌 Proxy'
+      }
       setSessionInfo(info)
 
       addSystemMessage('✅ Connected to Claude Agent')
@@ -220,20 +226,24 @@ export function useClaudeAgent() {
   }, [sessionId, addSystemMessage, addErrorMessage])
 
   // Respond to permission request
-  const respondToPermission = useCallback(async (requestId, allowed) => {
+  const respondToPermission = useCallback(async (requestId, allowed, applySuggestions = false) => {
     if (!apiClientRef.current) return
 
     try {
-      await apiClientRef.current.respondToPermission(sessionId, requestId, allowed)
+      await apiClientRef.current.respondToPermission(sessionId, requestId, allowed, applySuggestions)
 
       // Remove the permission message from chat and add response
       setMessages(prev => {
         const filtered = prev.filter(msg =>
           msg.type !== 'permission' || msg.permission?.request_id !== requestId
         )
+        let responseMessage = allowed ? '✓ Permission granted' : '✗ Permission denied'
+        if (applySuggestions) {
+          responseMessage = '⚡ Applied suggestions and granted permission'
+        }
         return [...filtered, {
           type: 'system',
-          content: allowed ? '✓ Permission granted' : '✗ Permission denied'
+          content: responseMessage
         }]
       })
 
@@ -346,17 +356,19 @@ export function useClaudeAgent() {
 
           setMessages(filteredMessages)
 
-          // Update session info with metadata
+          // Update session info with metadata (without working directory)
           const metadata = historyData.metadata
-          let info = `📁 ${metadata.cwd || config.cwd || '/workspace'}`
+          let info = ''
           if (config.model) {
-            info += ` | 🤖 ${formatModel(config.model)}`
+            info += `🤖 ${formatModel(config.model)}`
           }
           if (config.backgroundModel) {
-            info += ` | ⚡ ${formatModel(config.backgroundModel)}`
+            if (info) info += ' | '
+            info += `⚡ ${formatModel(config.backgroundModel)}`
           }
           if (metadata.git_branch) {
-            info += ` | 🌿 ${metadata.git_branch}`
+            if (info) info += ' | '
+            info += `🌿 ${metadata.git_branch}`
           }
           setSessionInfo(info)
 
@@ -366,10 +378,13 @@ export function useClaudeAgent() {
           setMessages([])
           addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}...`)
 
-          // Build session info from config
-          let info = `📁 ${config.cwd || '/workspace'}`
-          if (config.model) info += ` | 🤖 ${formatModel(config.model)}`
-          if (config.backgroundModel) info += ` | ⚡ ${formatModel(config.backgroundModel)}`
+          // Build session info from config (without working directory)
+          let info = ''
+          if (config.model) info += `🤖 ${formatModel(config.model)}`
+          if (config.backgroundModel) {
+            if (info) info += ' | '
+            info += `⚡ ${formatModel(config.backgroundModel)}`
+          }
           setSessionInfo(info)
         }
       } catch (historyError) {
@@ -378,10 +393,13 @@ export function useClaudeAgent() {
         setMessages([])
         addSystemMessage(`✅ Switched to session ${existingSessionId.slice(0, 8)}... (history unavailable)`)
 
-        // Build session info from config
-        let info = `📁 ${config.cwd || '/workspace'}`
-        if (config.model) info += ` | 🤖 ${formatModel(config.model)}`
-        if (config.backgroundModel) info += ` | ⚡ ${formatModel(config.backgroundModel)}`
+        // Build session info from config (without working directory)
+        let info = ''
+        if (config.model) info += `🤖 ${formatModel(config.model)}`
+        if (config.backgroundModel) {
+          if (info) info += ' | '
+          info += `⚡ ${formatModel(config.backgroundModel)}`
+        }
         setSessionInfo(info)
       }
     } catch (error) {

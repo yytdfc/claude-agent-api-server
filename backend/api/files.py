@@ -40,6 +40,19 @@ class FileInfoResponse(BaseModel):
     error: Optional[str] = None
 
 
+class SaveFileRequest(BaseModel):
+    """Request to save file content."""
+    path: str
+    content: str
+
+
+class SaveFileResponse(BaseModel):
+    """Response for saving file."""
+    success: bool
+    path: str
+    size: int
+
+
 router = APIRouter()
 
 
@@ -177,3 +190,38 @@ async def get_file_info(path: str = Query(...)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+
+
+@router.post("/files/save", response_model=SaveFileResponse)
+async def save_file(request: SaveFileRequest):
+    """
+    Save content to a file.
+
+    Args:
+        request: File path and content to save
+
+    Returns:
+        Save confirmation with file size
+    """
+    try:
+        # Resolve the path
+        target_path = Path(request.path).expanduser().resolve()
+
+        # Create parent directories if they don't exist
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write content to file
+        with open(target_path, 'w', encoding='utf-8') as f:
+            f.write(request.content)
+
+        # Get updated file stats
+        stat = target_path.stat()
+
+        return SaveFileResponse(
+            success=True,
+            path=str(target_path),
+            size=stat.st_size
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
