@@ -101,6 +101,15 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async listFiles(path = '.') {
+    const url = `${this.baseUrl}/files?path=${encodeURIComponent(path)}`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error('Failed to list files')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -236,6 +245,10 @@ class InvocationsAPIClient {
   async listAvailableSessions(cwd = null) {
     const payload = cwd ? { cwd } : null
     return this._invoke('/sessions/available', 'GET', payload)
+  }
+
+  async listFiles(path = '.') {
+    return this._invoke('/files', 'GET', { path })
   }
 }
 

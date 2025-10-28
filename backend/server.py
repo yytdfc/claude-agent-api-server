@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import (
+    files_router,
     invocations_router,
     messages_router,
     permissions_router,
@@ -80,6 +81,9 @@ app.include_router(messages_router, tags=["messages"])
 
 # Permission endpoints
 app.include_router(permissions_router, tags=["permissions"])
+
+# File browser endpoints
+app.include_router(files_router, tags=["files"])
 
 # Unified invocations endpoint
 app.include_router(invocations_router, tags=["invocations"])

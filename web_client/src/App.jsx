@@ -3,6 +3,7 @@ import Header from './components/Header'
 import ChatContainer from './components/ChatContainer'
 import PermissionModal from './components/PermissionModal'
 import SessionList from './components/SessionList'
+import FileBrowser from './components/FileBrowser'
 import SettingsModal from './components/SettingsModal'
 import Login from './components/Login'
 import Signup from './components/Signup'
@@ -81,6 +82,10 @@ function AppContent() {
     await loadSession(sessionId, settings)
   }
 
+  const handlePathChange = (newPath) => {
+    setSettings({ ...settings, cwd: newPath })
+  }
+
   // Show loading spinner during auth check
   if (authLoading) {
     return (
@@ -111,6 +116,11 @@ function AppContent() {
 
       <div className="main-content">
         <aside className="sidebar">
+          <FileBrowser
+            serverUrl={settings.serverUrl}
+            currentPath={settings.cwd}
+            onPathChange={handlePathChange}
+          />
           <SessionList
             serverUrl={settings.serverUrl}
             currentSessionId={sessionId}

@@ -24,6 +24,7 @@ from .messages import (
     set_permission_mode,
 )
 from .permissions import respond_to_permission
+from .files import list_files
 from .sessions import (
     close_session,
     create_session,
@@ -224,6 +225,11 @@ async def invocations(request: dict[str, Any]):
                     status_code=400, detail="Missing session_id in path_params"
                 )
             return await close_session(session_id)
+
+        elif path == "/files" and method == "GET":
+            # List files
+            file_path = payload.get("path", ".")
+            return await list_files(path=file_path)
 
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency
