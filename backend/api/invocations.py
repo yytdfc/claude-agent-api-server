@@ -5,12 +5,9 @@ Provides a single entry point for all API operations, routing requests
 based on the path and payload parameters.
 """
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-
-logger = logging.getLogger(__name__)
 
 from ..models import (
     CreateSessionRequest,
@@ -95,14 +92,8 @@ async def invocations(request: dict[str, Any]):
     for key, value in path_params.items():
         resolved_path = resolved_path.replace(f"{{{key}}}", str(value))
 
-    # Log the invocation
-    logger.info(f"📞 Invocation: {method} {resolved_path}")
-    if path_params:
-        logger.info(f"   Path params: {path_params}")
-    if payload:
-        # Log payload but mask sensitive data
-        safe_payload = {k: "***" if k in ["password", "token", "secret"] else v for k, v in payload.items()}
-        logger.info(f"   Payload: {safe_payload}")
+    # Log the invocation (use print to ensure it shows up)
+    print(f"🔀 Invocation → {method} {resolved_path}")
 
     # Route to appropriate endpoint based on path and method
     try:
