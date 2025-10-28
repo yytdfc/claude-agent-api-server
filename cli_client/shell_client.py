@@ -113,8 +113,14 @@ class ShellClient:
                 "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": self.session_id
             }
 
+            # Use the same invocations payload format as local mode
             payload = {
-                "prompt": command
+                "path": "/shell/execute",
+                "method": "POST",
+                "payload": {
+                    "command": command,
+                    "cwd": self.current_cwd
+                }
             }
 
             with httpx.Client() as client:

@@ -269,6 +269,12 @@ async def invocations(request: dict[str, Any]):
 
             return await health_check()
 
+        elif path == "/ping" and method == "GET":
+            # Ping endpoint - import here to avoid circular dependency
+            from ..server import ping
+
+            return await ping()
+
         else:
             raise HTTPException(
                 status_code=404,

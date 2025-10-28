@@ -111,6 +111,16 @@ async def health_check():
     }
 
 
+@app.get("/ping")
+async def ping():
+    """Ping endpoint for health monitoring."""
+    import time
+    return {
+        "status": "Healthy",
+        "time_of_last_update": int(time.time())
+    }
+
+
 # ============================================================================
 # Main Entry Point
 # ============================================================================
