@@ -5,9 +5,10 @@ Provides a single entry point for all API operations, routing requests
 based on the path and payload parameters.
 """
 
-from typing import Any
+import jwt
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from ..models import (
     CreateSessionRequest,
@@ -38,8 +39,44 @@ from .sessions import (
 router = APIRouter()
 
 
+def parse_session_and_user_from_headers(request: Request) -> tuple[Optional[str], Optional[str]]:
+    """
+    Parse session_id and user_id from request headers.
+
+    Args:
+        request: FastAPI Request object
+
+    Returns:
+        Tuple of (session_id, user_id)
+    """
+    session_id = None
+    user_id = None
+
+    # Extract session_id from X-Amzn-Bedrock-AgentCore-Runtime-Session-Id header
+    # FastAPI headers are case-insensitive, but we try common variations
+    session_id = request.headers.get("x-amzn-bedrock-agentcore-runtime-session-id")
+
+    # Extract and decode JWT token from Authorization header (case-insensitive)
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()  # Remove "Bearer " prefix and whitespace
+        try:
+            # Decode JWT without verification (for extracting sub claim)
+            # In production, you should verify the token signature
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            user_id = decoded.get("sub")
+        except jwt.DecodeError:
+            # Token decode failed, user_id remains None
+            pass
+        except Exception:
+            # Any other error, user_id remains None
+            pass
+
+    return session_id, user_id
+
+
 @router.post("/invocations")
-async def invocations(request: dict[str, Any]):
+async def invocations(http_request: Request, request: dict[str, Any]):
     """
     Unified invocation endpoint that routes to other API endpoints.
 
@@ -79,6 +116,9 @@ async def invocations(request: dict[str, Any]):
             "path_params": {"session_id": "abc123"}
         }
     """
+    # Parse session_id and user_id from headers
+    session_id_header, user_id = parse_session_and_user_from_headers(http_request)
+
     path = request.get("path")
     method = request.get("method", "POST").upper()
     payload = request.get("payload", {})
@@ -92,8 +132,13 @@ async def invocations(request: dict[str, Any]):
     for key, value in path_params.items():
         resolved_path = resolved_path.replace(f"{{{key}}}", str(value))
 
-    # Log the invocation (use print to ensure it shows up)
-    print(f"🔀 Invocation → {method} {resolved_path}")
+    # Log the invocation with session and user info
+    log_parts = [f"🔀 Invocation → {method} {resolved_path}"]
+    if session_id_header:
+        log_parts.append(f"session_id={session_id_header}")
+    if user_id:
+        log_parts.append(f"user_id={user_id}")
+    print(" | ".join(log_parts))
 
     # Route to appropriate endpoint based on path and method
     try:
