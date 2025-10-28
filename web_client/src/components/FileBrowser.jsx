@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home, RotateCcw } from 'lucide-react'
+import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 
 function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange }) {
@@ -134,8 +134,9 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange })
       <div className="file-browser-path">
         <button
           className="btn-path-segment"
-          onClick={() => onPathChange(currentPath)}
-          title="Current directory"
+          onClick={handleResetToWorkingDirectory}
+          disabled={!workingDirectory || currentPath === workingDirectory}
+          title={`Go to working directory: ${workingDirectory || ''}`}
         >
           <Home size={14} />
         </button>
@@ -146,15 +147,6 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange })
             title="Parent directory"
           >
             ..
-          </button>
-        )}
-        {workingDirectory && currentPath !== workingDirectory && (
-          <button
-            className="btn-path-segment btn-working-dir"
-            onClick={handleResetToWorkingDirectory}
-            title={`Back to working directory: ${workingDirectory}`}
-          >
-            <RotateCcw size={12} />
           </button>
         )}
       </div>

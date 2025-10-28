@@ -796,22 +796,14 @@ body {
     transition: background-color 0.2s;
 }
 
-.btn-path-segment:hover {
+.btn-path-segment:hover:not(:disabled) {
     background-color: var(--border-color);
     color: var(--text-primary);
 }
 
-.btn-working-dir {
-    background-color: var(--primary-color);
-    color: white;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.btn-working-dir:hover {
-    background-color: var(--primary-hover);
-    color: white;
+.btn-path-segment:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .file-browser-content {
