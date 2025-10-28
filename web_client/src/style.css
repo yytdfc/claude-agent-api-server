@@ -726,8 +726,8 @@ body {
     display: flex;
     flex-direction: column;
     border-bottom: 1px solid var(--border-color);
-    max-height: 40%;
-    min-height: 200px;
+    position: relative;
+    flex-shrink: 0;
 }
 
 .file-browser-header {
@@ -746,6 +746,12 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+.file-browser-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .btn-refresh {
@@ -793,6 +799,19 @@ body {
 .btn-path-segment:hover {
     background-color: var(--border-color);
     color: var(--text-primary);
+}
+
+.btn-working-dir {
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-working-dir:hover {
+    background-color: var(--primary-hover);
+    color: white;
 }
 
 .file-browser-content {
@@ -881,6 +900,38 @@ body {
     font-size: 11px;
     color: var(--text-secondary);
     flex-shrink: 0;
+}
+
+.file-browser-resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    z-index: 10;
+    transition: background-color 0.2s;
+}
+
+.file-browser-resize-handle:hover {
+    background-color: var(--border-color);
+}
+
+.resize-handle-bar {
+    width: 40px;
+    height: 3px;
+    background-color: var(--text-secondary);
+    border-radius: 2px;
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+
+.file-browser-resize-handle:hover .resize-handle-bar {
+    opacity: 0.6;
 }
 
 .session-list {

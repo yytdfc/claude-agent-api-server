@@ -39,6 +39,9 @@ function AppContent() {
     return DEFAULT_SETTINGS
   })
 
+  // Store the working directory from settings (for reset button)
+  const [workingDirectory, setWorkingDirectory] = useState(settings.cwd)
+
   const {
     connected,
     connecting,
@@ -75,6 +78,8 @@ function AppContent() {
 
   const handleSaveSettings = (newSettings) => {
     setSettings(newSettings)
+    // Update working directory when settings change
+    setWorkingDirectory(newSettings.cwd)
   }
 
   const handleSessionSelect = async (sessionId) => {
@@ -119,6 +124,7 @@ function AppContent() {
           <FileBrowser
             serverUrl={settings.serverUrl}
             currentPath={settings.cwd}
+            workingDirectory={workingDirectory}
             onPathChange={handlePathChange}
           />
           <SessionList

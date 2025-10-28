@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } from 'lucide-react'
+import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home, RotateCcw } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 
-function FileBrowser({ serverUrl, currentPath, onPathChange }) {
+function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [expandedDirs, setExpandedDirs] = useState(new Set())
+  const [height, setHeight] = useState(300) // Default height in pixels
+  const [isResizing, setIsResizing] = useState(false)
   const apiClientRef = useRef(null)
+  const resizeRef = useRef(null)
 
   // Create API client
   useEffect(() => {
@@ -60,6 +63,12 @@ function FileBrowser({ serverUrl, currentPath, onPathChange }) {
     }
   }
 
+  const handleResetToWorkingDirectory = () => {
+    if (workingDirectory) {
+      onPathChange(workingDirectory)
+    }
+  }
+
   const formatSize = (bytes) => {
     if (!bytes) return ''
     if (bytes < 1024) return `${bytes} B`
@@ -67,28 +76,66 @@ function FileBrowser({ serverUrl, currentPath, onPathChange }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  // Handle resize
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return
+
+      const newHeight = e.clientY - resizeRef.current.getBoundingClientRect().top
+      // Constrain height between 150px and 600px
+      if (newHeight >= 150 && newHeight <= 600) {
+        setHeight(newHeight)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'ns-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing])
+
+  const handleResizeStart = (e) => {
+    e.preventDefault()
+    setIsResizing(true)
+  }
+
   return (
-    <div className="file-browser">
+    <div className="file-browser" ref={resizeRef} style={{ height: `${height}px` }}>
       <div className="file-browser-header">
         <div className="file-browser-title">
           <Folder size={16} />
           <span>Files</span>
         </div>
-        <button
-          className="btn-icon btn-refresh"
-          onClick={handleRefresh}
-          disabled={loading}
-          title="Refresh"
-        >
-          <RefreshCw size={14} className={loading ? 'spinning' : ''} />
-        </button>
+        <div className="file-browser-actions">
+          <button
+            className="btn-icon btn-refresh"
+            onClick={handleRefresh}
+            disabled={loading}
+            title="Refresh"
+          >
+            <RefreshCw size={14} className={loading ? 'spinning' : ''} />
+          </button>
+        </div>
       </div>
 
       <div className="file-browser-path">
         <button
           className="btn-path-segment"
           onClick={() => onPathChange(currentPath)}
-          title="Go to home"
+          title="Current directory"
         >
           <Home size={14} />
         </button>
@@ -99,6 +146,15 @@ function FileBrowser({ serverUrl, currentPath, onPathChange }) {
             title="Parent directory"
           >
             ..
+          </button>
+        )}
+        {workingDirectory && currentPath !== workingDirectory && (
+          <button
+            className="btn-path-segment btn-working-dir"
+            onClick={handleResetToWorkingDirectory}
+            title={`Back to working directory: ${workingDirectory}`}
+          >
+            <RotateCcw size={12} />
           </button>
         )}
       </div>
@@ -150,6 +206,14 @@ function FileBrowser({ serverUrl, currentPath, onPathChange }) {
             ))}
           </div>
         )}
+      </div>
+
+      <div
+        className="file-browser-resize-handle"
+        onMouseDown={handleResizeStart}
+        title="Drag to resize"
+      >
+        <div className="resize-handle-bar" />
       </div>
     </div>
   )
