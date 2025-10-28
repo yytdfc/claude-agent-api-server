@@ -1858,29 +1858,28 @@ body {
     }
 }
 
-/* Terminal Styles */
-.btn-terminal-toggle {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.3s;
-    z-index: 1000;
+/* Terminal Toggle Button in Header */
+.terminal-toggle-button {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
 }
 
-.btn-terminal-toggle:hover {
+.terminal-toggle-button:hover {
+    background-color: var(--bg-color);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.terminal-toggle-button.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.terminal-toggle-button.active:hover {
     background-color: var(--primary-hover);
-    transform: scale(1.1);
+    border-color: var(--primary-hover);
 }
 
 .terminal-panel {

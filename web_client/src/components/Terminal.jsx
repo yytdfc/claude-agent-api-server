@@ -158,6 +158,16 @@ function Terminal({ serverUrl, initialCwd, onClose }) {
     cwdRef.current = cwd
   }, [cwd])
 
+  // Auto focus terminal when it's shown
+  useEffect(() => {
+    if (xtermRef.current) {
+      // Small delay to ensure terminal is rendered
+      setTimeout(() => {
+        xtermRef.current?.focus()
+      }, 150)
+    }
+  }, [])
+
   // Fit terminal on mount and when container size changes
   useEffect(() => {
     if (!fitAddonRef.current) return

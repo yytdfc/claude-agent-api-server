@@ -11,7 +11,7 @@ import Login from './components/Login'
 import Signup from './components/Signup'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
-import { Loader2, Terminal as TerminalIcon } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
 
@@ -218,16 +218,9 @@ function AppContent() {
         user={user}
         onLogout={logout}
         workingDirectory={workingDirectory}
+        showTerminal={showTerminal}
+        onTerminalToggle={() => setShowTerminal(!showTerminal)}
       />
-
-      {/* Terminal Toggle Button */}
-      <button
-        className="btn-terminal-toggle"
-        onClick={() => setShowTerminal(!showTerminal)}
-        title={showTerminal ? "Hide Terminal" : "Show Terminal"}
-      >
-        <TerminalIcon size={20} />
-      </button>
 
       <div className="main-content">
         <aside className="sidebar" style={{ width: `${sidebarWidth}px` }}>
