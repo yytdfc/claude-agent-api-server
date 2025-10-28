@@ -5,9 +5,12 @@ Provides a single entry point for all API operations, routing requests
 based on the path and payload parameters.
 """
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+
+logger = logging.getLogger(__name__)
 
 from ..models import (
     CreateSessionRequest,
@@ -24,7 +27,8 @@ from .messages import (
     set_permission_mode,
 )
 from .permissions import respond_to_permission
-from .files import get_file_info, list_files
+from .files import get_file_info, list_files, save_file, SaveFileRequest
+from .shell import execute_command, get_current_directory, set_current_directory, ShellExecuteRequest
 from .sessions import (
     close_session,
     create_session,
@@ -90,6 +94,15 @@ async def invocations(request: dict[str, Any]):
     resolved_path = path
     for key, value in path_params.items():
         resolved_path = resolved_path.replace(f"{{{key}}}", str(value))
+
+    # Log the invocation
+    logger.info(f"📞 Invocation: {method} {resolved_path}")
+    if path_params:
+        logger.info(f"   Path params: {path_params}")
+    if payload:
+        # Log payload but mask sensitive data
+        safe_payload = {k: "***" if k in ["password", "token", "secret"] else v for k, v in payload.items()}
+        logger.info(f"   Payload: {safe_payload}")
 
     # Route to appropriate endpoint based on path and method
     try:
@@ -237,6 +250,27 @@ async def invocations(request: dict[str, Any]):
             if not file_path:
                 raise HTTPException(status_code=400, detail="Missing 'path' in payload")
             return await get_file_info(path=file_path)
+
+        elif path == "/files/save" and method == "POST":
+            # Save file
+            req = SaveFileRequest(**payload)
+            return await save_file(req)
+
+        elif path == "/shell/execute" and method == "POST":
+            # Execute shell command (returns streaming response)
+            req = ShellExecuteRequest(**payload)
+            return await execute_command(req)
+
+        elif path == "/shell/cwd" and method == "GET":
+            # Get current working directory
+            return await get_current_directory()
+
+        elif path == "/shell/cwd" and method == "POST":
+            # Set current working directory
+            cwd = payload.get("cwd")
+            if not cwd:
+                raise HTTPException(status_code=400, detail="Missing 'cwd' in payload")
+            return await set_current_directory(cwd)
 
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency

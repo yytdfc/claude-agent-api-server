@@ -131,6 +131,38 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async executeShellCommand(command, cwd) {
+    const response = await fetch(`${this.baseUrl}/shell/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command, cwd })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to execute command')
+    }
+    return response // Return response for streaming
+  }
+
+  async getShellCwd() {
+    const response = await fetch(`${this.baseUrl}/shell/cwd`)
+    if (!response.ok) {
+      throw new Error('Failed to get current directory')
+    }
+    return response.json()
+  }
+
+  async setShellCwd(cwd) {
+    const response = await fetch(`${this.baseUrl}/shell/cwd`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cwd })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to set current directory')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -278,6 +310,35 @@ class InvocationsAPIClient {
 
   async saveFile(path, content) {
     return this._invoke('/files/save', 'POST', { path, content })
+  }
+
+  async executeShellCommand(command, cwd) {
+    // For streaming response, we need to handle it specially
+    const body = {
+      path: '/shell/execute',
+      method: 'POST',
+      payload: { command, cwd }
+    }
+
+    const response = await fetch(`${this.baseUrl}/invocations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to execute command')
+    }
+
+    return response // Return response for streaming
+  }
+
+  async getShellCwd() {
+    return this._invoke('/shell/cwd', 'GET')
+  }
+
+  async setShellCwd(cwd) {
+    return this._invoke('/shell/cwd', 'POST', { cwd })
   }
 }
 

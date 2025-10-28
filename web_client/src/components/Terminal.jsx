@@ -3,16 +3,23 @@ import { Terminal as XTerm } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { Maximize2, Minimize2, X } from 'lucide-react'
+import { createAPIClient } from '../api/client'
 
 function Terminal({ serverUrl, initialCwd, onClose }) {
   const terminalRef = useRef(null)
   const xtermRef = useRef(null)
   const fitAddonRef = useRef(null)
+  const apiClientRef = useRef(null)
   const [cwd, setCwd] = useState(initialCwd || '/workspace')
   const cwdRef = useRef(initialCwd || '/workspace')
   const [commandHistory, setCommandHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const currentLineRef = useRef('')
+
+  // Initialize API client
+  useEffect(() => {
+    apiClientRef.current = createAPIClient(serverUrl)
+  }, [serverUrl])
 
   // Initialize terminal
   useEffect(() => {
@@ -196,16 +203,10 @@ function Terminal({ serverUrl, initialCwd, onClose }) {
     const xterm = xtermRef.current
 
     try {
-      const response = await fetch(`${serverUrl}/shell/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          command,
-          cwd: cwdRef.current,
-        }),
-      })
+      const response = await apiClientRef.current.executeShellCommand(
+        command,
+        cwdRef.current
+      )
 
       if (!response.ok) {
         xterm.writeln(`\x1b[1;31mError: ${response.statusText}\x1b[0m`)
@@ -240,11 +241,12 @@ function Terminal({ serverUrl, initialCwd, onClose }) {
 
       // Update cwd if it was a cd command
       if (command.trim().startsWith('cd ')) {
-        const cwdResponse = await fetch(`${serverUrl}/shell/cwd`)
-        if (cwdResponse.ok) {
-          const data = await cwdResponse.json()
+        try {
+          const data = await apiClientRef.current.getShellCwd()
           setCwd(data.cwd)
           cwdRef.current = data.cwd
+        } catch (error) {
+          // Ignore errors
         }
       }
 
