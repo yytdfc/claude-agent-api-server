@@ -53,11 +53,31 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     await pty_manager.start()
+
+    # Start gRPC server if enabled
+    import os
+    grpc_enabled = os.environ.get('ENABLE_GRPC_SERVER', 'false').lower() == 'true'
+    grpc_task = None
+
+    if grpc_enabled:
+        from .grpc_server.server import start_grpc_server_background
+        grpc_port = int(os.environ.get('GRPC_PORT', '50051'))
+        grpc_task = start_grpc_server_background(pty_manager, port=grpc_port)
+
     yield
+
     # Shutdown - close all sessions
     for session_id in list(session_manager.sessions.keys()):
         await session_manager.close_session(session_id)
     await pty_manager.stop()
+
+    # Stop gRPC server
+    if grpc_task:
+        grpc_task.cancel()
+        try:
+            await grpc_task
+        except:
+            pass
 
 
 app = FastAPI(
