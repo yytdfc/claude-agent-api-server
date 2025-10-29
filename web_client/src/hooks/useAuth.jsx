@@ -160,6 +160,36 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Get valid access token (refreshes if needed)
+  const getValidAccessToken = useCallback(async () => {
+    try {
+      const session = await fetchAuthSession({ forceRefresh: false })
+      if (!session.tokens || !session.tokens.accessToken) {
+        return null
+      }
+
+      const accessToken = session.tokens.accessToken
+      const expiresAt = accessToken.payload.exp * 1000 // Convert to milliseconds
+      const now = Date.now()
+      const timeUntilExpiry = expiresAt - now
+
+      // Token refresh threshold: 5 minutes
+      const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000
+
+      // If token expires soon, force refresh
+      if (timeUntilExpiry < TOKEN_REFRESH_THRESHOLD) {
+        console.log('🔄 Access token expiring soon, refreshing...')
+        const refreshedSession = await fetchAuthSession({ forceRefresh: true })
+        return refreshedSession.tokens?.accessToken?.toString() || null
+      }
+
+      return accessToken.toString()
+    } catch (err) {
+      console.error('Failed to get access token:', err)
+      return null
+    }
+  }, [])
+
   const value = {
     user,
     loading,
@@ -169,6 +199,7 @@ export function AuthProvider({ children }) {
     confirmSignup,
     resendCode,
     logout,
+    getValidAccessToken,
     isAuthenticated: !!user
   }
 

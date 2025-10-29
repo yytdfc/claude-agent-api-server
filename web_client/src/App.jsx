@@ -11,6 +11,7 @@ import Login from './components/Login'
 import Signup from './components/Signup'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
+import { setAuthErrorHandler } from './utils/authUtils'
 import { Loader2 } from 'lucide-react'
 
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
@@ -27,6 +28,14 @@ function AppContent() {
   const [showSettings, setShowSettings] = useState(false)
   const [authView, setAuthView] = useState('login') // 'login' or 'signup'
   const { user, loading: authLoading, logout } = useAuth()
+
+  // Set up global authentication error handler
+  useEffect(() => {
+    setAuthErrorHandler(async () => {
+      console.warn('🔐 Authentication error detected - logging out user')
+      await logout()
+    })
+  }, [logout])
 
   // Load settings from localStorage or use defaults
   const [settings, setSettings] = useState(() => {
@@ -66,6 +75,7 @@ function AppContent() {
     sessionInfo,
     messages,
     pendingPermission,
+    serverConnected,
     serverUrl,
     connect,
     disconnect,
@@ -73,7 +83,7 @@ function AppContent() {
     sendMessage,
     respondToPermission,
     loadSession
-  } = useClaudeAgent()
+  } = useClaudeAgent(settings.serverUrl)
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -213,7 +223,7 @@ function AppContent() {
   return (
     <div className="app-layout">
       <Header
-        connected={connected}
+        serverConnected={serverConnected}
         onSettingsClick={() => setShowSettings(true)}
         user={user}
         onLogout={logout}

@@ -108,3 +108,85 @@ class SetPermissionModeRequest(BaseModel):
     """Request to change the permission mode for a session."""
 
     mode: str  # "default", "acceptEdits", "plan", "bypassPermissions"
+
+
+class InitWorkspaceRequest(BaseModel):
+    """Request to initialize/sync a user's workspace from S3."""
+
+    user_id: str
+    workspace_name: str = "workspace"
+    dry_run: bool = False
+
+
+class InitWorkspaceResponse(BaseModel):
+    """Response from workspace initialization."""
+
+    status: str
+    user_id: str
+    s3_path: str
+    local_path: str
+    files_synced: int
+    dry_run: bool
+    message: str
+    output: Optional[str] = None
+
+
+class SyncWorkspaceToS3Request(BaseModel):
+    """Request to sync a user's workspace to S3."""
+
+    user_id: str
+    workspace_name: str = "workspace"
+    dry_run: bool = False
+
+
+class SyncWorkspaceToS3Response(BaseModel):
+    """Response from workspace sync to S3."""
+
+    status: str
+    user_id: str
+    local_path: str
+    s3_path: str
+    files_synced: int
+    dry_run: bool
+    message: str
+    output: Optional[str] = None
+
+
+class WorkspaceInfoResponse(BaseModel):
+    """Information about a user's workspace."""
+
+    exists: bool
+    path: str
+    size_bytes: Optional[int] = None
+    size_mb: Optional[float] = None
+    file_count: Optional[int] = None
+    dir_count: Optional[int] = None
+    message: Optional[str] = None
+
+
+class CloneGitRepositoryRequest(BaseModel):
+    """Request to clone a Git repository into workspace."""
+
+    user_id: str
+    git_url: str
+    branch: Optional[str] = None
+    repo_name: Optional[str] = None
+    shallow: bool = False
+
+
+class CloneGitRepositoryResponse(BaseModel):
+    """Response from Git repository clone."""
+
+    status: str
+    user_id: str
+    git_url: str
+    local_path: str
+    workspace_path: str
+    repo_name: str
+    branch: str
+    commit_hash: str
+    shallow: bool
+    size_bytes: int
+    size_mb: float
+    message: str
+    output: Optional[str] = None

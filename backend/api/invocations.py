@@ -321,12 +321,21 @@ async def invocations(http_request: Request, request: dict[str, Any]):
             return await ping()
 
         else:
+            error_msg = f"Unknown path or method: {method} {path}"
+            print(f"❌ Invocation Error (404): {error_msg} | path_params={path_params} | payload_keys={list(payload.keys()) if payload else []}")
             raise HTTPException(
                 status_code=404,
-                detail=f"Unknown path or method: {method} {path}",
+                detail=error_msg,
             )
 
-    except HTTPException:
+    except HTTPException as e:
+        # Log HTTPException details
+        if e.status_code == 404:
+            print(f"❌ Invocation HTTPException (404): {e.detail}")
+        elif e.status_code >= 400:
+            print(f"❌ Invocation HTTPException ({e.status_code}): {e.detail}")
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Invocation error: {str(e)}")
+        error_detail = f"Invocation error: {str(e)}"
+        print(f"❌ Invocation Exception (500): {error_detail} | path={path} | method={method}")
+        raise HTTPException(status_code=500, detail=error_detail)

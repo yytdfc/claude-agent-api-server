@@ -8,7 +8,23 @@
  * Control via environment variable: VITE_USE_INVOCATIONS=true/false
  */
 
+import { getAuthHeaders, isAuthError, handleAuthError } from '../utils/authUtils'
+
 const USE_INVOCATIONS = import.meta.env.VITE_USE_INVOCATIONS === 'true'
+
+/**
+ * Helper to handle authentication errors in fetch responses
+ */
+function handleFetchResponse(response) {
+  if (response.status === 401) {
+    console.error('🔐 Authentication failed - triggering logout')
+    handleAuthError()
+    const error = new Error('Authentication required')
+    error.status = 401
+    throw error
+  }
+  return response
+}
 
 /**
  * Direct API client - calls REST endpoints directly
@@ -19,16 +35,24 @@ class DirectAPIClient {
   }
 
   async healthCheck() {
-    const response = await fetch(`${this.baseUrl}/health`)
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/health`, {
+      headers: authHeaders
+    })
     return response.json()
   }
 
   async createSession(payload) {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/sessions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
       body: JSON.stringify(payload)
     })
+    handleFetchResponse(response)
     if (!response.ok) {
       throw new Error('Failed to create session')
     }
@@ -36,21 +60,32 @@ class DirectAPIClient {
   }
 
   async getSessionStatus(sessionId) {
-    const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/status`)
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/status`, {
+      headers: authHeaders
+    })
     return { response, data: response.ok ? await response.json() : null }
   }
 
   async getSessionHistory(sessionId) {
-    const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/history`)
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/history`, {
+      headers: authHeaders
+    })
     return { response, data: response.ok ? await response.json() : null }
   }
 
   async sendMessage(sessionId, message) {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
       body: JSON.stringify({ message })
     })
+    handleFetchResponse(response)
     if (!response.ok) {
       throw new Error('Failed to send message')
     }
@@ -58,9 +93,13 @@ class DirectAPIClient {
   }
 
   async respondToPermission(sessionId, requestId, allowed, applySuggestions = false) {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/permissions/respond`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
       body: JSON.stringify({
         request_id: requestId,
         allowed: allowed,
@@ -74,17 +113,22 @@ class DirectAPIClient {
   }
 
   async deleteSession(sessionId) {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/sessions/${sessionId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: authHeaders
     })
     return response.ok
   }
 
   async listSessions(cwd = null) {
+    const authHeaders = await getAuthHeaders()
     const url = cwd
       ? `${this.baseUrl}/sessions?cwd=${encodeURIComponent(cwd)}`
       : `${this.baseUrl}/sessions`
-    const response = await fetch(url)
+    const response = await fetch(url, {
+      headers: authHeaders
+    })
     if (!response.ok) {
       throw new Error('Failed to list sessions')
     }
@@ -92,10 +136,13 @@ class DirectAPIClient {
   }
 
   async listAvailableSessions(cwd = null) {
+    const authHeaders = await getAuthHeaders()
     const url = cwd
       ? `${this.baseUrl}/sessions/available?cwd=${encodeURIComponent(cwd)}`
       : `${this.baseUrl}/sessions/available`
-    const response = await fetch(url)
+    const response = await fetch(url, {
+      headers: authHeaders
+    })
     if (!response.ok) {
       throw new Error('Failed to list available sessions')
     }
@@ -103,8 +150,11 @@ class DirectAPIClient {
   }
 
   async listFiles(path = '.') {
+    const authHeaders = await getAuthHeaders()
     const url = `${this.baseUrl}/files?path=${encodeURIComponent(path)}`
-    const response = await fetch(url)
+    const response = await fetch(url, {
+      headers: authHeaders
+    })
     if (!response.ok) {
       throw new Error('Failed to list files')
     }
@@ -112,8 +162,11 @@ class DirectAPIClient {
   }
 
   async getFileInfo(path) {
+    const authHeaders = await getAuthHeaders()
     const url = `${this.baseUrl}/files/info?path=${encodeURIComponent(path)}`
-    const response = await fetch(url)
+    const response = await fetch(url, {
+      headers: authHeaders
+    })
     if (!response.ok) {
       throw new Error('Failed to get file info')
     }
@@ -121,9 +174,13 @@ class DirectAPIClient {
   }
 
   async saveFile(path, content) {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/files/save`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
       body: JSON.stringify({ path, content })
     })
     if (!response.ok) {
@@ -133,9 +190,13 @@ class DirectAPIClient {
   }
 
   async executeShellCommand(command, cwd) {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/shell/execute`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
       body: JSON.stringify({ command, cwd })
     })
     if (!response.ok) {
@@ -145,7 +206,10 @@ class DirectAPIClient {
   }
 
   async getShellCwd() {
-    const response = await fetch(`${this.baseUrl}/shell/cwd`)
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/shell/cwd`, {
+      headers: authHeaders
+    })
     if (!response.ok) {
       throw new Error('Failed to get current directory')
     }
@@ -153,9 +217,13 @@ class DirectAPIClient {
   }
 
   async setShellCwd(cwd) {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/shell/cwd`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
       body: JSON.stringify({ cwd })
     })
     if (!response.ok) {
@@ -169,11 +237,21 @@ class DirectAPIClient {
  * Invocations API client - routes all calls through /invocations
  */
 class InvocationsAPIClient {
-  constructor(baseUrl) {
+  constructor(baseUrl, agentCoreSessionId = null) {
     this.baseUrl = baseUrl
+    this.agentCoreSessionId = agentCoreSessionId
+  }
+
+  /**
+   * Set the agent core session ID for all subsequent requests
+   * @param {string} sessionId - Agent core session ID
+   */
+  setAgentCoreSessionId(sessionId) {
+    this.agentCoreSessionId = sessionId
   }
 
   async _invoke(path, method = 'GET', payload = null, pathParams = null) {
+    const authHeaders = await getAuthHeaders()
     const body = {
       path,
       method,
@@ -187,11 +265,23 @@ class InvocationsAPIClient {
       body.path_params = pathParams
     }
 
+    // Build headers with agent core session ID if available
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders
+    }
+
+    if (this.agentCoreSessionId) {
+      headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = this.agentCoreSessionId
+    }
+
     const response = await fetch(`${this.baseUrl}/invocations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body)
     })
+
+    handleFetchResponse(response)
 
     if (!response.ok) {
       const error = new Error(`Invocation failed: ${path}`)
@@ -314,15 +404,26 @@ class InvocationsAPIClient {
 
   async executeShellCommand(command, cwd) {
     // For streaming response, we need to handle it specially
+    const authHeaders = await getAuthHeaders()
     const body = {
       path: '/shell/execute',
       method: 'POST',
       payload: { command, cwd }
     }
 
+    // Build headers with agent core session ID if available
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders
+    }
+
+    if (this.agentCoreSessionId) {
+      headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = this.agentCoreSessionId
+    }
+
     const response = await fetch(`${this.baseUrl}/invocations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body)
     })
 
@@ -345,12 +446,16 @@ class InvocationsAPIClient {
 /**
  * Create API client based on configuration
  * @param {string} baseUrl - Base URL for API server
+ * @param {string|null} agentCoreSessionId - Optional agent core session ID for invocations mode
  * @returns {DirectAPIClient|InvocationsAPIClient}
  */
-export function createAPIClient(baseUrl) {
+export function createAPIClient(baseUrl, agentCoreSessionId = null) {
   if (USE_INVOCATIONS) {
     console.log('🔀 Using Invocations API mode')
-    return new InvocationsAPIClient(baseUrl)
+    if (agentCoreSessionId) {
+      console.log(`🆔 Agent Core Session ID: ${agentCoreSessionId}`)
+    }
+    return new InvocationsAPIClient(baseUrl, agentCoreSessionId)
   } else {
     console.log('📡 Using Direct API mode')
     return new DirectAPIClient(baseUrl)

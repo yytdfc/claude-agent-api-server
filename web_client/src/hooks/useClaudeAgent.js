@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createAPIClient } from '../api/client'
+import { generateAgentCoreSessionId } from '../utils/sessionUtils'
 
 // Helper function to format model names
 const formatModel = (model) => {
@@ -11,18 +12,30 @@ const formatModel = (model) => {
     .replace('claude-3-opus-', 'opus-')
 }
 
-export function useClaudeAgent() {
+export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [sessionId, setSessionId] = useState(null)
   const [sessionInfo, setSessionInfo] = useState('')
   const [messages, setMessages] = useState([])
   const [pendingPermission, setPendingPermission] = useState(null)
+  const [serverConnected, setServerConnected] = useState(false) // Backend service connection status
 
-  const serverUrlRef = useRef('http://127.0.0.1:8000')
+  const serverUrlRef = useRef(initialServerUrl)
   const configRef = useRef(null)
   const permissionCheckIntervalRef = useRef(null)
+  const healthCheckIntervalRef = useRef(null)
   const apiClientRef = useRef(null)
+  const agentCoreSessionIdRef = useRef(null)
+
+  // Initialize API client on mount
+  useEffect(() => {
+    if (!apiClientRef.current && !agentCoreSessionIdRef.current) {
+      agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+      console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
+      apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
+    }
+  }, [])
 
   // Add system message
   const addSystemMessage = useCallback((content) => {
@@ -32,6 +45,19 @@ export function useClaudeAgent() {
   // Add error message
   const addErrorMessage = useCallback((content) => {
     setMessages(prev => [...prev, { type: 'error', content }])
+  }, [])
+
+  // Check server health
+  const checkServerHealth = useCallback(async () => {
+    if (!apiClientRef.current) return
+
+    try {
+      await apiClientRef.current.healthCheck()
+      setServerConnected(true)
+    } catch (error) {
+      console.warn('Server health check failed:', error)
+      setServerConnected(false)
+    }
   }, [])
 
   // Check for pending permissions
@@ -54,6 +80,47 @@ export function useClaudeAgent() {
       console.error('Permission check error:', error)
     }
   }, [sessionId, pendingPermission])
+
+  // Start health check interval (only when page is visible)
+  useEffect(() => {
+    if (!apiClientRef.current) return
+
+    // Start interval if page is currently visible
+    const startInterval = () => {
+      if (!document.hidden && !healthCheckIntervalRef.current) {
+        // Initial check
+        checkServerHealth()
+        // Then check every 5 seconds
+        healthCheckIntervalRef.current = setInterval(checkServerHealth, 5000)
+      }
+    }
+
+    // Stop interval
+    const stopInterval = () => {
+      if (healthCheckIntervalRef.current) {
+        clearInterval(healthCheckIntervalRef.current)
+        healthCheckIntervalRef.current = null
+      }
+    }
+
+    // Handle visibility change
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopInterval()
+      } else {
+        startInterval()
+      }
+    }
+
+    // Start interval and listen for visibility changes
+    startInterval()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      stopInterval()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [checkServerHealth])
 
   // Start permission checking interval (only when page is visible)
   useEffect(() => {
@@ -99,8 +166,12 @@ export function useClaudeAgent() {
     serverUrlRef.current = config.serverUrl.trim()
     configRef.current = config
 
-    // Create API client
-    apiClientRef.current = createAPIClient(serverUrlRef.current)
+    // Generate agent core session ID for this web client session
+    agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+    console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
+
+    // Create API client with agent core session ID
+    apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
 
     try {
       // Check server health
@@ -268,12 +339,25 @@ export function useClaudeAgent() {
       if (settings) {
         serverUrlRef.current = settings.serverUrl.trim()
         configRef.current = settings
-        apiClientRef.current = createAPIClient(serverUrlRef.current)
+
+        // Generate agent core session ID if not already set
+        if (!agentCoreSessionIdRef.current) {
+          agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+          console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
+        }
+
+        apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
       }
 
       // Ensure API client exists
       if (!apiClientRef.current) {
-        apiClientRef.current = createAPIClient(serverUrlRef.current)
+        // Generate agent core session ID if not already set
+        if (!agentCoreSessionIdRef.current) {
+          agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+          console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
+        }
+
+        apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
       }
 
       // First, try to get the session's original cwd from history
@@ -416,6 +500,7 @@ export function useClaudeAgent() {
     sessionInfo,
     messages,
     pendingPermission,
+    serverConnected,
     serverUrl: serverUrlRef.current,
     connect,
     disconnect,

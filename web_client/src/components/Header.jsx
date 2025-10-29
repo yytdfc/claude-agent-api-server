@@ -1,6 +1,6 @@
 import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal } from 'lucide-react'
 
-function Header({ connected, onSettingsClick, user, onLogout, workingDirectory, showTerminal, onTerminalToggle }) {
+function Header({ serverConnected, onSettingsClick, user, onLogout, workingDirectory, showTerminal, onTerminalToggle }) {
   return (
     <header className="header">
       <h1><Bot size={20} className="header-icon" /> Claude Agent Web Client</h1>
@@ -17,9 +17,9 @@ function Header({ connected, onSettingsClick, user, onLogout, workingDirectory, 
             <span className="working-dir-path">{workingDirectory}</span>
           </div>
         )}
-        <div className="connection-status">
-          <Circle size={10} className={`status-dot ${connected ? 'connected' : ''}`} fill="currentColor" />
-          <span className="status-text">{connected ? 'Connected' : 'Disconnected'}</span>
+        <div className="connection-status" title="Backend service connection status">
+          <Circle size={10} className={`status-dot ${serverConnected ? 'connected' : ''}`} fill="currentColor" />
+          <span className="status-text">{serverConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
         <button
           className={`btn-icon terminal-toggle-button ${showTerminal ? 'active' : ''}`}

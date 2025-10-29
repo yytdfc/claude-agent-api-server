@@ -90,9 +90,11 @@ The codebase is organized into three main layers:
    - `server.py`: Main FastAPI app, lifespan management, CORS, router registration
    - `core/session.py`: `AgentSession` class - manages a single SDK client connection, handles permission callbacks, tracks conversation state
    - `core/session_manager.py`: `SessionManager` class - manages multiple concurrent sessions, creates/resumes/lists/closes sessions
+   - `core/workspace_sync.py`: Workspace sync utilities for S3 synchronization using s5cmd
    - `api/sessions.py`: Session CRUD endpoints (create, list, get history, server info, close)
    - `api/messages.py`: Message endpoints (send, status, model control, interrupt, permission mode)
    - `api/permissions.py`: Permission approval endpoint
+   - `api/workspace.py`: Workspace sync endpoints (init from S3, sync to S3, workspace info)
    - `api/invocations.py`: Unified invocation endpoint (single entry point for all operations, useful for AWS Lambda)
    - `proxy/litellm_proxy.py`: LiteLLM proxy endpoint (`/v1/messages`) for multi-provider support
    - `models/schemas.py`: Pydantic request/response models
@@ -166,6 +168,28 @@ Two patterns for API access:
 1. **Direct endpoints**: Standard REST pattern (`/sessions`, `/sessions/{id}/messages`, etc.)
 2. **Unified invocations**: Single endpoint `/invocations` that routes based on `path` and `method` in payload (useful for AWS Lambda or API gateways)
 
+### Workspace Management
+
+The server includes workspace management features for setting up and syncing user workspaces:
+
+**Git Repository Cloning**:
+- **Clone Git**: `POST /workspace/clone-git` - Clone Git repository into user workspace
+- Supports HTTPS and SSH URLs
+- Optional branch selection and shallow cloning
+- Automatic cleanup on error
+
+**S3 Synchronization**:
+- **Init from S3**: `POST /workspace/init` - Download user workspace from S3 to local filesystem
+- **Sync to S3**: `POST /workspace/sync-to-s3` - Upload local workspace back to S3
+- **Workspace Info**: `GET /workspace/info/{user_id}` - Get workspace details (size, file count)
+- Uses **s5cmd** for high-performance parallel transfers (10-100x faster than AWS CLI)
+
+**Configuration**:
+- Environment variables: `S3_WORKSPACE_BUCKET`, `S3_WORKSPACE_PREFIX`, `WORKSPACE_BASE_PATH`
+- S3 path format: `s3://{bucket}/{prefix}/{user_id}/{workspace_name}/`
+- Local path format: `{base_path}/{user_id}/`
+- See `WORKSPACE_SYNC.md` for detailed documentation
+
 ## Testing
 
 ### Manual API Testing
@@ -189,6 +213,19 @@ curl http://localhost:8000/sessions/SESSION_ID/status
 
 # Close session
 curl -X DELETE http://localhost:8000/sessions/SESSION_ID
+
+# Clone git repository
+curl -X POST http://localhost:8000/workspace/clone-git \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user123", "git_url": "https://github.com/user/repo.git"}'
+
+# Initialize workspace from S3
+curl -X POST http://localhost:8000/workspace/init \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user123"}'
+
+# Get workspace info
+curl http://localhost:8000/workspace/info/user123
 ```
 
 ### API Documentation
@@ -226,6 +263,9 @@ Core dependencies (managed via `pyproject.toml` and `uv`):
 - `litellm>=1.78.7`: Multi-provider LLM proxy
 - `boto3>=1.40.58`: AWS SDK (for Bedrock support)
 - `langfuse>=2,<3`: Observability (optional)
+
+External tools:
+- `s5cmd`: High-performance S3 transfer tool (required for workspace sync)
 
 Web client dependencies:
 - React 19.2.0
