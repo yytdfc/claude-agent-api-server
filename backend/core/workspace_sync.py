@@ -505,22 +505,22 @@ async def sync_claude_dir_from_s3(
     Raises:
         WorkspaceSyncError: If sync fails
     """
-    if not check_s5cmd_installed():
-        raise WorkspaceSyncError("s5cmd is not installed")
+    try:
+        s3_client = S3Client(bucket_name, s3_prefix)
+    except S3ClientError as e:
+        raise WorkspaceSyncError(str(e)) from e
 
     # Get home directory
     if local_home is None:
         local_home = os.environ.get("HOME", "/root")
 
     local_claude_dir = Path(local_home) / ".claude"
-    s3_path = f"s3://{bucket_name}/{s3_prefix}/{user_id}/.claude/"
-
-    logger.info(f"🔍 Checking if .claude data exists in S3: {s3_path}")
 
     # Check if S3 directory exists
-    s3_exists = await check_s3_directory_exists(
-        bucket_name, f"{s3_prefix}/{user_id}/.claude"
-    )
+    s3_exists = await s3_client.check_exists(user_id, ".claude")
+    s3_path = s3_client.build_s3_path(user_id, ".claude") + "/"
+
+    logger.info(f"🔍 Checking if .claude data exists in S3: {s3_path}")
 
     if not s3_exists:
         logger.info(f"⏭️  No .claude data found in S3 for user {user_id}")
@@ -533,54 +533,21 @@ async def sync_claude_dir_from_s3(
             "files_synced": 0,
         }
 
-    # Create .claude directory if it doesn't exist
-    local_claude_dir.mkdir(parents=True, exist_ok=True)
-
-    logger.info(f"⬇️  Syncing .claude from {s3_path} to {local_claude_dir}")
-
-    # Build s5cmd command
-    cmd = [
-        "s5cmd",
-        "--log", "error",
-        "sync",
-        s3_path + "*",
-        str(local_claude_dir) + "/",
-    ]
-
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        result = await s3_client.sync_from_s3(
+            [user_id, ".claude"],
+            local_claude_dir,
         )
 
-        stdout, stderr = await process.communicate()
-        stdout_text = stdout.decode() if stdout else ""
-        stderr_text = stderr.decode() if stderr else ""
+        result["user_id"] = user_id
+        result["message"] = f"Successfully synced {result['files_synced']} files from S3"
 
-        if process.returncode != 0:
-            error_msg = f"s5cmd failed: {stderr_text}"
-            logger.error(error_msg)
-            raise WorkspaceSyncError(error_msg)
-
-        files_synced = len([line for line in stdout_text.strip().split('\n') if line])
-
-        result = {
-            "status": "success",
-            "user_id": user_id,
-            "s3_path": s3_path,
-            "local_path": str(local_claude_dir),
-            "files_synced": files_synced,
-            "message": f"Successfully synced {files_synced} files from S3",
-            "output": stdout_text,
-        }
-
-        logger.info(f"✅ .claude sync completed: {files_synced} files from S3")
+        logger.info(f"✅ .claude sync completed: {result['files_synced']} files from S3")
         return result
 
-    except Exception as e:
+    except S3ClientError as e:
         error_msg = f"Failed to sync .claude directory: {str(e)}"
-        logger.error(f"❌ {error_msg}", exc_info=True)
+        logger.error(f"❌ {error_msg}")
         raise WorkspaceSyncError(error_msg) from e
 
 
@@ -600,41 +567,14 @@ async def list_projects_from_s3(
     Returns:
         List of project names
     """
-    if not check_s5cmd_installed():
-        logger.warning("s5cmd not installed, cannot list projects")
+    try:
+        s3_client = S3Client(bucket_name, s3_prefix)
+    except S3ClientError as e:
+        logger.warning(f"Cannot list projects: {e}")
         return []
 
-    s3_path = f"s3://{bucket_name}/{s3_prefix}/{user_id}/projects/"
-
     try:
-        # Use s5cmd ls to list directories
-        process = await asyncio.create_subprocess_exec(
-            "s5cmd",
-            "--log", "error",
-            "ls",
-            s3_path,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        stdout, stderr = await process.communicate()
-        stdout_text = stdout.decode() if stdout else ""
-
-        if not stdout_text.strip():
-            logger.info(f"No projects found in S3 for user {user_id}")
-            return []
-
-        # Parse s5cmd ls output to extract directory names
-        # Format: "DIR s3://bucket/prefix/user_id/projects/project_name/"
-        projects = []
-        for line in stdout_text.strip().split('\n'):
-            if line.strip() and line.startswith("DIR"):
-                # Extract project name from path
-                path = line.split()[-1].rstrip('/')
-                project_name = path.split('/')[-1]
-                if project_name:
-                    projects.append(project_name)
-
+        projects = await s3_client.list_directories(user_id, "projects")
         logger.info(f"Found {len(projects)} projects for user {user_id}: {projects}")
         return projects
 
@@ -666,19 +606,18 @@ async def sync_project_from_s3(
     Raises:
         WorkspaceSyncError: If sync fails
     """
-    if not check_s5cmd_installed():
-        raise WorkspaceSyncError("s5cmd is not installed")
+    try:
+        s3_client = S3Client(bucket_name, s3_prefix)
+    except S3ClientError as e:
+        raise WorkspaceSyncError(str(e)) from e
 
-    # Build paths
     local_project_path = Path(local_base_path) / user_id / project_name
-    s3_path = f"s3://{bucket_name}/{s3_prefix}/{user_id}/projects/{project_name}/"
-
-    logger.info(f"🔍 Checking if project exists in S3: {s3_path}")
 
     # Check if S3 directory exists
-    s3_exists = await check_s3_directory_exists(
-        bucket_name, f"{s3_prefix}/{user_id}/projects/{project_name}"
-    )
+    s3_exists = await s3_client.check_exists(user_id, "projects", project_name)
+    s3_path = s3_client.build_s3_path(user_id, "projects", project_name) + "/"
+
+    logger.info(f"🔍 Checking if project exists in S3: {s3_path}")
 
     if not s3_exists:
         logger.info(f"⏭️  No project data found in S3 for {user_id}/{project_name}")
@@ -692,55 +631,22 @@ async def sync_project_from_s3(
             "files_synced": 0,
         }
 
-    # Create project directory if it doesn't exist
-    local_project_path.mkdir(parents=True, exist_ok=True)
-
-    logger.info(f"⬇️  Syncing project from {s3_path} to {local_project_path}")
-
-    # Build s5cmd command
-    cmd = [
-        "s5cmd",
-        "--log", "error",
-        "sync",
-        s3_path + "*",
-        str(local_project_path) + "/",
-    ]
-
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        result = await s3_client.sync_from_s3(
+            [user_id, "projects", project_name],
+            local_project_path,
         )
 
-        stdout, stderr = await process.communicate()
-        stdout_text = stdout.decode() if stdout else ""
-        stderr_text = stderr.decode() if stderr else ""
+        result["user_id"] = user_id
+        result["project_name"] = project_name
+        result["message"] = f"Successfully synced {result['files_synced']} files from S3"
 
-        if process.returncode != 0:
-            error_msg = f"s5cmd failed: {stderr_text}"
-            logger.error(error_msg)
-            raise WorkspaceSyncError(error_msg)
-
-        files_synced = len([line for line in stdout_text.strip().split('\n') if line])
-
-        result = {
-            "status": "success",
-            "user_id": user_id,
-            "project_name": project_name,
-            "s3_path": s3_path,
-            "local_path": str(local_project_path),
-            "files_synced": files_synced,
-            "message": f"Successfully synced {files_synced} files from S3",
-            "output": stdout_text,
-        }
-
-        logger.info(f"✅ Project sync completed: {files_synced} files from S3")
+        logger.info(f"✅ Project sync completed: {result['files_synced']} files from S3")
         return result
 
-    except Exception as e:
+    except S3ClientError as e:
         error_msg = f"Failed to sync project: {str(e)}"
-        logger.error(f"❌ {error_msg}", exc_info=True)
+        logger.error(f"❌ {error_msg}")
         raise WorkspaceSyncError(error_msg) from e
 
 
@@ -767,71 +673,35 @@ async def backup_project_to_s3(
     Raises:
         WorkspaceSyncError: If backup fails
     """
-    if not check_s5cmd_installed():
-        raise WorkspaceSyncError("s5cmd is not installed")
+    try:
+        s3_client = S3Client(bucket_name, s3_prefix)
+    except S3ClientError as e:
+        raise WorkspaceSyncError(str(e)) from e
 
-    # Build paths
     local_project_path = Path(local_base_path) / user_id / project_name
 
-    if not local_project_path.exists():
-        logger.debug(f"⏭️  No local project directory: {local_project_path}")
-        return {
-            "status": "skipped",
-            "user_id": user_id,
-            "project_name": project_name,
-            "local_path": str(local_project_path),
-            "message": "No local project directory to backup",
-            "files_synced": 0,
-        }
-
-    s3_path = f"s3://{bucket_name}/{s3_prefix}/{user_id}/projects/{project_name}/"
-
-    logger.info(f"⬆️  Backing up project from {local_project_path} to {s3_path}")
-
-    # Build s5cmd command
-    cmd = [
-        "s5cmd",
-        "--log", "error",
-        "sync",
-        str(local_project_path) + "/*",
-        s3_path,
-    ]
-
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        result = await s3_client.sync_to_s3(
+            local_project_path,
+            [user_id, "projects", project_name],
         )
 
-        stdout, stderr = await process.communicate()
-        stdout_text = stdout.decode() if stdout else ""
-        stderr_text = stderr.decode() if stderr else ""
+        if result["status"] == "skipped":
+            result["user_id"] = user_id
+            result["project_name"] = project_name
+            logger.debug(f"⏭️  No local project directory: {local_project_path}")
+            return result
 
-        if process.returncode != 0:
-            error_msg = f"s5cmd failed: {stderr_text}"
-            logger.error(error_msg)
-            raise WorkspaceSyncError(error_msg)
+        result["user_id"] = user_id
+        result["project_name"] = project_name
+        result["message"] = f"Successfully backed up {result['files_synced']} files to S3"
 
-        files_synced = len([line for line in stdout_text.strip().split('\n') if line])
-
-        result = {
-            "status": "success",
-            "user_id": user_id,
-            "project_name": project_name,
-            "local_path": str(local_project_path),
-            "s3_path": s3_path,
-            "files_synced": files_synced,
-            "message": f"Successfully backed up {files_synced} files to S3",
-            "output": stdout_text,
-        }
-
-        logger.info(f"✅ Project backup completed: {files_synced} files to S3")
+        logger.info(f"✅ Project backup completed: {result['files_synced']} files to S3")
         return result
 
-    except Exception as e:
+    except S3ClientError as e:
         error_msg = f"Failed to backup project: {str(e)}"
-        logger.error(f"❌ {error_msg}", exc_info=True)
+        logger.error(f"❌ {error_msg}")
         raise WorkspaceSyncError(error_msg) from e
 
 
@@ -856,8 +726,10 @@ async def backup_claude_dir_to_s3(
     Raises:
         WorkspaceSyncError: If backup fails
     """
-    if not check_s5cmd_installed():
-        raise WorkspaceSyncError("s5cmd is not installed")
+    try:
+        s3_client = S3Client(bucket_name, s3_prefix)
+    except S3ClientError as e:
+        raise WorkspaceSyncError(str(e)) from e
 
     # Get home directory
     if local_home is None:
@@ -865,61 +737,24 @@ async def backup_claude_dir_to_s3(
 
     local_claude_dir = Path(local_home) / ".claude"
 
-    if not local_claude_dir.exists():
-        logger.debug(f"⏭️  No .claude directory found for user {user_id}")
-        return {
-            "status": "skipped",
-            "user_id": user_id,
-            "local_path": str(local_claude_dir),
-            "message": "No .claude directory to backup",
-            "files_synced": 0,
-        }
-
-    s3_path = f"s3://{bucket_name}/{s3_prefix}/{user_id}/.claude/"
-
-    logger.info(f"⬆️  Backing up .claude from {local_claude_dir} to {s3_path}")
-
-    # Build s5cmd command
-    cmd = [
-        "s5cmd",
-        "--log", "error",
-        "sync",
-        str(local_claude_dir) + "/*",
-        s3_path,
-    ]
-
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        result = await s3_client.sync_to_s3(
+            local_claude_dir,
+            [user_id, ".claude"],
         )
 
-        stdout, stderr = await process.communicate()
-        stdout_text = stdout.decode() if stdout else ""
-        stderr_text = stderr.decode() if stderr else ""
+        if result["status"] == "skipped":
+            result["user_id"] = user_id
+            logger.debug(f"⏭️  No .claude directory found for user {user_id}")
+            return result
 
-        if process.returncode != 0:
-            error_msg = f"s5cmd failed: {stderr_text}"
-            logger.error(error_msg)
-            raise WorkspaceSyncError(error_msg)
+        result["user_id"] = user_id
+        result["message"] = f"Successfully backed up {result['files_synced']} files to S3"
 
-        files_synced = len([line for line in stdout_text.strip().split('\n') if line])
-
-        result = {
-            "status": "success",
-            "user_id": user_id,
-            "local_path": str(local_claude_dir),
-            "s3_path": s3_path,
-            "files_synced": files_synced,
-            "message": f"Successfully backed up {files_synced} files to S3",
-            "output": stdout_text,
-        }
-
-        logger.info(f"✅ .claude backup completed: {files_synced} files to S3")
+        logger.info(f"✅ .claude backup completed: {result['files_synced']} files to S3")
         return result
 
-    except Exception as e:
+    except S3ClientError as e:
         error_msg = f"Failed to backup .claude directory: {str(e)}"
-        logger.error(f"❌ {error_msg}", exc_info=True)
+        logger.error(f"❌ {error_msg}")
         raise WorkspaceSyncError(error_msg) from e
