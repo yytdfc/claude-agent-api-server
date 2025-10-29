@@ -340,3 +340,50 @@ async def create_project(request: CreateProjectRequest):
     except Exception as e:
         logger.error(f"Error creating project for user {request.user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")
+
+
+@router.post("/workspace/projects/backup")
+async def backup_project(request: CreateProjectRequest):
+    """
+    Backup a project from local workspace to S3.
+
+    Syncs files from /workspace/{project_name} to S3.
+
+    Environment Variables:
+    - S3_WORKSPACE_BUCKET: S3 bucket name (required)
+    - S3_WORKSPACE_PREFIX: S3 key prefix (default: "user_data")
+    - WORKSPACE_BASE_PATH: Local base directory (default: "/workspace")
+
+    Args:
+        request: CreateProjectRequest containing user_id and project_name
+
+    Returns:
+        Dict with backup status, files_synced, etc.
+
+    Raises:
+        HTTPException: If S3 bucket not configured or backup fails
+    """
+    if not S3_BUCKET:
+        raise HTTPException(
+            status_code=500,
+            detail="S3_WORKSPACE_BUCKET environment variable not configured"
+        )
+
+    logger.info(f"Backing up project {request.project_name} for user: {request.user_id}")
+
+    try:
+        from ..core.workspace_sync import backup_project_to_s3
+
+        result = await backup_project_to_s3(
+            user_id=request.user_id,
+            project_name=request.project_name,
+            bucket_name=S3_BUCKET,
+            s3_prefix=S3_PREFIX,
+            local_base_path=LOCAL_BASE_PATH,
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error backing up project for user {request.user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to backup project: {str(e)}")

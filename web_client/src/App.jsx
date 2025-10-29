@@ -130,6 +130,25 @@ function AppContent() {
     if (projectName === currentProject) return
 
     console.log(`📁 Switching to project: ${projectName || 'Default Workspace'}`)
+
+    // Backup current project to S3 before switching (if not default workspace)
+    if (currentProject) {
+      try {
+        console.log(`💾 Backing up current project "${currentProject}" to S3...`)
+        const apiClient = createAPIClient(settings.serverUrl)
+        const backupResult = await apiClient.backupProject(user.userId, currentProject)
+
+        if (backupResult.status === 'success') {
+          console.log(`✅ Backed up ${backupResult.files_synced} files to S3`)
+        } else if (backupResult.status === 'skipped') {
+          console.log(`⏭️  No files to backup for project "${currentProject}"`)
+        }
+      } catch (error) {
+        console.error(`Failed to backup project "${currentProject}":`, error)
+        // Continue with switch even if backup fails
+      }
+    }
+
     setCurrentProject(projectName)
 
     // Update working directory based on project

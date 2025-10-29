@@ -53,4 +53,12 @@ htmlcov/
 
 # Distribution / packaging
 *.whl
-docker/test_docker.sh
+
+.venv/*
+.claude/*
+.dockerignore
+.gitignore
+.ruff_cache/*
+.git/*
+web_client/*
+

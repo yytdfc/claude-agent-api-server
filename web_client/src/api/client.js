@@ -356,6 +356,55 @@ class DirectAPIClient {
 
     return eventSource
   }
+
+  async listProjects(userId) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/workspace/projects/${userId}`, {
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to list projects')
+    }
+    return response.json()
+  }
+
+  async createProject(userId, projectName) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/workspace/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        project_name: projectName
+      })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to create project')
+    }
+    return response.json()
+  }
+
+  async backupProject(userId, projectName) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/workspace/projects/backup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        project_name: projectName
+      })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to backup project')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -433,6 +482,13 @@ class InvocationsAPIClient {
 
   async createProject(userId, projectName) {
     return this._invoke('/workspace/projects', 'POST', {
+      user_id: userId,
+      project_name: projectName
+    })
+  }
+
+  async backupProject(userId, projectName) {
+    return this._invoke('/workspace/projects/backup', 'POST', {
       user_id: userId,
       project_name: projectName
     })
