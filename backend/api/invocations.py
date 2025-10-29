@@ -132,6 +132,16 @@ async def invocations(http_request: Request, request: dict[str, Any]):
     # Parse agentcore_session_id and user_id from headers
     agentcore_session_id, user_id = parse_session_and_user_from_headers(http_request)
 
+    # Ensure user's .claude directory is synced from S3 (first time only)
+    if user_id:
+        from ..server import claude_sync_manager
+        if claude_sync_manager:
+            try:
+                await claude_sync_manager.ensure_initial_sync(user_id)
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"Warning: Failed to sync .claude for user {user_id}: {e}")
+
     path = request.get("path")
     method = request.get("method", "POST").upper()
     payload = request.get("payload", {})

@@ -33,6 +33,7 @@ from .api import (
 )
 from .core import SessionManager
 from .core.pty_manager import PTYManager
+from .core.claude_sync_manager import initialize_claude_sync_manager, get_claude_sync_manager
 from .proxy import router as proxy_router
 
 # ============================================================================
@@ -41,6 +42,7 @@ from .proxy import router as proxy_router
 
 session_manager = SessionManager()
 pty_manager = PTYManager()
+claude_sync_manager = None  # Will be initialized in lifespan
 
 
 # ============================================================================
@@ -54,8 +56,14 @@ async def lifespan(app: FastAPI):
     # Startup
     await pty_manager.start()
 
-    # Start gRPC server if enabled
+    # Initialize Claude sync manager and start backup task
     import os
+    global claude_sync_manager
+    claude_sync_manager = initialize_claude_sync_manager()
+    if claude_sync_manager:
+        claude_sync_manager.start_backup_task()
+
+    # Start gRPC server if enabled
     grpc_enabled = os.environ.get('ENABLE_GRPC_SERVER', 'false').lower() == 'true'
     grpc_task = None
 
@@ -70,6 +78,10 @@ async def lifespan(app: FastAPI):
     for session_id in list(session_manager.sessions.keys()):
         await session_manager.close_session(session_id)
     await pty_manager.stop()
+
+    # Stop Claude sync manager backup task
+    if claude_sync_manager:
+        await claude_sync_manager.stop_backup_task()
 
     # Stop gRPC server
     if grpc_task:
