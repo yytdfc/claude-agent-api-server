@@ -5,6 +5,7 @@ Provides a single entry point for all API operations, routing requests
 based on the path and payload parameters.
 """
 
+import os
 import jwt
 from typing import Any, Optional
 
@@ -52,22 +53,37 @@ from .sessions import (
 router = APIRouter()
 
 
-def parse_session_and_user_from_headers(request: Request) -> tuple[Optional[str], Optional[str]]:
+def parse_session_and_user_from_headers(request: Request) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """
-    Parse agentcore_session_id and user_id from request headers.
+    Parse agentcore_session_id, user_id, and project_name from request headers.
+
+    AgentCore Session ID format: user_id@workspace/project_name
+    - user_id@workspace: default workspace, no specific project
+    - user_id@workspace/my-project: specific project within workspace
 
     Args:
         request: FastAPI Request object
 
     Returns:
-        Tuple of (agentcore_session_id, user_id)
+        Tuple of (agentcore_session_id, user_id, project_name)
     """
     agentcore_session_id = None
     user_id = None
+    project_name = None
 
     # Extract agentcore_session_id from X-Amzn-Bedrock-AgentCore-Runtime-Session-Id header
     # FastAPI headers are case-insensitive, but we try common variations
     agentcore_session_id = request.headers.get("x-amzn-bedrock-agentcore-runtime-session-id")
+
+    # Parse project_name from agentcore_session_id if present
+    # Format: user_id@workspace/project_name
+    if agentcore_session_id:
+        if "@workspace/" in agentcore_session_id:
+            # Has project: user_id@workspace/project_name
+            parts = agentcore_session_id.split("@workspace/", 1)
+            if len(parts) == 2:
+                project_name = parts[1]
+        # user_id will be extracted from JWT below
 
     # Extract and decode JWT token from Authorization header (case-insensitive)
     auth_header = request.headers.get("authorization", "")
@@ -85,7 +101,7 @@ def parse_session_and_user_from_headers(request: Request) -> tuple[Optional[str]
             # Any other error, user_id remains None
             pass
 
-    return agentcore_session_id, user_id
+    return agentcore_session_id, user_id, project_name
 
 
 @router.post("/invocations")
@@ -129,8 +145,8 @@ async def invocations(http_request: Request, request: dict[str, Any]):
             "path_params": {"session_id": "abc123"}
         }
     """
-    # Parse agentcore_session_id and user_id from headers
-    agentcore_session_id, user_id = parse_session_and_user_from_headers(http_request)
+    # Parse agentcore_session_id, user_id, and project_name from headers
+    agentcore_session_id, user_id, project_name = parse_session_and_user_from_headers(http_request)
 
     # Ensure user's .claude directory is synced from S3 (first time only)
     if user_id:
@@ -147,6 +163,21 @@ async def invocations(http_request: Request, request: dict[str, Any]):
                 print(f"⚠️  Warning: Exception during .claude sync for user {user_id}: {e}")
         else:
             print(f"⚠️  Claude sync manager not initialized, skipping sync for user {user_id}")
+
+    # Ensure project directory is synced from S3 (first time only)
+    if user_id and project_name:
+        from ..core.workspace_sync import sync_project_from_s3
+        try:
+            print(f"📁 Attempting project sync for user {user_id}, project: {project_name}")
+            project_result = await sync_project_from_s3(
+                user_id=user_id,
+                project_name=project_name,
+                bucket_name=os.environ.get("S3_WORKSPACE_BUCKET", ""),
+                s3_prefix=os.environ.get("S3_WORKSPACE_PREFIX", "user_data"),
+            )
+            print(f"📊 Project sync result: {project_result.get('status')} - {project_result.get('message', 'No message')}")
+        except Exception as e:
+            print(f"⚠️  Warning: Exception during project sync: {e}")
 
     path = request.get("path")
     method = request.get("method", "POST").upper()
