@@ -49,7 +49,6 @@ import json
 from typing import Optional
 
 import httpx
-from sseclient import SSEClient
 
 
 class PTYClient:
@@ -231,32 +230,38 @@ class PTYClient:
                         self.poll_output()
                         return
 
-                    # Process SSE events
-                    sse_client = SSEClient(response)
-                    for event in sse_client.events():
+                    # Process SSE events line by line
+                    buffer = ""
+                    for line in response.iter_lines():
                         if not self.running:
                             break
 
-                        try:
-                            data = json.loads(event.data)
-                            output = data.get("output", "")
-                            if output:
-                                sys.stdout.write(output)
-                                sys.stdout.flush()
+                        line = line.strip()
 
-                            self.output_seq = data.get("seq", self.output_seq)
+                        # SSE format: "data: {...}"
+                        if line.startswith("data: "):
+                            try:
+                                json_str = line[6:]  # Remove "data: " prefix
+                                data = json.loads(json_str)
 
-                            exit_code = data.get("exit_code")
-                            if exit_code is not None:
-                                self.running = False
-                                break
+                                output = data.get("output", "")
+                                if output:
+                                    sys.stdout.write(output)
+                                    sys.stdout.flush()
 
-                        except json.JSONDecodeError:
-                            pass
-                        except Exception as e:
-                            if self.running:
-                                print(f"\n✗ Stream error: {e}", file=sys.stderr)
-                                break
+                                self.output_seq = data.get("seq", self.output_seq)
+
+                                exit_code = data.get("exit_code")
+                                if exit_code is not None:
+                                    self.running = False
+                                    break
+
+                            except json.JSONDecodeError:
+                                pass
+                            except Exception as e:
+                                if self.running:
+                                    print(f"\n✗ Stream error: {e}", file=sys.stderr)
+                                    break
 
         except Exception as e:
             print(f"\n✗ Streaming failed: {e}", file=sys.stderr)

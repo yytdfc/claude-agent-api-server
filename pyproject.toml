@@ -15,5 +15,4 @@ dependencies = [
     "litellm>=1.78.7",
     "pexpect>=4.9.0",
     "pyjwt>=2.10.1",
-    "sseclient-py>=1.8.0",
 ]
