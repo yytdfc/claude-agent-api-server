@@ -515,7 +515,7 @@ async def sync_claude_dir_from_s3(
     local_claude_dir = Path(local_home) / ".claude"
     s3_path = f"s3://{bucket_name}/{s3_prefix}/{user_id}/.claude/"
 
-    logger.info(f"Checking if .claude data exists in S3: {s3_path}")
+    logger.info(f"🔍 Checking if .claude data exists in S3: {s3_path}")
 
     # Check if S3 directory exists
     s3_exists = await check_s3_directory_exists(
@@ -523,7 +523,7 @@ async def sync_claude_dir_from_s3(
     )
 
     if not s3_exists:
-        logger.info(f"No .claude data found in S3 for user {user_id}")
+        logger.info(f"⏭️  No .claude data found in S3 for user {user_id}")
         return {
             "status": "skipped",
             "user_id": user_id,
@@ -536,7 +536,7 @@ async def sync_claude_dir_from_s3(
     # Create .claude directory if it doesn't exist
     local_claude_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Syncing .claude from {s3_path} to {local_claude_dir}")
+    logger.info(f"⬇️  Syncing .claude from {s3_path} to {local_claude_dir}")
 
     # Build s5cmd command
     cmd = [
@@ -575,12 +575,12 @@ async def sync_claude_dir_from_s3(
             "output": stdout_text,
         }
 
-        logger.info(f".claude sync completed: {result['message']}")
+        logger.info(f"✅ .claude sync completed: {files_synced} files from S3")
         return result
 
     except Exception as e:
         error_msg = f"Failed to sync .claude directory: {str(e)}"
-        logger.error(error_msg, exc_info=True)
+        logger.error(f"❌ {error_msg}", exc_info=True)
         raise WorkspaceSyncError(error_msg) from e
 
 
@@ -615,7 +615,7 @@ async def backup_claude_dir_to_s3(
     local_claude_dir = Path(local_home) / ".claude"
 
     if not local_claude_dir.exists():
-        logger.info(f"No .claude directory found for user {user_id}")
+        logger.debug(f"⏭️  No .claude directory found for user {user_id}")
         return {
             "status": "skipped",
             "user_id": user_id,
@@ -626,7 +626,7 @@ async def backup_claude_dir_to_s3(
 
     s3_path = f"s3://{bucket_name}/{s3_prefix}/{user_id}/.claude/"
 
-    logger.info(f"Backing up .claude from {local_claude_dir} to {s3_path}")
+    logger.info(f"⬆️  Backing up .claude from {local_claude_dir} to {s3_path}")
 
     # Build s5cmd command
     cmd = [
@@ -665,10 +665,10 @@ async def backup_claude_dir_to_s3(
             "output": stdout_text,
         }
 
-        logger.info(f".claude backup completed: {result['message']}")
+        logger.info(f"✅ .claude backup completed: {files_synced} files to S3")
         return result
 
     except Exception as e:
         error_msg = f"Failed to backup .claude directory: {str(e)}"
-        logger.error(error_msg, exc_info=True)
+        logger.error(f"❌ {error_msg}", exc_info=True)
         raise WorkspaceSyncError(error_msg) from e

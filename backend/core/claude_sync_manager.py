@@ -70,12 +70,14 @@ class ClaudeSyncManager:
         """
         # Check if user already synced
         if user_id in self._synced_users:
-            logger.debug(f"User {user_id} already synced in this session")
+            logger.debug(f"✓ User {user_id} already synced in this session")
             return {
                 "status": "already_synced",
                 "user_id": user_id,
                 "message": "User already synced in this session",
             }
+
+        logger.info(f"🔄 Starting initial .claude sync for user {user_id}")
 
         try:
             # Attempt to sync from S3
@@ -88,15 +90,21 @@ class ClaudeSyncManager:
             # Mark user as synced (even if skipped due to no S3 data)
             self._synced_users.add(user_id)
 
-            logger.info(
-                f"Initial sync completed for user {user_id}: "
-                f"{result.get('message', 'Unknown')}"
-            )
+            if result.get("status") == "success":
+                logger.info(
+                    f"✅ Initial sync completed for user {user_id}: "
+                    f"{result.get('files_synced', 0)} files synced from S3"
+                )
+            elif result.get("status") == "skipped":
+                logger.info(
+                    f"⏭️  Initial sync skipped for user {user_id}: "
+                    f"{result.get('message', 'No S3 data')}"
+                )
 
             return result
 
         except WorkspaceSyncError as e:
-            logger.error(f"Failed to sync .claude for user {user_id}: {e}")
+            logger.error(f"❌ Failed to sync .claude for user {user_id}: {e}")
             # Don't add to synced_users on error - allow retry
             return {
                 "status": "error",
@@ -133,13 +141,14 @@ class ClaudeSyncManager:
     async def _backup_loop(self):
         """Background loop for periodic backups of all synced users."""
         logger.info(
-            f"Starting .claude backup loop "
+            f"🔄 Starting .claude backup loop "
             f"(interval: {self.backup_interval_minutes} minutes)"
         )
 
         while self._running:
             try:
                 # Wait for the backup interval
+                logger.debug(f"⏰ Waiting {self.backup_interval_minutes} minutes until next backup...")
                 await asyncio.sleep(self.backup_interval_minutes * 60)
 
                 if not self._running:
@@ -149,12 +158,16 @@ class ClaudeSyncManager:
                 users_to_backup = list(self._synced_users)
 
                 if not users_to_backup:
-                    logger.debug("No users to backup")
+                    logger.debug("⏭️  No users to backup")
                     continue
 
-                logger.info(f"Starting periodic backup for {len(users_to_backup)} users")
+                logger.info(f"📦 Starting periodic backup for {len(users_to_backup)} users")
 
                 # Backup each user
+                success_count = 0
+                skip_count = 0
+                error_count = 0
+
                 for user_id in users_to_backup:
                     if not self._running:
                         break
@@ -162,48 +175,60 @@ class ClaudeSyncManager:
                     try:
                         result = await self.backup_user_claude_dir(user_id)
                         if result["status"] == "success":
+                            success_count += 1
                             logger.info(
-                                f"Backed up .claude for user {user_id}: "
+                                f"✅ Backed up .claude for user {user_id}: "
                                 f"{result.get('files_synced', 0)} files"
                             )
                         elif result["status"] == "skipped":
+                            skip_count += 1
                             logger.debug(
-                                f"Skipped backup for user {user_id}: "
+                                f"⏭️  Skipped backup for user {user_id}: "
                                 f"{result.get('message', 'No data')}"
                             )
+                        elif result["status"] == "error":
+                            error_count += 1
+                            logger.warning(
+                                f"⚠️  Error backing up user {user_id}: "
+                                f"{result.get('message', 'Unknown error')}"
+                            )
                     except Exception as e:
+                        error_count += 1
                         logger.error(
-                            f"Error backing up user {user_id}: {e}",
+                            f"❌ Exception backing up user {user_id}: {e}",
                             exc_info=True
                         )
 
-                logger.info("Periodic backup completed")
+                logger.info(
+                    f"✅ Periodic backup completed: "
+                    f"{success_count} succeeded, {skip_count} skipped, {error_count} errors"
+                )
 
             except asyncio.CancelledError:
-                logger.info("Backup loop cancelled")
+                logger.info("🛑 Backup loop cancelled")
                 break
             except Exception as e:
-                logger.error(f"Error in backup loop: {e}", exc_info=True)
+                logger.error(f"❌ Error in backup loop: {e}", exc_info=True)
                 # Continue running even if one iteration fails
 
-        logger.info("Backup loop stopped")
+        logger.info("🛑 Backup loop stopped")
 
     def start_backup_task(self):
         """Start the background backup task."""
         if self._backup_task is not None:
-            logger.warning("Backup task already running")
+            logger.warning("⚠️  Backup task already running")
             return
 
         self._running = True
         self._backup_task = asyncio.create_task(self._backup_loop())
-        logger.info("Background backup task started")
+        logger.info("🚀 Background backup task started")
 
     async def stop_backup_task(self):
         """Stop the background backup task."""
         if self._backup_task is None:
             return
 
-        logger.info("Stopping background backup task...")
+        logger.info("🛑 Stopping background backup task...")
         self._running = False
 
         if self._backup_task and not self._backup_task.done():
@@ -214,7 +239,7 @@ class ClaudeSyncManager:
                 pass
 
         self._backup_task = None
-        logger.info("Background backup task stopped")
+        logger.info("✅ Background backup task stopped")
 
     def get_synced_users(self) -> Set[str]:
         """Get set of users who have been synced."""
@@ -264,7 +289,7 @@ def initialize_claude_sync_manager(
 
     if not bucket_name:
         logger.warning(
-            "S3_WORKSPACE_BUCKET not configured, "
+            "⚠️  S3_WORKSPACE_BUCKET not configured, "
             ".claude sync/backup will be disabled"
         )
         return None
@@ -276,7 +301,7 @@ def initialize_claude_sync_manager(
         )
 
     logger.info(
-        f"Initializing Claude Sync Manager: "
+        f"🔧 Initializing Claude Sync Manager: "
         f"bucket={bucket_name}, prefix={s3_prefix}, "
         f"interval={backup_interval_minutes}m"
     )
