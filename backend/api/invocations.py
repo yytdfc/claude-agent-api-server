@@ -491,7 +491,7 @@ async def invocations(http_request: Request, request: dict[str, Any]):
 
         elif path == "/oauth/github/token" and method == "POST":
             # Get GitHub OAuth token
-            return await get_github_oauth_token(request)
+            return await get_github_oauth_token(http_request)
 
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency
