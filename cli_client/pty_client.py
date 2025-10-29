@@ -45,9 +45,11 @@ import tty
 import signal
 import uuid
 import urllib.parse
+import json
 from typing import Optional
 
 import httpx
+from sseclient import SSEClient
 
 
 class PTYClient:
@@ -67,6 +69,7 @@ class PTYClient:
         self.running = False
         self.output_seq = 0
         self.old_tty_settings = None
+        self.use_streaming = True  # Try SSE streaming first
 
         if agentcore_mode:
             # AgentCore mode setup
@@ -204,7 +207,65 @@ class PTYClient:
         except:
             pass
 
+    def stream_output(self):
+        """Stream output using SSE (Server-Sent Events)."""
+        try:
+            # For invocations mode, SSE is not supported through /invocations
+            # Fall back to polling for invocations/agentcore mode
+            if self.agentcore_mode:
+                self.use_streaming = False
+                self.poll_output()
+                return
+
+            # Construct SSE URL (direct mode only)
+            stream_url = f"{self.base_url}/terminal/sessions/{self.session_id}/stream"
+            headers = self._get_headers()
+
+            # Create streaming request
+            with httpx.Client(timeout=None) as client:
+                with client.stream("GET", stream_url, headers=headers) as response:
+                    if response.status_code != 200:
+                        print(f"✗ SSE connection failed: {response.status_code}", file=sys.stderr)
+                        print("→ Falling back to polling mode", file=sys.stderr)
+                        self.use_streaming = False
+                        self.poll_output()
+                        return
+
+                    # Process SSE events
+                    sse_client = SSEClient(response)
+                    for event in sse_client.events():
+                        if not self.running:
+                            break
+
+                        try:
+                            data = json.loads(event.data)
+                            output = data.get("output", "")
+                            if output:
+                                sys.stdout.write(output)
+                                sys.stdout.flush()
+
+                            self.output_seq = data.get("seq", self.output_seq)
+
+                            exit_code = data.get("exit_code")
+                            if exit_code is not None:
+                                self.running = False
+                                break
+
+                        except json.JSONDecodeError:
+                            pass
+                        except Exception as e:
+                            if self.running:
+                                print(f"\n✗ Stream error: {e}", file=sys.stderr)
+                                break
+
+        except Exception as e:
+            print(f"\n✗ Streaming failed: {e}", file=sys.stderr)
+            print("→ Falling back to polling mode", file=sys.stderr)
+            self.use_streaming = False
+            self.poll_output()
+
     def poll_output(self):
+        """Poll output using HTTP requests (fallback mode)."""
         client = httpx.Client(timeout=5.0)
         try:
             while self.running:
@@ -278,6 +339,10 @@ class PTYClient:
         print("PTY Terminal Client")
         print(f"Server: {self.base_url}")
         print(f"Working directory: {self.initial_cwd}")
+
+        # Display mode
+        mode = "SSE Streaming" if self.use_streaming and not self.agentcore_mode else "HTTP Polling"
+        print(f"Output mode: {mode}")
         print()
 
         if not self.create_session():
@@ -287,7 +352,9 @@ class PTYClient:
 
         self.running = True
 
-        output_thread = threading.Thread(target=self.poll_output, daemon=True)
+        # Choose output method based on streaming support
+        output_method = self.stream_output if self.use_streaming else self.poll_output
+        output_thread = threading.Thread(target=output_method, daemon=True)
         input_thread = threading.Thread(target=self.send_input, daemon=True)
 
         try:
@@ -352,6 +419,13 @@ def main():
         help="Agent ARN for AgentCore (or use AGENT_ARN env var)"
     )
 
+    # Output mode options
+    parser.add_argument(
+        "--no-streaming",
+        action="store_true",
+        help="Disable SSE streaming, use HTTP polling instead"
+    )
+
     args = parser.parse_args()
 
     try:
@@ -370,6 +444,10 @@ def main():
                 base_url=args.url or "http://127.0.0.1:8000",
                 initial_cwd=args.cwd
             )
+
+        # Override streaming setting if requested
+        if args.no_streaming:
+            client.use_streaming = False
 
         return client.run()
     except Exception as e:
