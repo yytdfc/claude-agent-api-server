@@ -70,8 +70,18 @@ function AppContent() {
   const [terminalWidth, setTerminalWidth] = useState(600) // Default 600px
   const [isResizingTerminal, setIsResizingTerminal] = useState(false)
 
-  // Project state
-  const [currentProject, setCurrentProject] = useState(null) // null means default workspace
+  // Project state - infer from settings.cwd
+  const [currentProject, setCurrentProject] = useState(() => {
+    // If cwd is /workspace/project_name, extract project_name
+    if (settings.cwd.startsWith('/workspace/') && settings.cwd !== '/workspace') {
+      const projectName = settings.cwd.replace('/workspace/', '')
+      // Only set if it's a simple project name (no further slashes)
+      if (projectName && !projectName.includes('/')) {
+        return projectName
+      }
+    }
+    return null // Default workspace
+  })
   const [availableProjects, setAvailableProjects] = useState([])
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false)
