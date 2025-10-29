@@ -15,16 +15,44 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   const outputSeqRef = useRef(0)
   const [isConnected, setIsConnected] = useState(false)
   const isPollingRef = useRef(false) // Prevent concurrent polling requests
+  const inputQueueRef = useRef([]) // Queue for input data
+  const isSendingInputRef = useRef(false) // Flag to prevent concurrent input sending
 
   useEffect(() => {
     apiClientRef.current = createAPIClient(serverUrl)
   }, [serverUrl])
 
+  // Process input queue to ensure sequential sending
+  const processInputQueue = async () => {
+    if (isSendingInputRef.current || inputQueueRef.current.length === 0) {
+      return
+    }
+
+    isSendingInputRef.current = true
+
+    while (inputQueueRef.current.length > 0) {
+      const data = inputQueueRef.current.shift()
+      try {
+        await apiClientRef.current.sendTerminalInput(sessionIdRef.current, data)
+      } catch (error) {
+        console.error('Failed to send input:', error)
+        break
+      }
+    }
+
+    isSendingInputRef.current = false
+  }
+
+  const queueInput = (data) => {
+    inputQueueRef.current.push(data)
+    processInputQueue()
+  }
+
   useEffect(() => {
     if (!terminalRef.current) return
 
     const xterm = new XTerm({
-      cursorBlink: true,
+      cursorBlink: false,
       cursorStyle: 'block',
       theme: {
         background: '#1e1e1e',
@@ -70,13 +98,9 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     }, 0)
 
 
-    xterm.onData(async (data) => {
+    xterm.onData((data) => {
       if (sessionIdRef.current) {
-        try {
-          await apiClientRef.current.sendTerminalInput(sessionIdRef.current, data)
-        } catch (error) {
-          console.error('Failed to send input:', error)
-        }
+        queueInput(data)
       }
     })
 
