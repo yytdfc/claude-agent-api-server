@@ -22,6 +22,8 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   useEffect(() => {
     if (!terminalRef.current) return
 
+    console.log('TerminalPTY: Initializing xterm...')
+
     const xterm = new XTerm({
       cursorBlink: true,
       cursorStyle: 'block',
@@ -64,6 +66,8 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     xtermRef.current = xterm
     fitAddonRef.current = fitAddon
 
+    console.log('TerminalPTY: xterm opened, dimensions:', xterm.rows, 'x', xterm.cols)
+
     xterm.onData(async (data) => {
       if (sessionIdRef.current && isConnected) {
         try {
@@ -90,7 +94,38 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
       resizeObserver.observe(terminalRef.current)
     }
 
+    // Initialize session after xterm is ready
+    const initSession = async () => {
+      console.log('TerminalPTY: Creating terminal session...')
+      try {
+        fitAddon.fit()
+        const { rows, cols } = xterm
+
+        console.log('TerminalPTY: Sending create session request:', { rows, cols, cwd: initialCwd || '/workspace' })
+
+        const response = await apiClientRef.current.createTerminalSession({
+          rows,
+          cols,
+          cwd: initialCwd || '/workspace',
+          shell: 'bash'
+        })
+
+        console.log('TerminalPTY: Session created:', response)
+
+        sessionIdRef.current = response.session_id
+        setIsConnected(true)
+
+        startPolling()
+      } catch (error) {
+        console.error('TerminalPTY: Failed to create session:', error)
+        xterm.writeln(`\x1b[1;31mFailed to create terminal session: ${error.message}\x1b[0m`)
+      }
+    }
+
+    initSession()
+
     return () => {
+      console.log('TerminalPTY: Cleaning up...')
       window.removeEventListener('resize', handleResize)
       resizeObserver.disconnect()
       stopPolling()
@@ -101,34 +136,13 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     }
   }, [])
 
-  useEffect(() => {
-    if (!xtermRef.current) return
-    initializeSession()
-  }, [])
-
-  const initializeSession = async () => {
-    try {
-      fitAddonRef.current?.fit()
-      const { rows, cols } = xtermRef.current
-
-      const response = await apiClientRef.current.createTerminalSession({
-        rows,
-        cols,
-        cwd: initialCwd || '/workspace',
-        shell: 'bash'
-      })
-
-      sessionIdRef.current = response.session_id
-      setIsConnected(true)
-
-      startPolling()
-    } catch (error) {
-      xtermRef.current.writeln(`\x1b[1;31mFailed to create terminal session: ${error.message}\x1b[0m`)
-    }
-  }
-
   const startPolling = () => {
-    if (pollIntervalRef.current) return
+    if (pollIntervalRef.current) {
+      console.log('TerminalPTY: Polling already started')
+      return
+    }
+
+    console.log('TerminalPTY: Starting output polling...')
 
     pollIntervalRef.current = setInterval(async () => {
       if (!sessionIdRef.current || !isConnected) return
@@ -140,18 +154,20 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
         )
 
         if (response.output) {
+          console.log('TerminalPTY: Received output, length:', response.output.length, 'seq:', response.seq)
           xtermRef.current.write(response.output)
         }
 
         outputSeqRef.current = response.seq
 
         if (response.exit_code !== null) {
+          console.log('TerminalPTY: Process exited with code:', response.exit_code)
           stopPolling()
           setIsConnected(false)
           xtermRef.current.writeln(`\r\n\x1b[1;33m[Process exited with code ${response.exit_code}]\x1b[0m`)
         }
       } catch (error) {
-        console.error('Failed to poll output:', error)
+        console.error('TerminalPTY: Failed to poll output:', error)
       }
     }, 100)
   }
