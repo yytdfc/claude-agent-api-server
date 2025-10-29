@@ -39,11 +39,28 @@ async def get_github_oauth_token(request: Request):
     - x-amzn-bedrock-agentcore-runtime-workload-accesstoken: Workload identity token
     - authorization: Bearer token containing user_id in 'sub' claim
 
+    API Call:
+        Uses client.get_resource_oauth2_token() with:
+        - workloadIdentityToken: From request header
+        - resourceCredentialProviderName: "github-provider"
+        - scopes: ["repo", "read:user"]
+        - oauth2Flow: "USER_FEDERATION"
+        - sessionUri: user_id from JWT
+        - forceAuthentication: True
+
     Returns:
-        dict: OAuth token response with access_token, token_type, scope, etc.
+        dict: OAuth token response with:
+            - access_token: GitHub OAuth access token (if available)
+            - token_type: "Bearer"
+            - authorization_url: URL to complete authorization (if IN_PROGRESS)
+            - session_uri: Session identifier
+            - session_status: "IN_PROGRESS" | "FAILED" | (success if access_token present)
 
     Raises:
         HTTPException: If token exchange fails or headers are missing
+
+    Reference:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-agentcore/client/get_resource_oauth2_token.html
     """
     # Extract workload identity token from headers
     workload_token = request.headers.get("x-amzn-bedrock-agentcore-runtime-workload-accesstoken")
@@ -76,28 +93,39 @@ async def get_github_oauth_token(request: Request):
     try:
         client = get_bedrock_agentcore_client()
 
-        # Call get_resource_oauth2_token
+        # Call get_resource_oauth2_token with correct parameter names from AWS API
         response = client.get_resource_oauth2_token(
-            providerName="github-provider",
-            scopes=["repo", "read:user"],
-            authFlow="USER_FEDERATION",
-            forceAuthentication=True,
             workloadIdentityToken=workload_token,
-            sessionUri=user_id  # Use user_id as session URI
+            resourceCredentialProviderName="github-provider",
+            scopes=["repo", "read:user"],
+            oauth2Flow="USER_FEDERATION",
+            sessionUri=user_id,  # Use user_id as session URI
+            forceAuthentication=True
         )
 
-        # Extract token information
-        oauth_token = response.get("oauth2Token", {})
+        # Extract token information from response
+        # Response contains: authorizationUrl, accessToken, sessionUri, sessionStatus
+        access_token = response.get("accessToken")
+        authorization_url = response.get("authorizationUrl")
+        session_uri = response.get("sessionUri")
+        session_status = response.get("sessionStatus")
 
         result = {
-            "access_token": oauth_token.get("accessToken"),
-            "token_type": oauth_token.get("tokenType", "Bearer"),
-            "scope": oauth_token.get("scope"),
-            "expires_in": oauth_token.get("expiresIn"),
-            "refresh_token": oauth_token.get("refreshToken"),
+            "access_token": access_token,
+            "token_type": "Bearer",
+            "authorization_url": authorization_url,
+            "session_uri": session_uri,
+            "session_status": session_status
         }
 
-        logger.info(f"Successfully obtained GitHub OAuth token for user {user_id}")
+        # Log appropriate message based on session status
+        if session_status == "IN_PROGRESS":
+            logger.info(f"GitHub OAuth authorization in progress for user {user_id}, URL: {authorization_url}")
+        elif session_status == "FAILED":
+            logger.warning(f"GitHub OAuth authorization failed for user {user_id}")
+        elif access_token:
+            logger.info(f"Successfully obtained GitHub OAuth token for user {user_id}")
+
         return result
 
     except ClientError as e:
