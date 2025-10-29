@@ -109,9 +109,10 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     }
   }, [sessionId, pendingPermission, sessionError])
 
-  // Start health check interval (only when page is visible)
+  // Start health check interval (only when page is visible and user is logged in)
   useEffect(() => {
-    if (!apiClientRef.current) return
+    // Only start health check if user is logged in (apiClient exists)
+    if (!apiClientRef.current || !userId) return
 
     // Start interval if page is currently visible
     const startInterval = () => {
@@ -148,7 +149,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
       stopInterval()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [checkServerHealth])
+  }, [userId, checkServerHealth])
 
   // Start permission checking interval (only when page is visible)
   useEffect(() => {
