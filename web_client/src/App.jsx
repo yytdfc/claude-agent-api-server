@@ -6,7 +6,7 @@ import SessionList from './components/SessionList'
 import FileBrowser from './components/FileBrowser'
 import FilePreview from './components/FilePreview'
 import SettingsModal from './components/SettingsModal'
-import Terminal from './components/Terminal'
+import TerminalPTY from './components/TerminalPTY'
 import Login from './components/Login'
 import Signup from './components/Signup'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
@@ -304,7 +304,7 @@ function AppContent() {
             >
               <div className="resize-handle-bar-vertical" />
             </div>
-            <Terminal
+            <TerminalPTY
               serverUrl={settings.serverUrl}
               initialCwd={workingDirectory}
               onClose={() => setShowTerminal(false)}

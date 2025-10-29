@@ -11,5 +11,6 @@ dependencies = [
     "httpx>=0.28.1",
     "langfuse>=2,<3",
     "litellm>=1.78.7",
+    "pexpect>=4.9.0",
     "pyjwt>=2.10.1",
 ]

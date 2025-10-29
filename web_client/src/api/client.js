@@ -231,6 +231,100 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async createTerminalSession(payload) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify(payload)
+    })
+    handleFetchResponse(response)
+    if (!response.ok) {
+      throw new Error('Failed to create terminal session')
+    }
+    return response.json()
+  }
+
+  async getTerminalOutput(sessionId, seq) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/output?seq=${seq}`, {
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to get terminal output')
+    }
+    return response.json()
+  }
+
+  async sendTerminalInput(sessionId, data) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/input`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({ data })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to send terminal input')
+    }
+    return response.json()
+  }
+
+  async resizeTerminal(sessionId, rows, cols) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/resize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({ rows, cols })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to resize terminal')
+    }
+    return response.json()
+  }
+
+  async closeTerminalSession(sessionId) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to close terminal session')
+    }
+    return response.json()
+  }
+
+  async getTerminalStatus(sessionId) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/status`, {
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to get terminal status')
+    }
+    return response.json()
+  }
+
+  async listTerminalSessions() {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions`, {
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to list terminal sessions')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -440,6 +534,34 @@ class InvocationsAPIClient {
 
   async setShellCwd(cwd) {
     return this._invoke('/shell/cwd', 'POST', { cwd })
+  }
+
+  async createTerminalSession(payload) {
+    return this._invoke('/terminal/sessions', 'POST', payload)
+  }
+
+  async getTerminalOutput(sessionId, seq) {
+    return this._invoke(`/terminal/sessions/${sessionId}/output?seq=${seq}`, 'GET', null, { session_id: sessionId })
+  }
+
+  async sendTerminalInput(sessionId, data) {
+    return this._invoke('/terminal/sessions/{session_id}/input', 'POST', { data }, { session_id: sessionId })
+  }
+
+  async resizeTerminal(sessionId, rows, cols) {
+    return this._invoke('/terminal/sessions/{session_id}/resize', 'POST', { rows, cols }, { session_id: sessionId })
+  }
+
+  async closeTerminalSession(sessionId) {
+    return this._invoke('/terminal/sessions/{session_id}', 'DELETE', null, { session_id: sessionId })
+  }
+
+  async getTerminalStatus(sessionId) {
+    return this._invoke('/terminal/sessions/{session_id}/status', 'GET', null, { session_id: sessionId })
+  }
+
+  async listTerminalSessions() {
+    return this._invoke('/terminal/sessions', 'GET')
   }
 }
 
