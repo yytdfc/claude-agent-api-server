@@ -94,9 +94,10 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     xtermRef.current = xterm
     fitAddonRef.current = fitAddon
 
-    // Wait for DOM to be ready before fitting
+    // Wait for DOM to be ready before fitting and focusing
     setTimeout(() => {
       fitAddon.fit()
+      xterm.focus()
     }, 0)
 
 
@@ -265,7 +266,7 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     <>
       <div className="terminal-header">
         <span className="terminal-title">
-          PTY Terminal {sessionIdRef.current ? `- ${sessionIdRef.current.substring(0, 8)}` : ''}
+          Terminal {sessionIdRef.current ? `- ${sessionIdRef.current.substring(0, 8)}` : ''}
         </span>
         <div className="terminal-actions">
           <button
