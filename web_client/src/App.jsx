@@ -76,13 +76,15 @@ function AppContent() {
     messages,
     pendingPermission,
     serverConnected,
+    sessionError,
     serverUrl,
     connect,
     disconnect,
     clearSession,
     sendMessage,
     respondToPermission,
-    loadSession
+    loadSession,
+    retrySession
   } = useClaudeAgent(settings.serverUrl)
 
   // Save settings to localStorage whenever they change
@@ -277,6 +279,8 @@ function AppContent() {
               onDisconnect={disconnect}
               onClearSession={clearSession}
               onPermissionRespond={respondToPermission}
+              sessionError={sessionError}
+              onRetrySession={retrySession}
             />
           )}
         </main>

@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, X, Loader2 } from 'lucide-react'
+import { Send, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import Message from './Message'
 
-function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onClearSession, onPermissionRespond }) {
+function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onClearSession, onPermissionRespond, sessionError, onRetrySession }) {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef(null)
@@ -48,6 +48,30 @@ function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onC
           <X size={18} />
         </button>
       </div>
+
+      {/* Error Banner */}
+      {sessionError && (
+        <div className="session-error-banner">
+          <div className="error-banner-icon">
+            <AlertTriangle size={20} />
+          </div>
+          <div className="error-banner-content">
+            <div className="error-banner-title">Session Error</div>
+            <div className="error-banner-message">{sessionError.message}</div>
+            <div className="error-banner-details">
+              Attempted {sessionError.attemptCount} times without success.
+            </div>
+          </div>
+          <button
+            onClick={onRetrySession}
+            className="btn btn-primary error-banner-retry"
+            title="Retry connecting to session"
+          >
+            <RefreshCw size={16} />
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="messages">

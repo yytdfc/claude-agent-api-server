@@ -20,6 +20,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
   const [messages, setMessages] = useState([])
   const [pendingPermission, setPendingPermission] = useState(null)
   const [serverConnected, setServerConnected] = useState(false) // Backend service connection status
+  const [sessionError, setSessionError] = useState(null) // Critical session error state
 
   const serverUrlRef = useRef(initialServerUrl)
   const configRef = useRef(null)
@@ -27,6 +28,8 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
   const healthCheckIntervalRef = useRef(null)
   const apiClientRef = useRef(null)
   const agentCoreSessionIdRef = useRef(null)
+  const sessionErrorCountRef = useRef(0) // Track consecutive session errors
+  const MAX_SESSION_ERRORS = 10 // Stop after 10 consecutive errors
 
   // Initialize API client on mount
   useEffect(() => {
@@ -64,22 +67,47 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
   const checkPermissions = useCallback(async () => {
     if (!sessionId || !apiClientRef.current) return
 
+    // Don't check if we've hit the error limit
+    if (sessionError) return
+
     try {
       const { response, data } = await apiClientRef.current.getSessionStatus(sessionId)
-      if (!response.ok || !data) return
 
-      if (data.pending_permission && !pendingPermission) {
-        // Add permission request as a message in the chat
-        setMessages(prev => [...prev, {
-          type: 'permission',
-          permission: data.pending_permission
-        }])
-        setPendingPermission(data.pending_permission)
+      // Handle 404 - Session not found
+      if (response.status === 404) {
+        sessionErrorCountRef.current += 1
+        console.warn(`Session not found (attempt ${sessionErrorCountRef.current}/${MAX_SESSION_ERRORS})`)
+
+        if (sessionErrorCountRef.current >= MAX_SESSION_ERRORS) {
+          setSessionError({
+            type: 'session_not_found',
+            message: 'Session not found after multiple attempts. The session may have expired or been deleted.',
+            attemptCount: sessionErrorCountRef.current
+          })
+          // Stop checking
+          return
+        }
+        return
+      }
+
+      // Reset error count on successful response
+      if (response.ok && data) {
+        sessionErrorCountRef.current = 0
+
+        if (data.pending_permission && !pendingPermission) {
+          // Add permission request as a message in the chat
+          setMessages(prev => [...prev, {
+            type: 'permission',
+            permission: data.pending_permission
+          }])
+          setPendingPermission(data.pending_permission)
+        }
       }
     } catch (error) {
       console.error('Permission check error:', error)
+      // Don't count non-404 errors toward the limit
     }
-  }, [sessionId, pendingPermission])
+  }, [sessionId, pendingPermission, sessionError])
 
   // Start health check interval (only when page is visible)
   useEffect(() => {
@@ -493,6 +521,22 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
     }
   }, [addSystemMessage, addErrorMessage])
 
+  // Retry session - reset error state and try to reconnect
+  const retrySession = useCallback(async () => {
+    console.log('🔄 Retrying session...')
+
+    // Clear error state
+    setSessionError(null)
+    sessionErrorCountRef.current = 0
+
+    // Try to reconnect with current config
+    if (configRef.current) {
+      await connect(configRef.current)
+    } else {
+      addErrorMessage('Cannot retry: No configuration available')
+    }
+  }, [connect, addErrorMessage])
+
   return {
     connected,
     connecting,
@@ -501,12 +545,14 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
     messages,
     pendingPermission,
     serverConnected,
+    sessionError,
     serverUrl: serverUrlRef.current,
     connect,
     disconnect,
     clearSession,
     sendMessage,
     respondToPermission,
-    loadSession
+    loadSession,
+    retrySession
   }
 }
