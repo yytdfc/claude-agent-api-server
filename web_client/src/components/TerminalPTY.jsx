@@ -61,12 +61,20 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     xterm.loadAddon(fitAddon)
 
     xterm.open(terminalRef.current)
-    fitAddon.fit()
 
     xtermRef.current = xterm
     fitAddonRef.current = fitAddon
 
-    console.log('TerminalPTY: xterm opened, dimensions:', xterm.rows, 'x', xterm.cols)
+    // Wait for DOM to be ready before fitting
+    setTimeout(() => {
+      try {
+        fitAddon.fit()
+        console.log('TerminalPTY: xterm opened and fitted, dimensions:', xterm.rows, 'x', xterm.cols)
+      } catch (err) {
+        console.error('TerminalPTY: Failed to fit terminal:', err)
+      }
+    }, 0)
+
 
     xterm.onData(async (data) => {
       if (sessionIdRef.current && isConnected) {
@@ -98,7 +106,15 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     const initSession = async () => {
       console.log('TerminalPTY: Creating terminal session...')
       try {
-        fitAddon.fit()
+        // Ensure terminal is fitted before getting dimensions
+        await new Promise(resolve => setTimeout(resolve, 100))
+
+        try {
+          fitAddon.fit()
+        } catch (err) {
+          console.warn('TerminalPTY: Could not fit terminal, using default dimensions')
+        }
+
         const { rows, cols } = xterm
 
         console.log('TerminalPTY: Sending create session request:', { rows, cols, cwd: initialCwd || '/workspace' })
