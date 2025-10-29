@@ -48,7 +48,7 @@ class PTYSession:
             shell_cmd,
             dimensions=(self.rows, self.cols),
             cwd=self.cwd,
-            echo=False,
+            echo=True,
             encoding='utf-8',
             codec_errors='replace'
         )

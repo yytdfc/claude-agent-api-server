@@ -134,9 +134,10 @@ class PTYClient:
             pass
 
     def poll_output(self):
-        while self.running:
-            try:
-                with httpx.Client() as client:
+        client = httpx.Client(timeout=5.0)
+        try:
+            while self.running:
+                try:
                     response = client.post(
                         self.invocations_url,
                         json={
@@ -144,8 +145,7 @@ class PTYClient:
                             "method": "GET",
                             "path_params": {"session_id": self.session_id},
                             "payload": {"seq": self.output_seq}
-                        },
-                        timeout=5.0
+                        }
                     )
 
                     if response.status_code == 200:
@@ -162,37 +162,44 @@ class PTYClient:
                             self.running = False
                             break
 
-                time.sleep(0.05)
+                    time.sleep(0.05)
 
-            except Exception as e:
-                if self.running:
-                    time.sleep(0.1)
+                except Exception:
+                    if self.running:
+                        time.sleep(0.1)
+        finally:
+            client.close()
 
     def send_input(self):
-        while self.running:
-            try:
-                if sys.stdin.isatty():
-                    readable, _, _ = select.select([sys.stdin], [], [], 0.1)
-                    if readable:
-                        data = os.read(sys.stdin.fileno(), 1024)
-                        if data:
-                            with httpx.Client() as client:
-                                client.post(
-                                    self.invocations_url,
-                                    json={
-                                        "path": "/terminal/sessions/{session_id}/input",
-                                        "method": "POST",
-                                        "path_params": {"session_id": self.session_id},
-                                        "payload": {"data": data.decode('utf-8', errors='replace')}
-                                    },
-                                    timeout=2.0
-                                )
-                else:
-                    time.sleep(0.1)
+        client = httpx.Client(timeout=2.0)
+        try:
+            while self.running:
+                try:
+                    if sys.stdin.isatty():
+                        readable, _, _ = select.select([sys.stdin], [], [], 0.1)
+                        if readable:
+                            data = os.read(sys.stdin.fileno(), 1024)
+                            if data:
+                                try:
+                                    client.post(
+                                        self.invocations_url,
+                                        json={
+                                            "path": "/terminal/sessions/{session_id}/input",
+                                            "method": "POST",
+                                            "path_params": {"session_id": self.session_id},
+                                            "payload": {"data": data.decode('utf-8', errors='replace')}
+                                        }
+                                    )
+                                except:
+                                    pass
+                    else:
+                        time.sleep(0.1)
 
-            except Exception as e:
-                if self.running:
-                    time.sleep(0.1)
+                except Exception:
+                    if self.running:
+                        time.sleep(0.1)
+        finally:
+            client.close()
 
     def run(self):
         print("PTY Terminal Client")
