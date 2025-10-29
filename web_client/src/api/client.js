@@ -541,7 +541,7 @@ class InvocationsAPIClient {
   }
 
   async getTerminalOutput(sessionId, seq) {
-    return this._invoke(`/terminal/sessions/${sessionId}/output?seq=${seq}`, 'GET', null, { session_id: sessionId })
+    return this._invoke(`/terminal/sessions/{session_id}/output`, 'GET', { seq }, { session_id: sessionId })
   }
 
   async sendTerminalInput(sessionId, data) {
