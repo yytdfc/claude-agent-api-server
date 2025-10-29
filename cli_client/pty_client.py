@@ -1,17 +1,37 @@
 #!/usr/bin/env python3
 """
-PTY Terminal Client for Claude Agent API Server
+PTY Terminal Client for Claude Agent API Server and AWS Bedrock AgentCore
 
 Interactive PTY terminal client that provides full terminal emulation
 with support for interactive applications like vim, nano, htop, etc.
 
 Usage:
+    # Local API server mode
     python pty_client.py [--url URL] [--cwd CWD]
 
+    # AgentCore mode (requires TOKEN environment variable)
+    python pty_client.py --agentcore --agentcore-url https://your-agentcore-url/invocations
+    python pty_client.py --agentcore --region us-west-2
+
+Environment Variables (for AgentCore mode):
+    TOKEN        - Bearer token for authentication
+    AGENT_ARN    - Agent ARN for invocation (optional if --agentcore-url provided)
+    AWS_REGION   - AWS region (optional, can use --region)
+
 Examples:
+    # Local mode
     python pty_client.py
     python pty_client.py --url http://localhost:8001
     python pty_client.py --cwd /workspace
+
+    # AgentCore mode with direct URL
+    export TOKEN="your-token"
+    python pty_client.py --agentcore --agentcore-url https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn/invocations
+
+    # AgentCore mode with ARN (auto-constructs URL)
+    export TOKEN="your-token"
+    export AGENT_ARN="your-agent-arn"
+    python pty_client.py --agentcore --region us-west-2
 """
 
 import argparse
@@ -23,21 +43,69 @@ import select
 import termios
 import tty
 import signal
+import uuid
+import urllib.parse
 from typing import Optional
 
 import httpx
 
 
 class PTYClient:
-    def __init__(self, base_url: str = "http://127.0.0.1:8000", initial_cwd: Optional[str] = None):
-        self.base_url = base_url
-        self.invocations_url = f"{base_url}/invocations"
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        initial_cwd: Optional[str] = None,
+        agentcore_mode: bool = False,
+        agentcore_url: Optional[str] = None,
+        region: Optional[str] = None,
+        agent_arn: Optional[str] = None,
+        auth_token: Optional[str] = None
+    ):
+        self.agentcore_mode = agentcore_mode
         self.initial_cwd = initial_cwd or "/workspace"
         self.session_id = None
         self.running = False
         self.output_seq = 0
-
         self.old_tty_settings = None
+
+        if agentcore_mode:
+            # AgentCore mode setup
+            self.auth_token = auth_token or os.environ.get('TOKEN')
+            if not self.auth_token:
+                raise ValueError("TOKEN environment variable is required for AgentCore mode")
+
+            # Use direct URL if provided, otherwise construct from ARN
+            if agentcore_url:
+                self.base_url = agentcore_url
+                self.agent_arn = None
+                self.region = None
+            else:
+                self.agent_arn = agent_arn or os.environ.get('AGENT_ARN')
+                self.region = region or os.environ.get('AWS_REGION', 'us-west-2')
+
+                if not self.agent_arn:
+                    raise ValueError("AGENT_ARN environment variable or --agentcore-url is required for AgentCore mode")
+
+                # Construct AgentCore URL
+                encoded_arn = urllib.parse.quote(self.agent_arn, safe='')
+                self.base_url = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{encoded_arn}/invocations"
+
+            self.invocations_url = self.base_url
+            self.agentcore_session_id = str(uuid.uuid4())
+        else:
+            # Local API server mode
+            self.base_url = base_url or "http://127.0.0.1:8000"
+            self.invocations_url = f"{self.base_url}/invocations"
+            self.auth_token = None
+            self.agentcore_session_id = None
+
+    def _get_headers(self):
+        """Get HTTP headers for requests."""
+        headers = {"Content-Type": "application/json"}
+        if self.agentcore_mode:
+            headers["Authorization"] = f"Bearer {self.auth_token}"
+            headers["X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"] = self.agentcore_session_id
+        return headers
 
     def create_session(self) -> bool:
         try:
@@ -46,6 +114,7 @@ class PTYClient:
 
                 response = client.post(
                     self.invocations_url,
+                    headers=self._get_headers(),
                     json={
                         "path": "/terminal/sessions",
                         "method": "POST",
@@ -81,6 +150,7 @@ class PTYClient:
             with httpx.Client() as client:
                 client.post(
                     self.invocations_url,
+                    headers=self._get_headers(),
                     json={
                         "path": "/terminal/sessions/{session_id}",
                         "method": "DELETE",
@@ -122,6 +192,7 @@ class PTYClient:
             with httpx.Client() as client:
                 client.post(
                     self.invocations_url,
+                    headers=self._get_headers(),
                     json={
                         "path": "/terminal/sessions/{session_id}/resize",
                         "method": "POST",
@@ -140,6 +211,7 @@ class PTYClient:
                 try:
                     response = client.post(
                         self.invocations_url,
+                        headers=self._get_headers(),
                         json={
                             "path": "/terminal/sessions/{session_id}/output",
                             "method": "GET",
@@ -183,6 +255,7 @@ class PTYClient:
                                 try:
                                     client.post(
                                         self.invocations_url,
+                                        headers=self._get_headers(),
                                         json={
                                             "path": "/terminal/sessions/{session_id}/input",
                                             "method": "POST",
@@ -245,24 +318,59 @@ class PTYClient:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="PTY Terminal Client for Claude Agent API Server",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        description="PTY Terminal Client for Claude Agent API Server and AWS Bedrock AgentCore",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__
     )
 
+    # Local API server options
     parser.add_argument(
         "--url",
-        default="http://127.0.0.1:8000",
-        help="Base URL of the API server (default: http://127.0.0.1:8000)"
+        help="Base URL of the local API server (default: http://127.0.0.1:8000)"
     )
     parser.add_argument(
         "--cwd",
         help="Initial working directory (default: /workspace)"
     )
 
+    # AgentCore options
+    parser.add_argument(
+        "--agentcore",
+        action="store_true",
+        help="Use AWS Bedrock AgentCore mode (requires TOKEN env var)"
+    )
+    parser.add_argument(
+        "--agentcore-url",
+        help="Direct AgentCore invocations URL"
+    )
+    parser.add_argument(
+        "--region",
+        help="AWS region for AgentCore (default: us-west-2 or AWS_REGION env var)"
+    )
+    parser.add_argument(
+        "--agent-arn",
+        help="Agent ARN for AgentCore (or use AGENT_ARN env var)"
+    )
+
     args = parser.parse_args()
 
     try:
-        client = PTYClient(base_url=args.url, initial_cwd=args.cwd)
+        if args.agentcore:
+            # AgentCore mode
+            client = PTYClient(
+                initial_cwd=args.cwd,
+                agentcore_mode=True,
+                agentcore_url=args.agentcore_url,
+                region=args.region,
+                agent_arn=args.agent_arn
+            )
+        else:
+            # Local API server mode
+            client = PTYClient(
+                base_url=args.url or "http://127.0.0.1:8000",
+                initial_cwd=args.cwd
+            )
+
         return client.run()
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
