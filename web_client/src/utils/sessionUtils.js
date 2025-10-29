@@ -21,13 +21,16 @@ function generateUUID() {
 }
 
 /**
- * Generate agent core session ID
- * Format: "web-session-{uuid}" to match CLI pattern
+ * Generate agent core session ID based on user ID
+ * Format: "web-session-{userId}" for consistent user sessions
+ * @param {string} userId - User ID from authentication
  * @returns {string} Agent core session ID
  */
-export function generateAgentCoreSessionId() {
-  const uuid = generateUUID()
-  return `web-session-${uuid}`
+export function generateAgentCoreSessionId(userId) {
+  if (!userId) {
+    throw new Error('userId is required to generate agent core session ID')
+  }
+  return `web-session-${userId}`
 }
 
 /**

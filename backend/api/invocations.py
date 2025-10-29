@@ -145,13 +145,24 @@ async def invocations(http_request: Request, request: dict[str, Any]):
     for key, value in path_params.items():
         resolved_path = resolved_path.replace(f"{{{key}}}", str(value))
 
-    # Log the invocation with session and user info
-    log_parts = [f"🔀 Invocation → {method} {resolved_path}"]
+    # Log the invocation with agentcore session ID prominently
     if agentcore_session_id:
-        log_parts.append(f"agentcore_session_id={agentcore_session_id}")
-    if user_id:
-        log_parts.append(f"user_id={user_id}")
-    print(" | ".join(log_parts))
+        print(f"🔀 Invocation → {method} {resolved_path}")
+        print(f"   🆔 AgentCore Session ID: {agentcore_session_id}")
+        if user_id:
+            print(f"   👤 User ID: {user_id}")
+        session_id_from_path = path_params.get("session_id")
+        if session_id_from_path:
+            print(f"   📋 Path Session ID: {session_id_from_path}")
+    else:
+        # Fallback when no agentcore session ID
+        log_parts = [f"🔀 Invocation → {method} {resolved_path}"]
+        if user_id:
+            log_parts.append(f"user_id={user_id}")
+        session_id_from_path = path_params.get("session_id")
+        if session_id_from_path:
+            log_parts.append(f"session_id={session_id_from_path}")
+        print(" | ".join(log_parts))
 
     # Route to appropriate endpoint based on path and method
     try:

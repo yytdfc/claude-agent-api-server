@@ -85,7 +85,7 @@ function AppContent() {
     respondToPermission,
     loadSession,
     retrySession
-  } = useClaudeAgent(settings.serverUrl)
+  } = useClaudeAgent(settings.serverUrl, user?.userId)
 
   // Save settings to localStorage whenever they change
   useEffect(() => {

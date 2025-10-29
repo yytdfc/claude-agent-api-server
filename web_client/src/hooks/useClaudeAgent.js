@@ -12,7 +12,7 @@ const formatModel = (model) => {
     .replace('claude-3-opus-', 'opus-')
 }
 
-export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
+export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userId = null) {
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [sessionId, setSessionId] = useState(null)
@@ -33,12 +33,12 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
 
   // Initialize API client on mount
   useEffect(() => {
-    if (!apiClientRef.current && !agentCoreSessionIdRef.current) {
-      agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+    if (!apiClientRef.current && !agentCoreSessionIdRef.current && userId) {
+      agentCoreSessionIdRef.current = generateAgentCoreSessionId(userId)
       console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
       apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
     }
-  }, [])
+  }, [userId])
 
   // Add system message
   const addSystemMessage = useCallback((content) => {
@@ -190,12 +190,17 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
 
   // Connect to server
   const connect = useCallback(async (config) => {
+    if (!userId) {
+      console.error('Cannot connect: userId is required')
+      return
+    }
+
     setConnecting(true)
     serverUrlRef.current = config.serverUrl.trim()
     configRef.current = config
 
     // Generate agent core session ID for this web client session
-    agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+    agentCoreSessionIdRef.current = generateAgentCoreSessionId(userId)
     console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
 
     // Create API client with agent core session ID
@@ -242,7 +247,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
     } finally {
       setConnecting(false)
     }
-  }, [addSystemMessage, addErrorMessage])
+  }, [userId, addSystemMessage, addErrorMessage])
 
   // Disconnect from server
   const disconnect = useCallback(async () => {
@@ -369,8 +374,8 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
         configRef.current = settings
 
         // Generate agent core session ID if not already set
-        if (!agentCoreSessionIdRef.current) {
-          agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+        if (!agentCoreSessionIdRef.current && userId) {
+          agentCoreSessionIdRef.current = generateAgentCoreSessionId(userId)
           console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
         }
 
@@ -380,8 +385,8 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
       // Ensure API client exists
       if (!apiClientRef.current) {
         // Generate agent core session ID if not already set
-        if (!agentCoreSessionIdRef.current) {
-          agentCoreSessionIdRef.current = generateAgentCoreSessionId()
+        if (!agentCoreSessionIdRef.current && userId) {
+          agentCoreSessionIdRef.current = generateAgentCoreSessionId(userId)
           console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
         }
 
@@ -519,7 +524,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000') {
     } finally {
       setConnecting(false)
     }
-  }, [addSystemMessage, addErrorMessage])
+  }, [userId, addSystemMessage, addErrorMessage])
 
   // Retry session - reset error state and try to reconnect
   const retrySession = useCallback(async () => {
