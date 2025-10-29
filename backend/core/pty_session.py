@@ -58,6 +58,7 @@ class PTYSession:
 
     async def _read_output_loop(self):
         loop = asyncio.get_event_loop()
+        print(f"PTYSession {self.session_id}: Starting output loop")
 
         while self._running and self.process.isalive():
             try:
@@ -66,16 +67,20 @@ class PTYSession:
                     lambda: self.process.read_nonblocking(size=4096, timeout=0.1)
                 )
                 if output:
+                    print(f"PTYSession {self.session_id}: Read {len(output)} bytes, seq={self.output_seq}")
                     self.output_buffer.append(output.encode('utf-8'))
                     self.output_seq += 1
                     self.last_activity = datetime.utcnow()
             except pexpect.TIMEOUT:
                 await asyncio.sleep(0.05)
             except (pexpect.EOF, OSError):
+                print(f"PTYSession {self.session_id}: EOF or OSError in output loop")
                 break
-            except Exception:
+            except Exception as e:
+                print(f"PTYSession {self.session_id}: Exception in output loop: {e}")
                 await asyncio.sleep(0.1)
 
+        print(f"PTYSession {self.session_id}: Output loop exiting")
         if self.process and not self.process.isalive():
             self.exit_code = self.process.exitstatus
             self._running = False
@@ -110,7 +115,10 @@ class PTYSession:
         start_idx = max(0, len(self.output_buffer) - (self.output_seq - seq))
         output_bytes = b''.join(list(self.output_buffer)[start_idx:])
 
-        return output_bytes.decode('utf-8', errors='replace'), self.output_seq
+        output_str = output_bytes.decode('utf-8', errors='replace')
+        print(f"PTYSession {self.session_id}: get_output_since(seq={seq}) -> {len(output_str)} chars, new_seq={self.output_seq}, buffer_len={len(self.output_buffer)}")
+
+        return output_str, self.output_seq
 
     def is_alive(self) -> bool:
         return self._running and (self.process is not None and self.process.isalive())

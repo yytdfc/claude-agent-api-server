@@ -129,9 +129,14 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
         console.log('TerminalPTY: Session created:', response)
 
         sessionIdRef.current = response.session_id
+
+        console.log('TerminalPTY: Setting isConnected to true')
         setIsConnected(true)
 
+        console.log('TerminalPTY: Calling startPolling()')
         startPolling()
+
+        console.log('TerminalPTY: Session initialization complete')
       } catch (error) {
         console.error('TerminalPTY: Failed to create session:', error)
         xterm.writeln(`\x1b[1;31mFailed to create terminal session: ${error.message}\x1b[0m`)
@@ -161,17 +166,25 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     console.log('TerminalPTY: Starting output polling...')
 
     pollIntervalRef.current = setInterval(async () => {
-      if (!sessionIdRef.current || !isConnected) return
+      if (!sessionIdRef.current || !isConnected) {
+        console.log('TerminalPTY: Poll skipped - sessionId:', sessionIdRef.current, 'isConnected:', isConnected)
+        return
+      }
 
       try {
+        console.log('TerminalPTY: Polling for output, seq:', outputSeqRef.current)
         const response = await apiClientRef.current.getTerminalOutput(
           sessionIdRef.current,
           outputSeqRef.current
         )
 
+        console.log('TerminalPTY: Poll response:', JSON.stringify(response))
+
         if (response.output) {
           console.log('TerminalPTY: Received output, length:', response.output.length, 'seq:', response.seq)
           xtermRef.current.write(response.output)
+        } else {
+          console.log('TerminalPTY: No output in response')
         }
 
         outputSeqRef.current = response.seq
