@@ -17,6 +17,8 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   const isPollingRef = useRef(false) // Prevent concurrent polling requests
   const inputQueueRef = useRef([]) // Queue for input data
   const isSendingInputRef = useRef(false) // Flag to prevent concurrent input sending
+  const eventSourceRef = useRef(null) // SSE EventSource for streaming mode
+  const useStreamingRef = useRef(import.meta.env.VITE_TERMINAL_USE_STREAMING !== 'false') // Prefer streaming over polling
 
   useEffect(() => {
     apiClientRef.current = createAPIClient(serverUrl)
@@ -138,7 +140,13 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
 
         sessionIdRef.current = response.session_id
         setIsConnected(true)
-        startPolling()
+
+        // Try streaming first, fall back to polling
+        if (useStreamingRef.current && typeof EventSource !== 'undefined' && apiClientRef.current.createTerminalStream) {
+          startStreaming()
+        } else {
+          startPolling()
+        }
       } catch (error) {
         console.error('TerminalPTY: Failed to create session:', error)
         xterm.writeln(`\x1b[1;31mFailed to create terminal session: ${error.message}\x1b[0m`)
@@ -150,6 +158,7 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     return () => {
       window.removeEventListener('resize', handleResize)
       resizeObserver.disconnect()
+      stopStreaming()
       stopPolling()
       if (sessionIdRef.current) {
         apiClientRef.current.closeTerminalSession(sessionIdRef.current).catch(console.error)
@@ -195,6 +204,46 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current)
       pollIntervalRef.current = null
+    }
+  }
+
+  const startStreaming = () => {
+    if (eventSourceRef.current) return
+
+    try {
+      eventSourceRef.current = apiClientRef.current.createTerminalStream(
+        sessionIdRef.current,
+        (data) => {
+          // On data received
+          if (data.output) {
+            xtermRef.current.write(data.output)
+          }
+          outputSeqRef.current = data.seq
+        },
+        (error) => {
+          // On error - fall back to polling
+          console.warn('Streaming failed, falling back to polling:', error)
+          stopStreaming()
+          startPolling()
+        },
+        (exitCode) => {
+          // On stream end
+          setIsConnected(false)
+          if (exitCode !== null && exitCode !== undefined) {
+            xtermRef.current.writeln(`\r\n\x1b[1;33m[Process exited with code ${exitCode}]\x1b[0m`)
+          }
+        }
+      )
+    } catch (error) {
+      console.warn('Failed to start streaming, using polling:', error)
+      startPolling()
+    }
+  }
+
+  const stopStreaming = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
     }
   }
 

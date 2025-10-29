@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
+import asyncio
+import json
 
 
 class CreateSessionRequest(BaseModel):
@@ -171,3 +174,63 @@ async def list_sessions():
 
     sessions = pty_manager.list_sessions()
     return {"sessions": sessions, "count": len(sessions)}
+
+
+@router.get("/terminal/sessions/{session_id}/stream")
+async def stream_session_output(session_id: str):
+    """
+    Server-Sent Events (SSE) endpoint for streaming terminal output.
+    This provides a more efficient alternative to polling.
+    """
+    from ..server import pty_manager
+
+    if not pty_manager:
+        raise HTTPException(status_code=503, detail="PTY manager not initialized")
+
+    session = pty_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    async def event_generator():
+        seq = 0
+        try:
+            while session.is_alive():
+                # Get output since last sequence
+                output, new_seq = session.get_output_since(seq)
+
+                if output:
+                    # Send SSE event with output data
+                    event_data = {
+                        "output": output,
+                        "seq": new_seq,
+                        "exit_code": session.exit_code
+                    }
+                    yield f"data: {json.dumps(event_data)}\n\n"
+                    seq = new_seq
+
+                # Small delay to avoid busy-waiting
+                await asyncio.sleep(0.05)
+
+            # Send final event when session exits
+            final_event = {
+                "output": "",
+                "seq": seq,
+                "exit_code": session.exit_code
+            }
+            yield f"data: {json.dumps(final_event)}\n\n"
+        except Exception as e:
+            error_event = {
+                "error": str(e),
+                "seq": seq
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )

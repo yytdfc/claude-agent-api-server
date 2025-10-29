@@ -325,6 +325,37 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  createTerminalStream(sessionId, onData, onError, onEnd) {
+    const url = `${this.baseUrl}/terminal/sessions/${sessionId}/stream`
+    const eventSource = new EventSource(url)
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.error) {
+          onError(new Error(data.error))
+          eventSource.close()
+        } else {
+          onData(data)
+          if (data.exit_code !== null) {
+            eventSource.close()
+            if (onEnd) onEnd(data.exit_code)
+          }
+        }
+      } catch (error) {
+        onError(error)
+        eventSource.close()
+      }
+    }
+
+    eventSource.onerror = (error) => {
+      onError(error)
+      eventSource.close()
+    }
+
+    return eventSource
+  }
 }
 
 /**
