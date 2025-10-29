@@ -214,12 +214,19 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     serverUrlRef.current = config.serverUrl.trim()
     configRef.current = config
 
-    // Generate agent core session ID for this web client session
-    agentCoreSessionIdRef.current = generateAgentCoreSessionId(userId)
-    console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
+    // Use existing agent core session ID (already set in useEffect based on userId and projectName)
+    if (!agentCoreSessionIdRef.current) {
+      console.error('Agent core session ID not initialized')
+      setConnecting(false)
+      return
+    }
 
-    // Create API client with agent core session ID
-    apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
+    console.log(`🔗 Connecting with Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
+
+    // Use existing API client (already created in useEffect)
+    if (!apiClientRef.current) {
+      apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
+    }
 
     try {
       // Check server health
