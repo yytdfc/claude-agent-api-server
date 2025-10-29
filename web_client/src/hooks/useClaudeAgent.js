@@ -12,7 +12,7 @@ const formatModel = (model) => {
     .replace('claude-3-opus-', 'opus-')
 }
 
-export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userId = null) {
+export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userId = null, projectName = null) {
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [sessionId, setSessionId] = useState(null)
@@ -31,14 +31,28 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
   const sessionErrorCountRef = useRef(0) // Track consecutive session errors
   const MAX_SESSION_ERRORS = 10 // Stop after 10 consecutive errors
 
-  // Initialize API client on mount
+  // Initialize API client when userId or projectName changes
   useEffect(() => {
-    if (!apiClientRef.current && !agentCoreSessionIdRef.current && userId) {
-      agentCoreSessionIdRef.current = generateAgentCoreSessionId(userId)
-      console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
-      apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
+    if (userId) {
+      const newSessionId = generateAgentCoreSessionId(userId, projectName)
+
+      // Only recreate client if session ID changed
+      if (agentCoreSessionIdRef.current !== newSessionId) {
+        agentCoreSessionIdRef.current = newSessionId
+        console.log(`🆔 Generated Agent Core Session ID: ${agentCoreSessionIdRef.current}`)
+        apiClientRef.current = createAPIClient(serverUrlRef.current, agentCoreSessionIdRef.current)
+
+        // Reset connection state when project changes
+        if (connected) {
+          setConnected(false)
+          setSessionId(null)
+          setMessages([])
+          setPendingPermission(null)
+          setSessionError(null)
+        }
+      }
     }
-  }, [userId])
+  }, [userId, projectName, connected])
 
   // Add system message
   const addSystemMessage = useCallback((content) => {

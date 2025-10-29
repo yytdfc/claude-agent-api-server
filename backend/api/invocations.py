@@ -472,6 +472,22 @@ async def invocations(http_request: Request, request: dict[str, Any]):
                 )
             return await close_terminal_session(session_id)
 
+        elif path == "/workspace/projects" and method == "POST":
+            # Create project
+            from .workspace import create_project, CreateProjectRequest
+            req = CreateProjectRequest(**payload)
+            return await create_project(req)
+
+        elif path.startswith("/workspace/projects/") and method == "GET":
+            # List projects for user
+            from .workspace import list_projects
+            user_id = path_params.get("user_id")
+            if not user_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing user_id in path_params"
+                )
+            return await list_projects(user_id)
+
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency
             from ..server import health_check

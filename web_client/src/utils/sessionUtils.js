@@ -21,16 +21,23 @@ function generateUUID() {
 }
 
 /**
- * Generate agent core session ID based on user ID
- * Format: "web-session-{userId}" for consistent user sessions
+ * Generate agent core session ID based on user ID and optional project
+ * Format: "{userId}@workspace" for default workspace
+ *         "{userId}@workspace/{projectName}" for specific project
  * @param {string} userId - User ID from authentication
+ * @param {string|null} projectName - Optional project name
  * @returns {string} Agent core session ID
  */
-export function generateAgentCoreSessionId(userId) {
+export function generateAgentCoreSessionId(userId, projectName = null) {
   if (!userId) {
     throw new Error('userId is required to generate agent core session ID')
   }
-  return `web-session-${userId}`
+
+  if (projectName) {
+    return `${userId}@workspace/${projectName}`
+  }
+
+  return `${userId}@workspace`
 }
 
 /**

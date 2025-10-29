@@ -427,6 +427,17 @@ class InvocationsAPIClient {
     return response.json()
   }
 
+  async listProjects(userId) {
+    return this._invoke('/workspace/projects/{user_id}', 'GET', null, { user_id: userId })
+  }
+
+  async createProject(userId, projectName) {
+    return this._invoke('/workspace/projects', 'POST', {
+      user_id: userId,
+      project_name: projectName
+    })
+  }
+
   async healthCheck() {
     return this._invoke('/health', 'GET')
   }

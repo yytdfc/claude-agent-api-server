@@ -190,3 +190,28 @@ class CloneGitRepositoryResponse(BaseModel):
     size_mb: float
     message: str
     output: Optional[str] = None
+
+
+class ListProjectsResponse(BaseModel):
+    """Response containing list of projects."""
+
+    user_id: str
+    projects: list[str]
+    message: Optional[str] = None
+
+
+class CreateProjectRequest(BaseModel):
+    """Request to create a new project."""
+
+    user_id: str
+    project_name: str
+
+
+class CreateProjectResponse(BaseModel):
+    """Response from project creation."""
+
+    status: str
+    user_id: str
+    project_name: str
+    local_path: str
+    message: str

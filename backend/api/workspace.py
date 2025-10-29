@@ -13,14 +13,18 @@ from ..core.workspace_sync import (
     WorkspaceSyncError,
     clone_git_repository,
     get_workspace_info,
+    list_projects_from_s3,
     sync_workspace_from_s3,
     sync_workspace_to_s3,
 )
 from ..models.schemas import (
     CloneGitRepositoryRequest,
     CloneGitRepositoryResponse,
+    CreateProjectRequest,
+    CreateProjectResponse,
     InitWorkspaceRequest,
     InitWorkspaceResponse,
+    ListProjectsResponse,
     SyncWorkspaceToS3Request,
     SyncWorkspaceToS3Response,
     WorkspaceInfoResponse,
@@ -208,3 +212,131 @@ async def clone_git(request: CloneGitRepositoryRequest):
     except Exception as e:
         logger.error(f"Unexpected error during git clone: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Git clone failed: {str(e)}")
+
+
+@router.get("/workspace/projects/{user_id}", response_model=ListProjectsResponse)
+async def list_projects(user_id: str):
+    """
+    List all projects for a user from S3.
+
+    Returns a list of project names that exist in the user's S3 workspace.
+    Projects are stored in S3 at: s3://{bucket}/{prefix}/{user_id}/projects/{project_name}/
+
+    Environment Variables:
+    - S3_WORKSPACE_BUCKET: S3 bucket name (required)
+    - S3_WORKSPACE_PREFIX: S3 key prefix (default: "user_data")
+
+    Args:
+        user_id: User ID
+
+    Returns:
+        ListProjectsResponse with list of project names
+
+    Raises:
+        HTTPException: If S3 bucket not configured or listing fails
+    """
+    if not S3_BUCKET:
+        raise HTTPException(
+            status_code=500,
+            detail="S3_WORKSPACE_BUCKET environment variable not configured"
+        )
+
+    logger.info(f"Listing projects for user: {user_id}")
+
+    try:
+        projects = await list_projects_from_s3(
+            user_id=user_id,
+            bucket_name=S3_BUCKET,
+            s3_prefix=S3_PREFIX,
+        )
+
+        return ListProjectsResponse(
+            user_id=user_id,
+            projects=projects,
+            message=f"Found {len(projects)} projects" if projects else "No projects found"
+        )
+
+    except Exception as e:
+        logger.error(f"Error listing projects for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list projects: {str(e)}")
+
+
+@router.post("/workspace/projects", response_model=CreateProjectResponse)
+async def create_project(request: CreateProjectRequest):
+    """
+    Create a new project for a user.
+
+    Creates a new project directory locally and syncs to S3.
+    Project path: {base_path}/{user_id}/{project_name}/
+    S3 path: s3://{bucket}/{prefix}/{user_id}/projects/{project_name}/
+
+    Environment Variables:
+    - S3_WORKSPACE_BUCKET: S3 bucket name (required)
+    - S3_WORKSPACE_PREFIX: S3 key prefix (default: "user_data")
+    - WORKSPACE_BASE_PATH: Local base directory (default: "/workspace")
+
+    Args:
+        request: CreateProjectRequest containing user_id and project_name
+
+    Returns:
+        CreateProjectResponse with creation status
+
+    Raises:
+        HTTPException: If S3 bucket not configured or creation fails
+    """
+    if not S3_BUCKET:
+        raise HTTPException(
+            status_code=500,
+            detail="S3_WORKSPACE_BUCKET environment variable not configured"
+        )
+
+    logger.info(f"Creating project {request.project_name} for user: {request.user_id}")
+
+    try:
+        from pathlib import Path
+        from ..core.workspace_sync import backup_project_to_s3
+
+        # Create local project directory
+        local_project_path = Path(LOCAL_BASE_PATH) / request.user_id / request.project_name
+
+        if local_project_path.exists():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Project {request.project_name} already exists"
+            )
+
+        local_project_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created local project directory: {local_project_path}")
+
+        # Create a .gitkeep file to ensure directory is not empty
+        gitkeep_file = local_project_path / ".gitkeep"
+        gitkeep_file.touch()
+
+        # Backup to S3
+        result = await backup_project_to_s3(
+            user_id=request.user_id,
+            project_name=request.project_name,
+            bucket_name=S3_BUCKET,
+            s3_prefix=S3_PREFIX,
+            local_base_path=LOCAL_BASE_PATH,
+        )
+
+        if result["status"] != "success":
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to sync project to S3: {result.get('message', 'Unknown error')}"
+            )
+
+        return CreateProjectResponse(
+            status="success",
+            user_id=request.user_id,
+            project_name=request.project_name,
+            local_path=str(local_project_path),
+            message=f"Project {request.project_name} created successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating project for user {request.user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")

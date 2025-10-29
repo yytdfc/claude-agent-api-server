@@ -9,9 +9,11 @@ import SettingsModal from './components/SettingsModal'
 import TerminalPTY from './components/TerminalPTY'
 import Login from './components/Login'
 import Signup from './components/Signup'
+import ProjectSelector from './components/ProjectSelector'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import { setAuthErrorHandler } from './utils/authUtils'
+import { createAPIClient } from './api/client'
 import { Loader2 } from 'lucide-react'
 
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
@@ -68,6 +70,11 @@ function AppContent() {
   const [terminalWidth, setTerminalWidth] = useState(600) // Default 600px
   const [isResizingTerminal, setIsResizingTerminal] = useState(false)
 
+  // Project state
+  const [currentProject, setCurrentProject] = useState(null) // null means default workspace
+  const [availableProjects, setAvailableProjects] = useState([])
+  const [projectsLoading, setProjectsLoading] = useState(false)
+
   const {
     connected,
     connecting,
@@ -85,7 +92,7 @@ function AppContent() {
     respondToPermission,
     loadSession,
     retrySession
-  } = useClaudeAgent(settings.serverUrl, user?.userId)
+  } = useClaudeAgent(settings.serverUrl, user?.userId, currentProject)
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -95,6 +102,53 @@ function AppContent() {
       console.error('Failed to save settings to localStorage:', error)
     }
   }, [settings])
+
+  // Load available projects when user logs in
+  useEffect(() => {
+    if (!user?.userId) return
+
+    const loadProjects = async () => {
+      setProjectsLoading(true)
+      try {
+        const apiClient = createAPIClient(settings.serverUrl)
+        const result = await apiClient.listProjects(user.userId)
+        setAvailableProjects(result.projects || [])
+        console.log(`📁 Loaded ${result.projects?.length || 0} projects`)
+      } catch (error) {
+        console.error('Failed to load projects:', error)
+        setAvailableProjects([])
+      } finally {
+        setProjectsLoading(false)
+      }
+    }
+
+    loadProjects()
+  }, [user?.userId, settings.serverUrl])
+
+  const handleProjectChange = async (projectName) => {
+    if (projectName === currentProject) return
+
+    console.log(`📁 Switching to project: ${projectName || 'Default Workspace'}`)
+    setCurrentProject(projectName)
+
+    // Disconnect current session when switching projects
+    if (connected) {
+      clearSession()
+    }
+  }
+
+  const handleCreateProject = async (projectName) => {
+    const apiClient = createAPIClient(settings.serverUrl)
+    const result = await apiClient.createProject(user.userId, projectName)
+    console.log(`✅ Created project: ${projectName}`)
+
+    // Reload projects list
+    const projects = await apiClient.listProjects(user.userId)
+    setAvailableProjects(projects.projects || [])
+
+    // Switch to the new project
+    setCurrentProject(projectName)
+  }
 
   const handleNewSession = () => {
     if (connected) {
@@ -236,6 +290,12 @@ function AppContent() {
 
       <div className="main-content">
         <aside className="sidebar" style={{ width: `${sidebarWidth}px` }}>
+          <ProjectSelector
+            projects={availableProjects}
+            currentProject={currentProject}
+            onProjectChange={handleProjectChange}
+            onCreateProject={handleCreateProject}
+          />
           <FileBrowser
             serverUrl={settings.serverUrl}
             currentPath={currentBrowsePath}
