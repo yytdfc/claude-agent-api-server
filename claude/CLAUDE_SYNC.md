@@ -53,16 +53,25 @@ When a user first connects to the server:
 2. Checks if this user has been synced in current server session
 3. If not synced:
    - Checks if `.claude` data exists in S3
-   - If S3 data exists: Downloads it to local `~/.claude`
+   - **If S3 has data**: Downloads it to local `~/.claude`
+   - **If S3 is empty**: Checks for local `~/.claude` data
+     - If local data exists: Backs it up to S3 (initial backup)
+     - If no local data: Skips (user starts fresh)
    - Marks user as synced to prevent duplicate syncs
-4. If already synced or no S3 data: Skips sync
+4. If already synced: Skips
 
 **Trigger**: Any request to `/invocations` endpoint
 
 **Behavior**:
 - Idempotent: Only syncs once per user per server lifetime
+- Bi-directional: Downloads from S3 OR uploads to S3 on first connection
 - Non-blocking: Sync errors don't fail the request
 - Fast: Uses s5cmd for high-performance parallel transfers
+
+**Use Cases**:
+- **New user with S3 data**: Restores session history from S3
+- **New user without S3 data**: Backs up any existing local sessions to S3
+- **Existing user**: Already synced, no action needed
 
 ### 2. Periodic Backup
 
@@ -110,10 +119,17 @@ INFO: Initializing Claude Sync Manager: bucket=my-bucket, prefix=user_data, inte
 INFO: Starting .claude backup loop (interval: 5 minutes)
 INFO: Background backup task started
 
-# Initial Sync
+# Initial Sync - Download from S3
 INFO: Checking if .claude data exists in S3: s3://bucket/user_data/user123/.claude/
 INFO: Syncing .claude from s3://bucket/user_data/user123/.claude/ to /root/.claude
 INFO: .claude sync completed: Successfully synced 15 files from S3
+
+# Initial Sync - Upload to S3 (no S3 data, but has local data)
+INFO: Checking if .claude data exists in S3: s3://bucket/user_data/user456/.claude/
+INFO: No .claude data found in S3 for user user456, checking for local .claude data to backup
+INFO: Backing up .claude from /root/.claude to s3://bucket/user_data/user456/.claude/
+INFO: .claude backup completed: Successfully backed up 8 files to S3
+INFO: Initial backup completed for user user456: 8 files backed up to S3
 
 # Periodic Backup
 INFO: Starting periodic backup for 3 users

@@ -57,7 +57,10 @@ class ClaudeSyncManager:
 
     async def ensure_initial_sync(self, user_id: str) -> dict:
         """
-        Ensure user's .claude directory is synced from S3 (first time only).
+        Ensure user's .claude directory is synced (first time only).
+
+        If S3 has data: downloads from S3 to local
+        If S3 is empty but local has data: uploads local to S3
 
         This method is idempotent - it will only sync once per user per
         server lifetime.
@@ -87,18 +90,39 @@ class ClaudeSyncManager:
                 s3_prefix=self.s3_prefix,
             )
 
-            # Mark user as synced (even if skipped due to no S3 data)
+            # If S3 had no data, try to backup local data to S3
+            if result.get("status") == "skipped":
+                logger.info(
+                    f"⏭️  No S3 data found for user {user_id}, "
+                    f"checking for local .claude data to backup"
+                )
+
+                # Try to backup local .claude to S3
+                backup_result = await self.backup_user_claude_dir(user_id)
+
+                if backup_result.get("status") == "success":
+                    logger.info(
+                        f"✅ Initial backup completed for user {user_id}: "
+                        f"{backup_result.get('files_synced', 0)} files backed up to S3"
+                    )
+                    # Mark user as synced after successful backup
+                    self._synced_users.add(user_id)
+                    return backup_result
+                elif backup_result.get("status") == "skipped":
+                    logger.info(
+                        f"⏭️  No local .claude data to backup for user {user_id}"
+                    )
+                    # Still mark as synced to avoid repeated checks
+                    self._synced_users.add(user_id)
+                    return result
+
+            # Mark user as synced (S3 data was downloaded successfully)
             self._synced_users.add(user_id)
 
             if result.get("status") == "success":
                 logger.info(
                     f"✅ Initial sync completed for user {user_id}: "
                     f"{result.get('files_synced', 0)} files synced from S3"
-                )
-            elif result.get("status") == "skipped":
-                logger.info(
-                    f"⏭️  Initial sync skipped for user {user_id}: "
-                    f"{result.get('message', 'No S3 data')}"
                 )
 
             return result
