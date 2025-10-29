@@ -137,6 +137,12 @@ function AppContent() {
     setWorkingDirectory(newWorkingDir)
     setCurrentBrowsePath(newWorkingDir)
 
+    // IMPORTANT: Update settings.cwd so new sessions use the correct working directory
+    setSettings(prev => ({
+      ...prev,
+      cwd: newWorkingDir
+    }))
+
     console.log(`📂 Working directory changed to: ${newWorkingDir}`)
 
     // Disconnect current session when switching projects
