@@ -144,7 +144,7 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
 
         // Try streaming first, fall back to polling
         if (useStreamingRef.current && typeof EventSource !== 'undefined') {
-          const streamResult = startStreaming()
+          const streamResult = await startStreaming()
           if (!streamResult) {
             startPolling()
           }
@@ -212,11 +212,11 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
     }
   }
 
-  const startStreaming = () => {
+  const startStreaming = async () => {
     if (eventSourceRef.current) return true
 
     try {
-      const stream = apiClientRef.current.createTerminalStream(
+      const stream = await apiClientRef.current.createTerminalStream(
         sessionIdRef.current,
         (data) => {
           // On data received
@@ -257,8 +257,15 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
 
   const stopStreaming = () => {
     if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
+      try {
+        if (typeof eventSourceRef.current.close === 'function') {
+          eventSourceRef.current.close()
+        }
+      } catch (error) {
+        console.warn('Failed to close terminal stream:', error)
+      } finally {
+        eventSourceRef.current = null
+      }
     }
   }
 
