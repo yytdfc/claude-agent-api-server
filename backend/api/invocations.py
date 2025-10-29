@@ -35,6 +35,7 @@ from .terminal import (
     close_session as close_terminal_session,
     get_session_status as get_terminal_status,
     list_sessions as list_terminal_sessions,
+    stream_session_output,
     CreateSessionRequest as TerminalCreateRequest,
     InputRequest,
     ResizeRequest
@@ -328,6 +329,19 @@ async def invocations(http_request: Request, request: dict[str, Any]):
         elif path == "/terminal/sessions" and method == "GET":
             # List terminal sessions
             return await list_terminal_sessions()
+
+        elif (
+            path.startswith("/terminal/sessions/")
+            and path.endswith("/stream")
+            and method == "GET"
+        ):
+            # Stream terminal output (SSE)
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            return await stream_session_output(session_id)
 
         elif (
             path.startswith("/terminal/sessions/")

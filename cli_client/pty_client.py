@@ -209,20 +209,34 @@ class PTYClient:
     def stream_output(self):
         """Stream output using SSE (Server-Sent Events)."""
         try:
-            # For invocations mode, SSE is not supported through /invocations
-            # Fall back to polling for invocations/agentcore mode
+            # Construct SSE URL
             if self.agentcore_mode:
-                self.use_streaming = False
-                self.poll_output()
-                return
-
-            # Construct SSE URL (direct mode only)
-            stream_url = f"{self.base_url}/terminal/sessions/{self.session_id}/stream"
-            headers = self._get_headers()
+                # For agentcore/invocations mode, use invocations endpoint
+                stream_url = self.invocations_url
+                headers = self._get_headers()
+                # We'll use POST with stream path in body
+                is_invocations = True
+            else:
+                # For direct mode, use direct stream endpoint
+                stream_url = f"{self.base_url}/terminal/sessions/{self.session_id}/stream"
+                headers = self._get_headers()
+                is_invocations = False
 
             # Create streaming request
             with httpx.Client(timeout=None) as client:
-                with client.stream("GET", stream_url, headers=headers) as response:
+                if is_invocations:
+                    # For invocations mode, POST with path in body
+                    json_data = {
+                        "path": "/terminal/sessions/{session_id}/stream",
+                        "method": "GET",
+                        "path_params": {"session_id": self.session_id}
+                    }
+                    stream_context = client.stream("POST", stream_url, headers=headers, json=json_data)
+                else:
+                    # For direct mode, direct GET
+                    stream_context = client.stream("GET", stream_url, headers=headers)
+
+                with stream_context as response:
                     if response.status_code != 200:
                         print(f"✗ SSE connection failed: {response.status_code}", file=sys.stderr)
                         print("→ Falling back to polling mode", file=sys.stderr)

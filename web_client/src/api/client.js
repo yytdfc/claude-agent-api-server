@@ -595,10 +595,98 @@ class InvocationsAPIClient {
     return this._invoke('/terminal/sessions', 'GET')
   }
 
-  createTerminalStream(sessionId, onData, onError, onEnd) {
-    // SSE not supported through invocations endpoint
-    // Return null to signal fallback to polling
-    return null
+  async createTerminalStream(sessionId, onData, onError, onEnd) {
+    // For invocations mode, we need to POST to /invocations with stream path
+    const authHeaders = await getAuthHeaders()
+    const body = {
+      path: '/terminal/sessions/{session_id}/stream',
+      method: 'GET',
+      path_params: { session_id: sessionId }
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders
+    }
+
+    if (this.agentCoreSessionId) {
+      headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = this.agentCoreSessionId
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/invocations`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      })
+
+      if (!response.ok || !response.body) {
+        onError(new Error(`Failed to create stream: ${response.status}`))
+        return null
+      }
+
+      // Parse SSE from response body
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      const processStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+
+            if (done) {
+              if (onEnd) onEnd(null)
+              break
+            }
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+              const trimmed = line.trim()
+              if (trimmed.startsWith('data: ')) {
+                try {
+                  const jsonStr = trimmed.substring(6)
+                  const data = JSON.parse(jsonStr)
+
+                  if (data.error) {
+                    onError(new Error(data.error))
+                    reader.cancel()
+                    return
+                  }
+
+                  onData(data)
+
+                  if (data.exit_code !== null) {
+                    if (onEnd) onEnd(data.exit_code)
+                    reader.cancel()
+                    return
+                  }
+                } catch (err) {
+                  // Ignore JSON parse errors for individual events
+                }
+              }
+            }
+          }
+        } catch (error) {
+          onError(error)
+        }
+      }
+
+      processStream()
+
+      // Return an object with close method for cleanup
+      return {
+        close: () => {
+          reader.cancel()
+        }
+      }
+    } catch (error) {
+      onError(error)
+      return null
+    }
   }
 }
 
