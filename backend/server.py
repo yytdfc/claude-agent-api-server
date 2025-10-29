@@ -54,14 +54,26 @@ claude_sync_manager = None  # Will be initialized in lifespan
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
+    print("=" * 80)
+    print("🚀 Claude Agent API Server Starting...")
+    print("=" * 80)
+
     await pty_manager.start()
 
     # Initialize Claude sync manager and start backup task
     import os
     global claude_sync_manager
-    claude_sync_manager = initialize_claude_sync_manager()
-    if claude_sync_manager:
-        claude_sync_manager.start_backup_task()
+
+    s3_bucket = os.environ.get("S3_WORKSPACE_BUCKET")
+    if s3_bucket:
+        print(f"📦 S3 Workspace Bucket: {s3_bucket}")
+        claude_sync_manager = initialize_claude_sync_manager()
+        if claude_sync_manager:
+            claude_sync_manager.start_backup_task()
+        else:
+            print("⚠️  Claude sync manager initialization failed")
+    else:
+        print("⚠️  S3_WORKSPACE_BUCKET not configured, .claude sync/backup disabled")
 
     # Start gRPC server if enabled
     grpc_enabled = os.environ.get('ENABLE_GRPC_SERVER', 'false').lower() == 'true'
@@ -72,9 +84,14 @@ async def lifespan(app: FastAPI):
         grpc_port = int(os.environ.get('GRPC_PORT', '50051'))
         grpc_task = start_grpc_server_background(pty_manager, port=grpc_port)
 
+    print("=" * 80)
+    print("✅ Server startup complete")
+    print("=" * 80)
+
     yield
 
     # Shutdown - close all sessions
+    print("🛑 Shutting down server...")
     for session_id in list(session_manager.sessions.keys()):
         await session_manager.close_session(session_id)
     await pty_manager.stop()
@@ -90,6 +107,8 @@ async def lifespan(app: FastAPI):
             await grpc_task
         except:
             pass
+
+    print("✅ Server shutdown complete")
 
 
 app = FastAPI(

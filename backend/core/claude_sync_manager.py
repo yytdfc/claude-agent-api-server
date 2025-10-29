@@ -80,7 +80,9 @@ class ClaudeSyncManager:
                 "message": "User already synced in this session",
             }
 
-        logger.info(f"🔄 Starting initial .claude sync for user {user_id}")
+        msg = f"🔄 Starting initial .claude sync for user {user_id}"
+        print(msg)
+        logger.info(msg)
 
         try:
             # Attempt to sync from S3
@@ -92,26 +94,30 @@ class ClaudeSyncManager:
 
             # If S3 had no data, try to backup local data to S3
             if result.get("status") == "skipped":
-                logger.info(
+                msg = (
                     f"⏭️  No S3 data found for user {user_id}, "
                     f"checking for local .claude data to backup"
                 )
+                print(msg)
+                logger.info(msg)
 
                 # Try to backup local .claude to S3
                 backup_result = await self.backup_user_claude_dir(user_id)
 
                 if backup_result.get("status") == "success":
-                    logger.info(
+                    msg = (
                         f"✅ Initial backup completed for user {user_id}: "
                         f"{backup_result.get('files_synced', 0)} files backed up to S3"
                     )
+                    print(msg)
+                    logger.info(msg)
                     # Mark user as synced after successful backup
                     self._synced_users.add(user_id)
                     return backup_result
                 elif backup_result.get("status") == "skipped":
-                    logger.info(
-                        f"⏭️  No local .claude data to backup for user {user_id}"
-                    )
+                    msg = f"⏭️  No local .claude data to backup for user {user_id}"
+                    print(msg)
+                    logger.info(msg)
                     # Still mark as synced to avoid repeated checks
                     self._synced_users.add(user_id)
                     return result
@@ -120,10 +126,12 @@ class ClaudeSyncManager:
             self._synced_users.add(user_id)
 
             if result.get("status") == "success":
-                logger.info(
+                msg = (
                     f"✅ Initial sync completed for user {user_id}: "
                     f"{result.get('files_synced', 0)} files synced from S3"
                 )
+                print(msg)
+                logger.info(msg)
 
             return result
 
@@ -164,10 +172,12 @@ class ClaudeSyncManager:
 
     async def _backup_loop(self):
         """Background loop for periodic backups of all synced users."""
-        logger.info(
+        msg = (
             f"🔄 Starting .claude backup loop "
             f"(interval: {self.backup_interval_minutes} minutes)"
         )
+        print(msg)
+        logger.info(msg)
 
         while self._running:
             try:
@@ -240,12 +250,16 @@ class ClaudeSyncManager:
     def start_backup_task(self):
         """Start the background backup task."""
         if self._backup_task is not None:
-            logger.warning("⚠️  Backup task already running")
+            msg = "⚠️  Backup task already running"
+            print(msg)
+            logger.warning(msg)
             return
 
         self._running = True
         self._backup_task = asyncio.create_task(self._backup_loop())
-        logger.info("🚀 Background backup task started")
+        msg = "🚀 Background backup task started"
+        print(msg)
+        logger.info(msg)
 
     async def stop_backup_task(self):
         """Stop the background backup task."""
@@ -312,10 +326,9 @@ def initialize_claude_sync_manager(
         bucket_name = os.environ.get("S3_WORKSPACE_BUCKET")
 
     if not bucket_name:
-        logger.warning(
-            "⚠️  S3_WORKSPACE_BUCKET not configured, "
-            ".claude sync/backup will be disabled"
-        )
+        msg = "⚠️  S3_WORKSPACE_BUCKET not configured, .claude sync/backup will be disabled"
+        print(msg)
+        logger.warning(msg)
         return None
 
     # Get backup interval from env if not provided
@@ -324,11 +337,13 @@ def initialize_claude_sync_manager(
             os.environ.get("CLAUDE_BACKUP_INTERVAL_MINUTES", "5")
         )
 
-    logger.info(
+    msg = (
         f"🔧 Initializing Claude Sync Manager: "
         f"bucket={bucket_name}, prefix={s3_prefix}, "
         f"interval={backup_interval_minutes}m"
     )
+    print(msg)
+    logger.info(msg)
 
     _claude_sync_manager = ClaudeSyncManager(
         bucket_name=bucket_name,

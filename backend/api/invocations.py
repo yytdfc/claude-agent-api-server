@@ -137,12 +137,16 @@ async def invocations(http_request: Request, request: dict[str, Any]):
         from ..server import claude_sync_manager
         if claude_sync_manager:
             try:
+                print(f"🔄 Attempting initial sync for user: {user_id}")
                 sync_result = await claude_sync_manager.ensure_initial_sync(user_id)
+                print(f"📊 Sync result for user {user_id}: {sync_result.get('status')} - {sync_result.get('message', 'No message')}")
                 if sync_result.get("status") == "error":
                     print(f"⚠️  Warning: Failed to sync .claude for user {user_id}: {sync_result.get('message')}")
             except Exception as e:
                 # Log error but don't fail the request
                 print(f"⚠️  Warning: Exception during .claude sync for user {user_id}: {e}")
+        else:
+            print(f"⚠️  Claude sync manager not initialized, skipping sync for user {user_id}")
 
     path = request.get("path")
     method = request.get("method", "POST").upper()
