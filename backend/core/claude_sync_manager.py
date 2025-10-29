@@ -94,9 +94,11 @@ class ClaudeSyncManager:
 
             # If S3 had no data, try to backup local data to S3
             if result.get("status") == "skipped":
+                s3_path = f"s3://{self.bucket_name}/{self.s3_prefix}/{user_id}/.claude/"
                 msg = (
-                    f"⏭️  No S3 data found for user {user_id}, "
-                    f"checking for local .claude data to backup"
+                    f"⏭️  No S3 data found for user {user_id}\n"
+                    f"   📍 S3 Path: {s3_path}\n"
+                    f"   Checking for local .claude data to backup"
                 )
                 print(msg)
                 logger.info(msg)
@@ -105,9 +107,11 @@ class ClaudeSyncManager:
                 backup_result = await self.backup_user_claude_dir(user_id)
 
                 if backup_result.get("status") == "success":
+                    s3_path = backup_result.get("s3_path", "")
                     msg = (
                         f"✅ Initial backup completed for user {user_id}: "
-                        f"{backup_result.get('files_synced', 0)} files backed up to S3"
+                        f"{backup_result.get('files_synced', 0)} files backed up\n"
+                        f"   📍 S3 Path: {s3_path}"
                     )
                     print(msg)
                     logger.info(msg)
@@ -115,7 +119,11 @@ class ClaudeSyncManager:
                     self._synced_users.add(user_id)
                     return backup_result
                 elif backup_result.get("status") == "skipped":
-                    msg = f"⏭️  No local .claude data to backup for user {user_id}"
+                    local_path = backup_result.get("local_path", "~/.claude")
+                    msg = (
+                        f"⏭️  No local .claude data to backup for user {user_id}\n"
+                        f"   📂 Local Path: {local_path}"
+                    )
                     print(msg)
                     logger.info(msg)
                     # Still mark as synced to avoid repeated checks
@@ -126,9 +134,11 @@ class ClaudeSyncManager:
             self._synced_users.add(user_id)
 
             if result.get("status") == "success":
+                s3_path = result.get("s3_path", "")
                 msg = (
                     f"✅ Initial sync completed for user {user_id}: "
-                    f"{result.get('files_synced', 0)} files synced from S3"
+                    f"{result.get('files_synced', 0)} files synced from S3\n"
+                    f"   📍 S3 Path: {s3_path}"
                 )
                 print(msg)
                 logger.info(msg)
