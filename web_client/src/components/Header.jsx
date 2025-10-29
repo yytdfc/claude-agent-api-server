@@ -1,4 +1,4 @@
-import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal, Folder } from 'lucide-react'
+import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal, Folder, Github } from 'lucide-react'
 
 function Header({
   serverConnected,
@@ -9,7 +9,10 @@ function Header({
   showTerminal,
   onTerminalToggle,
   currentProject,
-  onProjectSwitcherOpen
+  onProjectSwitcherOpen,
+  onGithubAuthClick,
+  githubAuthStatus,
+  githubAuthMessage
 }) {
   return (
     <header className="header">
@@ -35,6 +38,16 @@ function Header({
           <Circle size={10} className={`status-dot ${serverConnected ? 'connected' : ''}`} fill="currentColor" />
           <span className="status-text">{serverConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
+        {onGithubAuthClick && (
+          <button
+            className={`btn-icon github-auth-button ${githubAuthStatus === 'success' ? 'success' : ''} ${githubAuthStatus === 'error' ? 'error' : ''}`}
+            onClick={onGithubAuthClick}
+            title={githubAuthMessage || "Authenticate with GitHub"}
+            disabled={githubAuthStatus === 'pending'}
+          >
+            <Github size={18} />
+          </button>
+        )}
         <button
           className={`btn-icon terminal-toggle-button ${showTerminal ? 'active' : ''}`}
           onClick={onTerminalToggle}

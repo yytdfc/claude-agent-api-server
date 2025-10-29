@@ -1882,6 +1882,35 @@ body {
     border-color: var(--primary-hover);
 }
 
+.github-auth-button {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.github-auth-button:hover:not(:disabled) {
+    background-color: #24292e;
+    border-color: #24292e;
+    color: white;
+}
+
+.github-auth-button.success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.github-auth-button.error {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+.github-auth-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .terminal-panel {
     width: 600px;
     background-color: #1e1e1e;

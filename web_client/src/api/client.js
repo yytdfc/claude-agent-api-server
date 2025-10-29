@@ -405,6 +405,21 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async getGithubToken() {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/oauth/github/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      }
+    })
+    if (!response.ok) {
+      throw new Error('Failed to get GitHub token')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -492,6 +507,10 @@ class InvocationsAPIClient {
       user_id: userId,
       project_name: projectName
     })
+  }
+
+  async getGithubToken() {
+    return this._invoke('/oauth/github/token', 'POST')
   }
 
   async healthCheck() {

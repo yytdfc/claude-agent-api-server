@@ -86,6 +86,10 @@ function AppContent() {
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false)
 
+  // GitHub auth state
+  const [githubAuthStatus, setGithubAuthStatus] = useState(null) // null | 'success' | 'pending' | 'error'
+  const [githubAuthMessage, setGithubAuthMessage] = useState('')
+
   const {
     connected,
     connecting,
@@ -191,6 +195,59 @@ function AppContent() {
 
     // Switch to the new project (this will also update working directory)
     handleProjectChange(projectName)
+  }
+
+  const handleGithubAuth = async () => {
+    setGithubAuthStatus('pending')
+    setGithubAuthMessage('Requesting GitHub authentication...')
+
+    try {
+      const apiClient = createAPIClient(settings.serverUrl)
+      const result = await apiClient.getGithubToken()
+
+      console.log('GitHub auth result:', result)
+
+      // Check if we got an access token and gh auth was successful
+      if (result.access_token) {
+        if (result.gh_auth?.status === 'success') {
+          setGithubAuthStatus('success')
+          setGithubAuthMessage('GitHub authentication successful!')
+          console.log('✅ GitHub authenticated successfully')
+        } else if (result.gh_auth?.status === 'skipped') {
+          setGithubAuthStatus('success')
+          setGithubAuthMessage('GitHub token obtained (gh CLI not installed)')
+          console.log('⚠️  GitHub token obtained but gh CLI not installed')
+        } else {
+          setGithubAuthStatus('error')
+          setGithubAuthMessage(`GitHub CLI auth failed: ${result.gh_auth?.message || 'Unknown error'}`)
+          console.error('GitHub CLI authentication failed:', result.gh_auth)
+        }
+      } else if (result.authorization_url) {
+        // Need user to complete authorization
+        setGithubAuthStatus('pending')
+        setGithubAuthMessage('Opening authorization page...')
+        console.log('🔗 Opening GitHub authorization URL:', result.authorization_url)
+        window.open(result.authorization_url, '_blank')
+      } else if (result.session_status === 'FAILED') {
+        setGithubAuthStatus('error')
+        setGithubAuthMessage('GitHub authorization failed')
+        console.error('GitHub authorization failed')
+      } else {
+        setGithubAuthStatus('error')
+        setGithubAuthMessage('Unexpected response from server')
+        console.error('Unexpected GitHub auth response:', result)
+      }
+    } catch (error) {
+      setGithubAuthStatus('error')
+      setGithubAuthMessage(`Failed to authenticate: ${error.message}`)
+      console.error('GitHub auth error:', error)
+    }
+
+    // Clear status after 5 seconds
+    setTimeout(() => {
+      setGithubAuthStatus(null)
+      setGithubAuthMessage('')
+    }, 5000)
   }
 
   const handleNewSession = () => {
@@ -331,6 +388,9 @@ function AppContent() {
         onTerminalToggle={() => setShowTerminal(!showTerminal)}
         currentProject={currentProject}
         onProjectSwitcherOpen={() => setShowProjectSwitcher(true)}
+        onGithubAuthClick={handleGithubAuth}
+        githubAuthStatus={githubAuthStatus}
+        githubAuthMessage={githubAuthMessage}
       />
 
       <div className="main-content">
