@@ -142,8 +142,11 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
         setIsConnected(true)
 
         // Try streaming first, fall back to polling
-        if (useStreamingRef.current && typeof EventSource !== 'undefined' && apiClientRef.current.createTerminalStream) {
-          startStreaming()
+        if (useStreamingRef.current && typeof EventSource !== 'undefined') {
+          const streamResult = startStreaming()
+          if (!streamResult) {
+            startPolling()
+          }
         } else {
           startPolling()
         }
@@ -170,6 +173,7 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   const startPolling = () => {
     if (pollIntervalRef.current) return
 
+    console.log('✓ Using HTTP polling mode')
     pollIntervalRef.current = setInterval(async () => {
       if (!sessionIdRef.current || isPollingRef.current) return
 
@@ -208,10 +212,10 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   }
 
   const startStreaming = () => {
-    if (eventSourceRef.current) return
+    if (eventSourceRef.current) return true
 
     try {
-      eventSourceRef.current = apiClientRef.current.createTerminalStream(
+      const stream = apiClientRef.current.createTerminalStream(
         sessionIdRef.current,
         (data) => {
           // On data received
@@ -234,9 +238,19 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
           }
         }
       )
+
+      // If stream is null, streaming is not supported
+      if (!stream) {
+        console.log('Streaming not supported, using polling mode')
+        return false
+      }
+
+      eventSourceRef.current = stream
+      console.log('✓ Using SSE streaming mode')
+      return true
     } catch (error) {
       console.warn('Failed to start streaming, using polling:', error)
-      startPolling()
+      return false
     }
   }
 

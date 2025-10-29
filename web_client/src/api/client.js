@@ -594,6 +594,12 @@ class InvocationsAPIClient {
   async listTerminalSessions() {
     return this._invoke('/terminal/sessions', 'GET')
   }
+
+  createTerminalStream(sessionId, onData, onError, onEnd) {
+    // SSE not supported through invocations endpoint
+    // Return null to signal fallback to polling
+    return null
+  }
 }
 
 /**
