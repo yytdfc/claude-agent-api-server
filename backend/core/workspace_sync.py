@@ -12,6 +12,8 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
+from .s3_client import S3Client, S3ClientError
+
 logger = logging.getLogger(__name__)
 
 
