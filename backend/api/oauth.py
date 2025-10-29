@@ -4,8 +4,10 @@ OAuth token management using Bedrock AgentCore Identity.
 Provides endpoints to get OAuth2 tokens for external providers like GitHub.
 """
 
+import asyncio
 import logging
 import os
+import shutil
 from typing import Optional
 
 import boto3
@@ -15,6 +17,66 @@ from fastapi import APIRouter, HTTPException, Request
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def initialize_gh_auth(access_token: str) -> dict:
+    """
+    Initialize GitHub CLI authentication with access token.
+
+    Uses 'gh auth login --with-token' to set up authentication.
+
+    Args:
+        access_token: GitHub OAuth access token
+
+    Returns:
+        dict: Result with status and message
+
+    Raises:
+        Exception: If gh command fails
+    """
+    # Check if gh is installed
+    if not shutil.which("gh"):
+        logger.warning("gh CLI is not installed, skipping authentication setup")
+        return {
+            "status": "skipped",
+            "message": "gh CLI not installed"
+        }
+
+    logger.info("Initializing GitHub CLI authentication with access token")
+
+    try:
+        # Use gh auth login --with-token
+        # Pass token via stdin for security
+        process = await asyncio.create_subprocess_exec(
+            "gh", "auth", "login", "--with-token",
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        # Send token to stdin and close
+        stdout, stderr = await process.communicate(input=access_token.encode())
+
+        if process.returncode == 0:
+            logger.info("Successfully initialized GitHub CLI authentication")
+            return {
+                "status": "success",
+                "message": "GitHub CLI authenticated successfully"
+            }
+        else:
+            error_msg = stderr.decode() if stderr else "Unknown error"
+            logger.error(f"Failed to initialize GitHub CLI auth: {error_msg}")
+            return {
+                "status": "failed",
+                "message": f"gh auth login failed: {error_msg}"
+            }
+
+    except Exception as e:
+        logger.error(f"Exception during gh auth setup: {str(e)}", exc_info=True)
+        return {
+            "status": "error",
+            "message": f"Failed to run gh auth login: {str(e)}"
+        }
 
 
 def get_bedrock_agentcore_client():
@@ -55,6 +117,13 @@ async def get_github_oauth_token(request: Request):
             - authorization_url: URL to complete authorization (if IN_PROGRESS)
             - session_uri: Session identifier
             - session_status: "IN_PROGRESS" | "FAILED" | (success if access_token present)
+            - gh_auth: GitHub CLI authentication result (if access_token obtained)
+                - status: "success" | "skipped" | "failed" | "error"
+                - message: Description of the result
+
+    Side Effects:
+        If access_token is obtained, automatically runs 'gh auth login --with-token'
+        to initialize GitHub CLI authentication for subsequent gh commands.
 
     Raises:
         HTTPException: If token exchange fails or headers are missing
@@ -125,6 +194,17 @@ async def get_github_oauth_token(request: Request):
             logger.warning(f"GitHub OAuth authorization failed for user {user_id}")
         elif access_token:
             logger.info(f"Successfully obtained GitHub OAuth token for user {user_id}")
+
+            # Initialize GitHub CLI authentication with the token
+            gh_auth_result = await initialize_gh_auth(access_token)
+            result["gh_auth"] = gh_auth_result
+
+            if gh_auth_result["status"] == "success":
+                logger.info(f"GitHub CLI authentication initialized for user {user_id}")
+            elif gh_auth_result["status"] == "skipped":
+                logger.info(f"GitHub CLI not installed, skipping auth setup for user {user_id}")
+            else:
+                logger.warning(f"GitHub CLI authentication failed for user {user_id}: {gh_auth_result['message']}")
 
         return result
 
