@@ -356,11 +356,14 @@ class PTYClient:
 
     def run(self):
         print("PTY Terminal Client")
-        print(f"Server: {self.base_url}")
+        print(f"Mode: {'AgentCore' if self.agentcore_mode else 'Direct'}")
+        print(f"Endpoint: {self.invocations_url}")
+        if self.agentcore_mode and self.agentcore_session_id:
+            print(f"Session ID: {self.agentcore_session_id}")
         print(f"Working directory: {self.initial_cwd}")
 
         # Display mode
-        mode = "SSE Streaming" if self.use_streaming and not self.agentcore_mode else "HTTP Polling"
+        mode = "SSE Streaming" if self.use_streaming else "HTTP Polling"
         print(f"Output mode: {mode}")
         print()
 
