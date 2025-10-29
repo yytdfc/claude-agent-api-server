@@ -231,6 +231,131 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async createTerminalSession(payload) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify(payload)
+    })
+    handleFetchResponse(response)
+    if (!response.ok) {
+      throw new Error('Failed to create terminal session')
+    }
+    return response.json()
+  }
+
+  async getTerminalOutput(sessionId, seq) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/output?seq=${seq}`, {
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to get terminal output')
+    }
+    return response.json()
+  }
+
+  async sendTerminalInput(sessionId, data) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/input`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({ data })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to send terminal input')
+    }
+    return response.json()
+  }
+
+  async resizeTerminal(sessionId, rows, cols) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/resize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({ rows, cols })
+    })
+    if (!response.ok) {
+      throw new Error('Failed to resize terminal')
+    }
+    return response.json()
+  }
+
+  async closeTerminalSession(sessionId) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to close terminal session')
+    }
+    return response.json()
+  }
+
+  async getTerminalStatus(sessionId) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/status`, {
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to get terminal status')
+    }
+    return response.json()
+  }
+
+  async listTerminalSessions() {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/terminal/sessions`, {
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to list terminal sessions')
+    }
+    return response.json()
+  }
+
+  createTerminalStream(sessionId, onData, onError, onEnd) {
+    const url = `${this.baseUrl}/terminal/sessions/${sessionId}/stream`
+    const eventSource = new EventSource(url)
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.error) {
+          onError(new Error(data.error))
+          eventSource.close()
+        } else {
+          onData(data)
+          if (data.exit_code !== null) {
+            eventSource.close()
+            if (onEnd) onEnd(data.exit_code)
+          }
+        }
+      } catch (error) {
+        onError(error)
+        eventSource.close()
+      }
+    }
+
+    eventSource.onerror = (error) => {
+      onError(error)
+      eventSource.close()
+    }
+
+    return eventSource
+  }
 }
 
 /**
@@ -440,6 +565,128 @@ class InvocationsAPIClient {
 
   async setShellCwd(cwd) {
     return this._invoke('/shell/cwd', 'POST', { cwd })
+  }
+
+  async createTerminalSession(payload) {
+    return this._invoke('/terminal/sessions', 'POST', payload)
+  }
+
+  async getTerminalOutput(sessionId, seq) {
+    return this._invoke(`/terminal/sessions/{session_id}/output`, 'GET', { seq }, { session_id: sessionId })
+  }
+
+  async sendTerminalInput(sessionId, data) {
+    return this._invoke('/terminal/sessions/{session_id}/input', 'POST', { data }, { session_id: sessionId })
+  }
+
+  async resizeTerminal(sessionId, rows, cols) {
+    return this._invoke('/terminal/sessions/{session_id}/resize', 'POST', { rows, cols }, { session_id: sessionId })
+  }
+
+  async closeTerminalSession(sessionId) {
+    return this._invoke('/terminal/sessions/{session_id}', 'DELETE', null, { session_id: sessionId })
+  }
+
+  async getTerminalStatus(sessionId) {
+    return this._invoke('/terminal/sessions/{session_id}/status', 'GET', null, { session_id: sessionId })
+  }
+
+  async listTerminalSessions() {
+    return this._invoke('/terminal/sessions', 'GET')
+  }
+
+  async createTerminalStream(sessionId, onData, onError, onEnd) {
+    // For invocations mode, we need to POST to /invocations with stream path
+    const authHeaders = await getAuthHeaders()
+    const body = {
+      path: '/terminal/sessions/{session_id}/stream',
+      method: 'GET',
+      path_params: { session_id: sessionId }
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders
+    }
+
+    if (this.agentCoreSessionId) {
+      headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = this.agentCoreSessionId
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/invocations`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      })
+
+      if (!response.ok || !response.body) {
+        onError(new Error(`Failed to create stream: ${response.status}`))
+        return null
+      }
+
+      // Parse SSE from response body
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      const processStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+
+            if (done) {
+              if (onEnd) onEnd(null)
+              break
+            }
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+              const trimmed = line.trim()
+              if (trimmed.startsWith('data: ')) {
+                try {
+                  const jsonStr = trimmed.substring(6)
+                  const data = JSON.parse(jsonStr)
+
+                  if (data.error) {
+                    onError(new Error(data.error))
+                    reader.cancel()
+                    return
+                  }
+
+                  onData(data)
+
+                  if (data.exit_code !== null) {
+                    if (onEnd) onEnd(data.exit_code)
+                    reader.cancel()
+                    return
+                  }
+                } catch (err) {
+                  // Ignore JSON parse errors for individual events
+                }
+              }
+            }
+          }
+        } catch (error) {
+          onError(error)
+        }
+      }
+
+      processStream()
+
+      // Return an object with close method for cleanup
+      return {
+        close: () => {
+          reader.cancel()
+        }
+      }
+    } catch (error) {
+      onError(error)
+      return null
+    }
   }
 }
 

@@ -6,6 +6,7 @@ from .messages import router as messages_router
 from .permissions import router as permissions_router
 from .sessions import router as sessions_router
 from .shell import router as shell_router
+from .terminal import router as terminal_router
 from .workspace import router as workspace_router
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "invocations_router",
     "files_router",
     "shell_router",
+    "terminal_router",
     "workspace_router",
 ]

@@ -27,6 +27,19 @@ from .messages import (
 from .permissions import respond_to_permission
 from .files import get_file_info, list_files, save_file, SaveFileRequest
 from .shell import execute_command, get_current_directory, set_current_directory, ShellExecuteRequest
+from .terminal import (
+    create_session as create_terminal_session,
+    get_session_output,
+    send_input,
+    resize_session,
+    close_session as close_terminal_session,
+    get_session_status as get_terminal_status,
+    list_sessions as list_terminal_sessions,
+    stream_session_output,
+    CreateSessionRequest as TerminalCreateRequest,
+    InputRequest,
+    ResizeRequest
+)
 from .sessions import (
     close_session,
     create_session,
@@ -307,6 +320,99 @@ async def invocations(http_request: Request, request: dict[str, Any]):
             if not cwd:
                 raise HTTPException(status_code=400, detail="Missing 'cwd' in payload")
             return await set_current_directory(cwd)
+
+        elif path == "/terminal/sessions" and method == "POST":
+            # Create terminal session
+            req = TerminalCreateRequest(**payload)
+            return await create_terminal_session(req)
+
+        elif path == "/terminal/sessions" and method == "GET":
+            # List terminal sessions
+            return await list_terminal_sessions()
+
+        elif (
+            path.startswith("/terminal/sessions/")
+            and path.endswith("/stream")
+            and method == "GET"
+        ):
+            # Stream terminal output (SSE)
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            return await stream_session_output(session_id)
+
+        elif (
+            path.startswith("/terminal/sessions/")
+            and "/output" in path
+            and method == "GET"
+        ):
+            # Get terminal output
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            seq = payload.get("seq", 0) if payload else 0
+            return await get_session_output(session_id, seq)
+
+        elif (
+            path.startswith("/terminal/sessions/")
+            and path.endswith("/input")
+            and method == "POST"
+        ):
+            # Send terminal input
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            req = InputRequest(**payload)
+            return await send_input(session_id, req)
+
+        elif (
+            path.startswith("/terminal/sessions/")
+            and path.endswith("/resize")
+            and method == "POST"
+        ):
+            # Resize terminal
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            req = ResizeRequest(**payload)
+            return await resize_session(session_id, req)
+
+        elif (
+            path.startswith("/terminal/sessions/")
+            and path.endswith("/status")
+            and method == "GET"
+        ):
+            # Get terminal status
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            return await get_terminal_status(session_id)
+
+        elif (
+            path.startswith("/terminal/sessions/")
+            and not path.endswith("/input")
+            and not path.endswith("/resize")
+            and not path.endswith("/status")
+            and "/output" not in path
+            and method == "DELETE"
+        ):
+            # Close terminal session
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            return await close_terminal_session(session_id)
 
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency

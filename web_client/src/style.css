@@ -1959,22 +1959,22 @@ body {
 .terminal-content {
     flex: 1;
     overflow: hidden;
-    padding: 0;
+    padding: 8px;
     min-height: 0;
+    position: relative;
 }
 
 .terminal-content .xterm {
-    width: 100% !important;
-    height: 100% !important;
-    padding: 8px;
+    width: 100%;
+    height: 100%;
 }
 
 .terminal-content .xterm-viewport {
-    overflow-y: auto !important;
+    /* Let xterm manage its own viewport */
 }
 
 .terminal-content .xterm-screen {
-    height: 100% !important;
+    /* Let xterm manage its own screen */
 }
 
 /* Session Error Banner */
