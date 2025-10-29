@@ -278,8 +278,8 @@ async def clone_git_repository(
             "https://git-scm.com/downloads"
         )
 
-    # Build local path: /workspace/user_id/
-    workspace_path = Path(local_base_path) / user_id
+    # Build local path: /workspace/
+    workspace_path = Path(local_base_path)
     workspace_path.mkdir(parents=True, exist_ok=True)
 
     # Extract repository name from URL if not provided
@@ -399,18 +399,21 @@ async def clone_git_repository(
         raise WorkspaceSyncError(error_msg) from e
 
 
-def get_workspace_info(user_id: str, local_base_path: str = "/workspace") -> dict:
+def get_workspace_info(project_name: str = None, local_base_path: str = "/workspace") -> dict:
     """
-    Get information about a user's local workspace.
+    Get information about a workspace or project.
 
     Args:
-        user_id: User ID
+        project_name: Project name (optional, if None returns info for entire workspace)
         local_base_path: Local base directory for workspaces
 
     Returns:
         dict: Workspace information including path, size, file count
     """
-    local_path = Path(local_base_path) / user_id
+    if project_name:
+        local_path = Path(local_base_path) / project_name
+    else:
+        local_path = Path(local_base_path)
 
     if not local_path.exists():
         return {
@@ -613,7 +616,7 @@ async def sync_project_from_s3(
     except S3ClientError as e:
         raise WorkspaceSyncError(str(e)) from e
 
-    local_project_path = Path(local_base_path) / user_id / project_name
+    local_project_path = Path(local_base_path) / project_name
 
     # Check if S3 directory exists
     s3_exists = await s3_client.check_exists(user_id, "projects", project_name)
@@ -680,7 +683,7 @@ async def backup_project_to_s3(
     except S3ClientError as e:
         raise WorkspaceSyncError(str(e)) from e
 
-    local_project_path = Path(local_base_path) / user_id / project_name
+    local_project_path = Path(local_base_path) / project_name
 
     try:
         result = await s3_client.sync_to_s3(
