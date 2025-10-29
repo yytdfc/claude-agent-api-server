@@ -25,6 +25,7 @@ from .api import (
     files_router,
     invocations_router,
     messages_router,
+    oauth_router,
     permissions_router,
     sessions_router,
     shell_router,
@@ -151,6 +152,9 @@ app.include_router(terminal_router, tags=["terminal"])
 
 # Workspace sync endpoints
 app.include_router(workspace_router, tags=["workspace"])
+
+# OAuth endpoints
+app.include_router(oauth_router, tags=["oauth"])
 
 # Unified invocations endpoint
 app.include_router(invocations_router, tags=["invocations"])

@@ -49,6 +49,7 @@ from .sessions import (
     list_available_sessions,
     list_sessions,
 )
+from .oauth import get_github_oauth_token
 
 router = APIRouter()
 
@@ -487,6 +488,10 @@ async def invocations(http_request: Request, request: dict[str, Any]):
                     status_code=400, detail="Missing user_id in path_params"
                 )
             return await list_projects(user_id)
+
+        elif path == "/oauth/github/token" and method == "POST":
+            # Get GitHub OAuth token
+            return await get_github_oauth_token(request)
 
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency
