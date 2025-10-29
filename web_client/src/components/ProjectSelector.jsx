@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderOpen, Plus, Folder } from 'lucide-react'
+import { FolderOpen, Plus, Folder, ChevronDown, ChevronRight } from 'lucide-react'
 
 export default function ProjectSelector({
   projects,
@@ -7,6 +7,7 @@ export default function ProjectSelector({
   onProjectChange,
   onCreateProject
 }) {
+  const [isExpanded, setIsExpanded] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [creating, setCreating] = useState(false)

@@ -9,7 +9,7 @@ import SettingsModal from './components/SettingsModal'
 import TerminalPTY from './components/TerminalPTY'
 import Login from './components/Login'
 import Signup from './components/Signup'
-import ProjectSelector from './components/ProjectSelector'
+import ProjectSwitcher from './components/ProjectSwitcher'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import { setAuthErrorHandler } from './utils/authUtils'
@@ -74,6 +74,7 @@ function AppContent() {
   const [currentProject, setCurrentProject] = useState(null) // null means default workspace
   const [availableProjects, setAvailableProjects] = useState([])
   const [projectsLoading, setProjectsLoading] = useState(false)
+  const [showProjectSwitcher, setShowProjectSwitcher] = useState(false)
 
   const {
     connected,
@@ -131,6 +132,13 @@ function AppContent() {
     console.log(`📁 Switching to project: ${projectName || 'Default Workspace'}`)
     setCurrentProject(projectName)
 
+    // Update working directory based on project
+    const newWorkingDir = projectName ? `/workspace/${projectName}` : '/workspace'
+    setWorkingDirectory(newWorkingDir)
+    setCurrentBrowsePath(newWorkingDir)
+
+    console.log(`📂 Working directory changed to: ${newWorkingDir}`)
+
     // Disconnect current session when switching projects
     if (connected) {
       clearSession()
@@ -146,8 +154,8 @@ function AppContent() {
     const projects = await apiClient.listProjects(user.userId)
     setAvailableProjects(projects.projects || [])
 
-    // Switch to the new project
-    setCurrentProject(projectName)
+    // Switch to the new project (this will also update working directory)
+    handleProjectChange(projectName)
   }
 
   const handleNewSession = () => {
@@ -286,16 +294,12 @@ function AppContent() {
         workingDirectory={workingDirectory}
         showTerminal={showTerminal}
         onTerminalToggle={() => setShowTerminal(!showTerminal)}
+        currentProject={currentProject}
+        onProjectSwitcherOpen={() => setShowProjectSwitcher(true)}
       />
 
       <div className="main-content">
         <aside className="sidebar" style={{ width: `${sidebarWidth}px` }}>
-          <ProjectSelector
-            projects={availableProjects}
-            currentProject={currentProject}
-            onProjectChange={handleProjectChange}
-            onCreateProject={handleCreateProject}
-          />
           <FileBrowser
             serverUrl={settings.serverUrl}
             currentPath={currentBrowsePath}
@@ -379,6 +383,18 @@ function AppContent() {
           onClose={() => setShowSettings(false)}
           settings={settings}
           onSave={handleSaveSettings}
+        />
+      )}
+
+      {showProjectSwitcher && (
+        <ProjectSwitcher
+          isOpen={showProjectSwitcher}
+          onClose={() => setShowProjectSwitcher(false)}
+          projects={availableProjects}
+          currentProject={currentProject}
+          onProjectChange={handleProjectChange}
+          onCreateProject={handleCreateProject}
+          hasActiveSession={connected}
         />
       )}
     </div>

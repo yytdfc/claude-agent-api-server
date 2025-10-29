@@ -1,6 +1,16 @@
-import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal } from 'lucide-react'
+import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal, Folder } from 'lucide-react'
 
-function Header({ serverConnected, onSettingsClick, user, onLogout, workingDirectory, showTerminal, onTerminalToggle }) {
+function Header({
+  serverConnected,
+  onSettingsClick,
+  user,
+  onLogout,
+  workingDirectory,
+  showTerminal,
+  onTerminalToggle,
+  currentProject,
+  onProjectSwitcherOpen
+}) {
   return (
     <header className="header">
       <h1><Bot size={20} className="header-icon" /> Claude Agent Web Client</h1>
@@ -11,11 +21,15 @@ function Header({ serverConnected, onSettingsClick, user, onLogout, workingDirec
             <span className="user-email">{user.username}</span>
           </div>
         )}
-        {workingDirectory && (
-          <div className="working-dir-info" title={`Working Directory: ${workingDirectory}`}>
-            <FolderOpen size={16} />
-            <span className="working-dir-path">{workingDirectory}</span>
-          </div>
+        {onProjectSwitcherOpen && (
+          <button
+            className="btn-outline project-switcher-button"
+            onClick={onProjectSwitcherOpen}
+            title="Switch Project"
+          >
+            <Folder size={16} />
+            <span className="project-name">{currentProject || 'Default Workspace'}</span>
+          </button>
         )}
         <div className="connection-status" title="Backend service connection status">
           <Circle size={10} className={`status-dot ${serverConnected ? 'connected' : ''}`} fill="currentColor" />
