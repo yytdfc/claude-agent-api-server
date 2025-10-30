@@ -17,7 +17,7 @@ Uses the same environment variables as `cli_client/pty_client.py` for consistenc
    - `TOKEN` (required): JWT authentication token (contains user_id in 'sub' claim)
    - `WORKLOAD_IDENTITY_TOKEN` (optional): The workload identity token from AgentCore
    - `SESSION_ID` (optional): AgentCore session ID (auto-generated from user_id if not provided)
-   - `AGENTCORE_URL` or `SERVER_URL` (optional): Server URL (default: "http://127.0.0.1:8000")
+   - `AGENTCORE_URL` or `SERVER_URL` (optional): Server URL WITHOUT /invocations suffix (default: "http://127.0.0.1:8000")
 
 ## Usage
 

@@ -44,9 +44,14 @@ All client tools (`cli_client/pty_client.py`, `temp/test_github_oauth.py`, web c
 #### `AGENTCORE_URL` (Optional)
 - **Type**: URL string
 - **Required**: No
-- **Description**: Full AgentCore invocations URL. Takes priority over `AGENT_ARN` and `SERVER_URL`.
+- **Description**: Base URL WITHOUT `/invocations` suffix. Takes priority over `AGENT_ARN` and `SERVER_URL`.
+- **Important**: Do NOT include `/invocations` suffix - client adds it automatically
 - **Example**:
   ```bash
+  # Correct (no /invocations)
+  export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/arn%3Aaws%3Abedrock%3A..."
+
+  # Incorrect (has /invocations)
   export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/arn%3Aaws%3Abedrock%3A.../invocations"
   ```
 
@@ -79,6 +84,15 @@ All client tools (`cli_client/pty_client.py`, `temp/test_github_oauth.py`, web c
   export AWS_REGION="us-east-1"
   ```
 
+## URL Convention
+
+**Important**: All URLs should be provided **WITHOUT** the `/invocations` suffix.
+
+- ✅ Correct: `http://127.0.0.1:8000`
+- ❌ Incorrect: `http://127.0.0.1:8000/invocations`
+
+The client tools automatically append `/invocations` when making API calls.
+
 ## URL Priority Order
 
 Tools determine the server URL using this priority:
@@ -88,6 +102,8 @@ Tools determine the server URL using this priority:
 3. **--url** command line argument (pty_client.py only)
 4. **SERVER_URL** (if set)
 5. **Default**: `http://127.0.0.1:8000` - lowest priority
+
+All URLs in the priority chain follow the convention of NOT including `/invocations`.
 
 ## Usage Examples
 
@@ -118,7 +134,8 @@ uv run cli_client/pty_client.py
 
 ```bash
 export TOKEN="your-jwt-token"
-export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn/invocations"
+# Note: URL WITHOUT /invocations suffix
+export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn"
 export WORKLOAD_IDENTITY_TOKEN="your-workload-token"  # For OAuth operations
 
 uv run cli_client/pty_client.py
@@ -150,7 +167,8 @@ uv run cli_client/pty_client.py
 export TOKEN="your-jwt-token"
 export WORKLOAD_IDENTITY_TOKEN="your-workload-token"
 export SESSION_ID="user-123@workspace/my-project"
-export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn/invocations"
+# Note: URL WITHOUT /invocations suffix
+export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn"
 
 # Now all tools will use these settings
 uv run cli_client/pty_client.py

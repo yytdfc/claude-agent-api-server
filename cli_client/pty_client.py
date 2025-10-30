@@ -11,10 +11,14 @@ Usage:
 Environment Variables:
     TOKEN              - JWT Bearer token for authentication (optional)
     SESSION_ID         - Session ID (optional, auto-generated if not provided)
-    AGENTCORE_URL      - Full invocations URL (optional, overrides --url and AGENT_ARN)
+    AGENTCORE_URL      - Base URL WITHOUT /invocations suffix (optional, overrides --url and AGENT_ARN)
     AGENT_ARN          - Agent ARN for invocation (optional, auto-constructs URL)
     AWS_REGION         - AWS region (optional, defaults to us-west-2, used with AGENT_ARN)
     WORKLOAD_IDENTITY_TOKEN - Workload identity token (optional, for OAuth operations)
+
+URL Convention:
+    All URLs should be provided WITHOUT the /invocations suffix.
+    The client automatically appends /invocations when needed.
 
 Examples:
     # Basic usage (local server)
@@ -26,9 +30,9 @@ Examples:
     export TOKEN="your-jwt-token"
     python pty_client.py
 
-    # With full AgentCore URL
+    # With AgentCore URL (NO /invocations suffix)
     export TOKEN="your-jwt-token"
-    export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn/invocations"
+    export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn"
     python pty_client.py
 
     # With Agent ARN (auto-constructs URL)
@@ -74,25 +78,22 @@ class PTYClient:
         self.workload_token = os.environ.get('WORKLOAD_IDENTITY_TOKEN')
 
         # Determine base URL with priority: AGENTCORE_URL > AGENT_ARN > base_url arg > default
+        # Convention: All URLs should be provided WITHOUT /invocations suffix
         if os.environ.get('AGENTCORE_URL'):
             self.base_url = os.environ.get('AGENTCORE_URL')
         elif os.environ.get('AGENT_ARN'):
-            # Construct URL from AGENT_ARN
+            # Construct URL from AGENT_ARN (without /invocations suffix)
             agent_arn = os.environ.get('AGENT_ARN')
             region = os.environ.get('AWS_REGION', 'us-west-2')
             encoded_arn = urllib.parse.quote(agent_arn, safe='')
-            self.base_url = f"https://bedrock-agentcore.{region}.amazonaws.com/runtimes/{encoded_arn}/invocations"
+            self.base_url = f"https://bedrock-agentcore.{region}.amazonaws.com/runtimes/{encoded_arn}"
         elif base_url:
             self.base_url = base_url
         else:
             self.base_url = "http://127.0.0.1:8000"
 
-        # For invocations endpoint - use base_url directly if it contains 'invocations',
-        # otherwise append '/invocations'
-        if 'invocations' in self.base_url:
-            self.invocations_url = self.base_url
-        else:
-            self.invocations_url = f"{self.base_url}/invocations"
+        # Always append /invocations to base_url
+        self.invocations_url = f"{self.base_url}/invocations"
 
     def _get_headers(self):
         """Get HTTP headers for requests."""
@@ -212,30 +213,22 @@ class PTYClient:
     def stream_output(self):
         """Stream output using SSE (Server-Sent Events)."""
         try:
-            # Construct SSE URL
-            if self.agentcore_mode:
-                # For agentcore/invocations mode, use invocations endpoint
-                stream_url = self.invocations_url
-                headers = self._get_headers()
-                # We'll use POST with stream path in body
-                is_invocations = True
-            else:
-                # For direct mode, use direct stream endpoint
-                stream_url = f"{self.base_url}/terminal/sessions/{self.session_id}/stream"
-                headers = self._get_headers()
-                is_invocations = False
+            # Always use invocations endpoint for streaming
+            stream_url = self.invocations_url
+            headers = self._get_headers()
 
             # Create streaming request
             with httpx.Client(timeout=None) as client:
-                if is_invocations:
-                    # For invocations mode, POST with path in body
-                    json_data = {
-                        "path": "/terminal/sessions/{session_id}/stream",
-                        "method": "GET",
-                        "path_params": {"session_id": self.session_id}
-                    }
-                    stream_context = client.stream("POST", stream_url, headers=headers, json=json_data)
-                else:
+                # POST with path in body for invocations endpoint
+                json_data = {
+                    "path": "/terminal/sessions/{session_id}/stream",
+                    "method": "GET",
+                    "path_params": {"session_id": self.session_id}
+                }
+                stream_context = client.stream("POST", stream_url, headers=headers, json=json_data)
+
+                # Fallback if invocations streaming not working
+                if False:
                     # For direct mode, direct GET
                     stream_context = client.stream("GET", stream_url, headers=headers)
 
@@ -359,10 +352,9 @@ class PTYClient:
 
     def run(self):
         print("PTY Terminal Client")
-        print(f"Mode: {'AgentCore' if self.agentcore_mode else 'Direct'}")
         print(f"Endpoint: {self.invocations_url}")
-        if self.agentcore_mode and self.agentcore_session_id:
-            print(f"Session ID: {self.agentcore_session_id}")
+        if self.session_id_header:
+            print(f"Session ID: {self.session_id_header}")
         print(f"Working directory: {self.initial_cwd}")
 
         # Display mode
