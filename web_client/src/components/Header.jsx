@@ -58,11 +58,11 @@ function Header({
         >
           <Terminal size={18} />
         </button>
-        {onCloseProject && connected && (
+        {onCloseProject && serverConnected && (
           <button
             className="btn-icon close-project-button"
             onClick={onCloseProject}
-            title="Close Session (Stop AgentCore Session)"
+            title="Disconnect from Server (Stop all background requests)"
             disabled={closingProject}
           >
             <XCircle size={18} />

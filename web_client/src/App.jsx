@@ -90,8 +90,9 @@ function AppContent() {
   const [githubAuthStatus, setGithubAuthStatus] = useState(null) // null | 'success' | 'pending' | 'error'
   const [githubAuthMessage, setGithubAuthMessage] = useState('')
 
-  // Close project state
-  const [closingProject, setClosingProject] = useState(false)
+  // Server disconnect state
+  const [serverDisconnected, setServerDisconnected] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
 
   const {
     connected,
@@ -110,7 +111,7 @@ function AppContent() {
     respondToPermission,
     loadSession,
     retrySession
-  } = useClaudeAgent(settings.serverUrl, user?.userId, currentProject)
+  } = useClaudeAgent(settings.serverUrl, user?.userId, currentProject, serverDisconnected)
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -257,44 +258,51 @@ function AppContent() {
     }, 5000)
   }
 
-  const handleCloseProject = async () => {
-    if (!connected) {
-      console.warn('No active session to close')
+  const handleDisconnectServer = async () => {
+    if (!serverConnected) {
+      console.warn('Server already disconnected')
       return
     }
 
-    const projectName = currentProject || 'Default Workspace'
-    if (!window.confirm(`Close "${projectName}"?\n\nThis will stop the AgentCore session.`)) {
+    if (!window.confirm('Disconnect from server?\n\nThis will stop all background requests and close any active sessions.')) {
       return
     }
 
-    setClosingProject(true)
-    console.log(`🛑 Closing session: ${projectName}`)
+    setDisconnecting(true)
+    console.log('🛑 Disconnecting from server...')
 
     try {
-      const agentCoreSessionId = await getAgentCoreSessionId()
-      const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
-      await apiClient.stopAgentCoreSession('DEFAULT')
+      // If there's an active session, try to stop it
+      if (connected) {
+        try {
+          const agentCoreSessionId = await getAgentCoreSessionId()
+          const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
+          await apiClient.stopAgentCoreSession('DEFAULT')
+          console.log('✅ Stopped AgentCore session')
+        } catch (error) {
+          console.warn('Failed to stop AgentCore session:', error)
+          // Continue with disconnect even if this fails
+        }
 
-      console.log(`✅ Session "${projectName}" closed successfully`)
-
-      // Disconnect current session
-      disconnect()
-
-      // If closing a specific project, switch back to default workspace
-      if (currentProject) {
-        setCurrentProject(null)
-        const newSettings = { ...settings, cwd: '/workspace' }
-        setSettings(newSettings)
-        setWorkingDirectory('/workspace')
-        setCurrentBrowsePath('/workspace')
+        // Disconnect from agent session
+        disconnect()
       }
+
+      // Set server disconnected flag - this will stop all background requests
+      setServerDisconnected(true)
+
+      console.log('✅ Disconnected from server')
     } catch (error) {
-      console.error('Failed to close session:', error)
-      alert(`Failed to close session: ${error.message}`)
+      console.error('Failed to disconnect:', error)
+      alert(`Failed to disconnect: ${error.message}`)
     } finally {
-      setClosingProject(false)
+      setDisconnecting(false)
     }
+  }
+
+  const handleReconnectServer = () => {
+    console.log('🔄 Reconnecting to server...')
+    setServerDisconnected(false)
   }
 
   const handleNewSession = () => {
@@ -425,6 +433,48 @@ function AppContent() {
   // Main app content (user is authenticated)
   return (
     <div className="app-layout">
+      {serverDisconnected && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            textAlign: 'center',
+            maxWidth: '400px'
+          }}>
+            <h2 style={{ marginBottom: '1rem' }}>Server Disconnected</h2>
+            <p style={{ marginBottom: '1.5rem', color: '#666' }}>
+              All background requests have been stopped. Click reconnect to resume.
+            </p>
+            <button
+              onClick={handleReconnectServer}
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: 'var(--primary-color)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '1rem'
+              }}
+            >
+              Reconnect to Server
+            </button>
+          </div>
+        </div>
+      )}
+
       <Header
         serverConnected={serverConnected}
         connected={connected}
@@ -439,8 +489,8 @@ function AppContent() {
         onGithubAuthClick={handleGithubAuth}
         githubAuthStatus={githubAuthStatus}
         githubAuthMessage={githubAuthMessage}
-        onCloseProject={handleCloseProject}
-        closingProject={closingProject}
+        onCloseProject={handleDisconnectServer}
+        closingProject={disconnecting}
       />
 
       <div className="main-content">

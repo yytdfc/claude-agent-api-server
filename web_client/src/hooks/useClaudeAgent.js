@@ -12,7 +12,7 @@ const formatModel = (model) => {
     .replace('claude-3-opus-', 'opus-')
 }
 
-export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userId = null, projectName = null) {
+export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userId = null, projectName = null, disabled = false) {
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [sessionId, setSessionId] = useState(null)
@@ -125,6 +125,17 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
 
   // Start health check interval (only when page is visible and user is logged in)
   useEffect(() => {
+    // Don't start health check if disabled
+    if (disabled) {
+      // Stop any existing interval
+      if (healthCheckIntervalRef.current) {
+        clearInterval(healthCheckIntervalRef.current)
+        healthCheckIntervalRef.current = null
+      }
+      setServerConnected(false)
+      return
+    }
+
     // Only start health check if user is logged in (apiClient exists)
     if (!apiClientRef.current || !userId) return
 
@@ -163,10 +174,20 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
       stopInterval()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [userId, checkServerHealth])
+  }, [userId, checkServerHealth, disabled])
 
   // Start permission checking interval (only when page is visible)
   useEffect(() => {
+    // Don't start permission check if disabled
+    if (disabled) {
+      // Stop any existing interval
+      if (permissionCheckIntervalRef.current) {
+        clearInterval(permissionCheckIntervalRef.current)
+        permissionCheckIntervalRef.current = null
+      }
+      return
+    }
+
     if (!connected || !sessionId) return
 
     // Start interval if page is currently visible
@@ -201,7 +222,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
       stopInterval()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [connected, sessionId, checkPermissions])
+  }, [connected, sessionId, checkPermissions, disabled])
 
   // Connect to server
   const connect = useCallback(async (config) => {
