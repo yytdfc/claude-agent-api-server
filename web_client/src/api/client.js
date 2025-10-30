@@ -551,7 +551,39 @@ class InvocationsAPIClient {
   }
 
   async completeGithubOAuthCallback(sessionId) {
-    return this._invoke('/oauth/github/callback', 'GET', null, null, { session_id: sessionId })
+    // This endpoint returns HTML, not JSON, so we need to handle it differently
+    const authHeaders = await getAuthHeaders()
+    const url = `${this.baseUrl}/invocations`
+    const body = {
+      path: '/oauth/github/callback',
+      method: 'GET',
+      query_params: { session_id: sessionId }
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders
+    }
+
+    if (this.agentCoreSessionId) {
+      headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = this.agentCoreSessionId
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    })
+
+    handleFetchResponse(response)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to complete OAuth callback: ${response.status} ${errorText}`)
+    }
+
+    // Return HTML text instead of JSON
+    return response.text()
   }
 
   async stopAgentCoreSession(qualifier = 'DEFAULT') {
