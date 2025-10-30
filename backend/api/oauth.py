@@ -86,7 +86,9 @@ def get_bedrock_agentcore_client():
     Returns:
         boto3 client for bedrock-agentcore service
     """
-    return boto3.client("bedrock-agentcore")
+    import os
+    region = os.environ.get("AWS_DEFAULT_REGION", "us-west-2")
+    return boto3.client("bedrock-agentcore", region_name=region)
 
 
 @router.post("/oauth/github/token")
