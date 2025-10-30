@@ -493,6 +493,20 @@ async def invocations(http_request: Request, request: dict[str, Any]):
             # Get GitHub OAuth token
             return await get_github_oauth_token(http_request)
 
+        elif path == "/oauth/github/callback" and method == "GET":
+            # GitHub OAuth callback (3LO flow completion)
+            from .oauth import github_oauth_callback
+
+            # Extract session_id from query_params in request payload
+            query_params = request.get("query_params", {})
+            session_id = query_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Missing session_id query parameter"
+                )
+            return await github_oauth_callback(http_request, session_id)
+
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency
             from ..server import health_check

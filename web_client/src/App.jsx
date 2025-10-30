@@ -496,12 +496,6 @@ function AppContent() {
   )
 }
 
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  )
+export default function App() {
+  return <AppContent />
 }
-
-export default App

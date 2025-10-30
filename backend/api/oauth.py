@@ -170,8 +170,8 @@ async def get_github_oauth_token(request: Request):
             resourceCredentialProviderName="github-provider",
             scopes=["repo", "read:user"],
             oauth2Flow="USER_FEDERATION",
-            sessionUri=user_id,  # Use user_id as session URI
-            forceAuthentication=True
+            sessionUri=f"urn:ietf:params:oauth:request_uri:{user_id}",  # Use user_id as session URI
+            forceAuthentication=False
         )
 
         # Extract token information from response
@@ -224,4 +224,143 @@ async def get_github_oauth_token(request: Request):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get GitHub OAuth token: {str(e)}"
+        )
+
+
+@router.get("/oauth/github/callback")
+async def github_oauth_callback(request: Request, session_id: str):
+    """
+    GitHub OAuth callback endpoint for 3-legged OAuth (3LO) flow.
+
+    This endpoint is called by GitHub after user authorization. It receives the
+    session_id and completes the OAuth flow by calling AgentCore's
+    complete_resource_token_auth API.
+
+    Query Parameters:
+        session_id (str): Session identifier from OAuth provider redirect
+
+    Headers required:
+        - authorization: Bearer token containing user_id in 'sub' claim
+
+    Returns:
+        HTMLResponse: Success page indicating OAuth flow completion
+
+    Raises:
+        HTTPException: If session_id is missing or completion fails
+
+    Reference:
+        Based on amazon-bedrock-agentcore-samples oauth2_callback_server.py
+    """
+    if not session_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing session_id query parameter"
+        )
+
+    # Extract user_id from Authorization header
+    user_id = None
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+        try:
+            import jwt
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            user_id = decoded.get("sub")
+        except Exception as e:
+            logger.warning(f"Failed to decode JWT token: {e}")
+
+    if not user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing or invalid Authorization header (user_id not found in JWT)"
+        )
+
+    logger.info(f"Processing GitHub OAuth callback for user: {user_id}, session: {session_id}")
+
+    try:
+        client = get_bedrock_agentcore_client()
+
+        # Complete the OAuth flow by calling complete_resource_token_auth
+        # This associates the OAuth session with the user and retrieves access tokens
+        response = client.complete_resource_token_auth(
+            sessionUri=session_id,
+            userIdentifier={"userToken": token}
+        )
+
+        logger.info(f"Successfully completed OAuth flow for user {user_id}, session {session_id}")
+
+        # Return success HTML page
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>OAuth2 Success</title>
+            <style>
+                body {
+                    margin: 0;
+                    padding: 0;
+                    height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    font-family: Arial, sans-serif;
+                    background-color: #f5f5f5;
+                }
+                .container {
+                    text-align: center;
+                    padding: 2rem;
+                    background-color: white;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                }
+                h1 {
+                    color: #28a745;
+                    margin: 0 0 1rem 0;
+                }
+                p {
+                    color: #666;
+                    margin: 0;
+                }
+                .close-btn {
+                    margin-top: 1.5rem;
+                    padding: 0.5rem 1rem;
+                    background-color: #007bff;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+                .close-btn:hover {
+                    background-color: #0056b3;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>✓ GitHub Authentication Complete</h1>
+                <p>You can now close this window and return to the application.</p>
+                <button class="close-btn" onclick="window.close()">Close Window</button>
+            </div>
+        </body>
+        </html>
+        """
+
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=html_content, status_code=200)
+
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        error_message = e.response.get("Error", {}).get("Message", str(e))
+        logger.error(f"AWS ClientError completing OAuth flow: {error_code} - {error_message}")
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to complete OAuth flow: {error_code} - {error_message}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error completing OAuth flow: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to complete OAuth flow: {str(e)}"
         )
