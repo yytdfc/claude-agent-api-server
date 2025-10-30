@@ -55,6 +55,7 @@ import uuid
 import urllib.parse
 import json
 from typing import Optional
+from collections import deque
 
 import httpx
 
@@ -71,6 +72,10 @@ class PTYClient:
         self.output_seq = 0
         self.old_tty_settings = None
         self.use_streaming = True  # Try SSE streaming first
+
+        # Input buffering
+        self.input_buffer = deque()
+        self.input_lock = threading.Lock()
 
         # Read environment variables
         self.auth_token = os.environ.get('TOKEN')
@@ -319,7 +324,7 @@ class PTYClient:
             client.close()
 
     def send_input(self):
-        client = httpx.Client(timeout=2.0)
+        """Read input from stdin and add to buffer."""
         try:
             while self.running:
                 try:
@@ -328,21 +333,48 @@ class PTYClient:
                         if readable:
                             data = os.read(sys.stdin.fileno(), 1024)
                             if data:
-                                try:
-                                    client.post(
-                                        self.invocations_url,
-                                        headers=self._get_headers(),
-                                        json={
-                                            "path": "/terminal/sessions/{session_id}/input",
-                                            "method": "POST",
-                                            "path_params": {"session_id": self.session_id},
-                                            "payload": {"data": data.decode('utf-8', errors='replace')}
-                                        }
-                                    )
-                                except:
-                                    pass
+                                # Add to buffer instead of sending immediately
+                                with self.input_lock:
+                                    self.input_buffer.append(data)
                     else:
                         time.sleep(0.1)
+
+                except Exception:
+                    if self.running:
+                        time.sleep(0.1)
+        except Exception:
+            pass
+
+    def flush_input(self):
+        """Flush buffered input to server in batches."""
+        client = httpx.Client(timeout=2.0)
+        try:
+            while self.running:
+                try:
+                    # Collect buffered input
+                    batch = b""
+                    with self.input_lock:
+                        while self.input_buffer:
+                            batch += self.input_buffer.popleft()
+
+                    # Send batch if not empty
+                    if batch:
+                        try:
+                            client.post(
+                                self.invocations_url,
+                                headers=self._get_headers(),
+                                json={
+                                    "path": "/terminal/sessions/{session_id}/input",
+                                    "method": "POST",
+                                    "path_params": {"session_id": self.session_id},
+                                    "payload": {"data": batch.decode('utf-8', errors='replace')}
+                                }
+                            )
+                        except:
+                            pass
+
+                    # Small delay to allow input accumulation (10ms)
+                    time.sleep(0.01)
 
                 except Exception:
                     if self.running:
@@ -373,16 +405,18 @@ class PTYClient:
         output_method = self.stream_output if self.use_streaming else self.poll_output
         output_thread = threading.Thread(target=output_method, daemon=True)
         input_thread = threading.Thread(target=self.send_input, daemon=True)
+        flush_thread = threading.Thread(target=self.flush_input, daemon=True)
 
         try:
             self._setup_raw_mode()
 
             output_thread.start()
             input_thread.start()
+            flush_thread.start()
 
             while self.running:
                 time.sleep(0.1)
-                if not output_thread.is_alive() or not input_thread.is_alive():
+                if not output_thread.is_alive() or not input_thread.is_alive() or not flush_thread.is_alive():
                     break
 
         except KeyboardInterrupt:
