@@ -6,40 +6,36 @@ Interactive PTY terminal client that provides full terminal emulation
 with support for interactive applications like vim, nano, htop, etc.
 
 Usage:
-    # Local API server mode
     python pty_client.py [--url URL] [--cwd CWD]
 
-    # AgentCore mode (uses environment variables)
-    python pty_client.py --agentcore
-
 Environment Variables:
-    TOKEN              - JWT Bearer token for authentication (optional for local mode, required for AgentCore)
-    SESSION_ID         - AgentCore session ID (optional, auto-generated if not provided)
-    AGENTCORE_URL      - Full AgentCore invocations URL (optional, overrides AGENT_ARN)
-    AGENT_ARN          - Agent ARN for invocation (optional if AGENTCORE_URL provided)
-    AWS_REGION         - AWS region (optional, defaults to us-west-2)
+    TOKEN              - JWT Bearer token for authentication (optional)
+    SESSION_ID         - Session ID (optional, auto-generated if not provided)
+    AGENTCORE_URL      - Full invocations URL (optional, overrides --url and AGENT_ARN)
+    AGENT_ARN          - Agent ARN for invocation (optional, auto-constructs URL)
+    AWS_REGION         - AWS region (optional, defaults to us-west-2, used with AGENT_ARN)
     WORKLOAD_IDENTITY_TOKEN - Workload identity token (optional, for OAuth operations)
 
 Examples:
-    # Local mode (no auth)
+    # Basic usage (local server)
     python pty_client.py
     python pty_client.py --url http://localhost:8001
     python pty_client.py --cwd /workspace
 
-    # Local mode with auth
+    # With authentication
     export TOKEN="your-jwt-token"
     python pty_client.py
 
-    # AgentCore mode with direct URL
+    # With full AgentCore URL
     export TOKEN="your-jwt-token"
     export AGENTCORE_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/your-arn/invocations"
-    python pty_client.py --agentcore
+    python pty_client.py
 
-    # AgentCore mode with ARN (auto-constructs URL)
+    # With Agent ARN (auto-constructs URL)
     export TOKEN="your-jwt-token"
     export AGENT_ARN="your-agent-arn"
     export AWS_REGION="us-west-2"
-    python pty_client.py --agentcore
+    python pty_client.py
 """
 
 import argparse
@@ -63,14 +59,8 @@ class PTYClient:
     def __init__(
         self,
         base_url: Optional[str] = None,
-        initial_cwd: Optional[str] = None,
-        agentcore_mode: bool = False,
-        agentcore_url: Optional[str] = None,
-        region: Optional[str] = None,
-        agent_arn: Optional[str] = None,
-        auth_token: Optional[str] = None
+        initial_cwd: Optional[str] = None
     ):
-        self.agentcore_mode = agentcore_mode
         self.initial_cwd = initial_cwd or "/workspace"
         self.session_id = None
         self.running = False
@@ -78,54 +68,43 @@ class PTYClient:
         self.old_tty_settings = None
         self.use_streaming = True  # Try SSE streaming first
 
-        if agentcore_mode:
-            # AgentCore mode setup
-            self.auth_token = auth_token or os.environ.get('TOKEN')
-            if not self.auth_token:
-                raise ValueError("TOKEN environment variable is required for AgentCore mode")
+        # Read environment variables
+        self.auth_token = os.environ.get('TOKEN')
+        self.session_id_header = os.environ.get('SESSION_ID') or str(uuid.uuid4())
+        self.workload_token = os.environ.get('WORKLOAD_IDENTITY_TOKEN')
 
-            # Get session ID from environment or generate new one
-            self.agentcore_session_id = os.environ.get('SESSION_ID') or str(uuid.uuid4())
-
-            # Use direct URL if provided or from AGENTCORE_URL env, otherwise construct from ARN
-            if agentcore_url:
-                self.base_url = agentcore_url
-            elif os.environ.get('AGENTCORE_URL'):
-                self.base_url = os.environ.get('AGENTCORE_URL')
-            else:
-                self.agent_arn = agent_arn or os.environ.get('AGENT_ARN')
-                self.region = region or os.environ.get('AWS_REGION', 'us-west-2')
-
-                if not self.agent_arn:
-                    raise ValueError("AGENT_ARN or AGENTCORE_URL environment variable is required for AgentCore mode")
-
-                # Construct AgentCore URL
-                encoded_arn = urllib.parse.quote(self.agent_arn, safe='')
-                self.base_url = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{encoded_arn}/invocations"
-
-            self.invocations_url = self.base_url
-            self.workload_token = os.environ.get('WORKLOAD_IDENTITY_TOKEN')
+        # Determine base URL with priority: AGENTCORE_URL > AGENT_ARN > base_url arg > default
+        if os.environ.get('AGENTCORE_URL'):
+            self.base_url = os.environ.get('AGENTCORE_URL')
+        elif os.environ.get('AGENT_ARN'):
+            # Construct URL from AGENT_ARN
+            agent_arn = os.environ.get('AGENT_ARN')
+            region = os.environ.get('AWS_REGION', 'us-west-2')
+            encoded_arn = urllib.parse.quote(agent_arn, safe='')
+            self.base_url = f"https://bedrock-agentcore.{region}.amazonaws.com/runtimes/{encoded_arn}/invocations"
+        elif base_url:
+            self.base_url = base_url
         else:
-            # Local API server mode
-            self.base_url = base_url or "http://127.0.0.1:8000"
+            self.base_url = "http://127.0.0.1:8000"
+
+        # For invocations endpoint - use base_url directly if it contains 'invocations',
+        # otherwise append '/invocations'
+        if 'invocations' in self.base_url:
+            self.invocations_url = self.base_url
+        else:
             self.invocations_url = f"{self.base_url}/invocations"
-            # In local mode, TOKEN is optional
-            self.auth_token = os.environ.get('TOKEN')
-            # Get session ID from environment or generate new one
-            self.agentcore_session_id = os.environ.get('SESSION_ID') or str(uuid.uuid4())
-            self.workload_token = os.environ.get('WORKLOAD_IDENTITY_TOKEN')
 
     def _get_headers(self):
         """Get HTTP headers for requests."""
         headers = {"Content-Type": "application/json"}
 
-        # Add auth token if available (required for AgentCore, optional for local)
+        # Add auth token if available
         if self.auth_token:
             headers["Authorization"] = f"Bearer {self.auth_token}"
 
         # Add session ID if available
-        if self.agentcore_session_id:
-            headers["X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"] = self.agentcore_session_id
+        if self.session_id_header:
+            headers["X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"] = self.session_id_header
 
         # Add workload token if available
         if self.workload_token:
@@ -436,36 +415,14 @@ def main():
         epilog=__doc__
     )
 
-    # Local API server options
     parser.add_argument(
         "--url",
-        help="Base URL of the local API server (default: http://127.0.0.1:8000)"
+        help="Base URL of the API server (default: http://127.0.0.1:8000 or from AGENTCORE_URL/AGENT_ARN env vars)"
     )
     parser.add_argument(
         "--cwd",
         help="Initial working directory (default: /workspace)"
     )
-
-    # AgentCore options
-    parser.add_argument(
-        "--agentcore",
-        action="store_true",
-        help="Use AWS Bedrock AgentCore mode (requires TOKEN env var)"
-    )
-    parser.add_argument(
-        "--agentcore-url",
-        help="Direct AgentCore invocations URL"
-    )
-    parser.add_argument(
-        "--region",
-        help="AWS region for AgentCore (default: us-west-2 or AWS_REGION env var)"
-    )
-    parser.add_argument(
-        "--agent-arn",
-        help="Agent ARN for AgentCore (or use AGENT_ARN env var)"
-    )
-
-    # Output mode options
     parser.add_argument(
         "--no-streaming",
         action="store_true",
@@ -475,21 +432,10 @@ def main():
     args = parser.parse_args()
 
     try:
-        if args.agentcore:
-            # AgentCore mode
-            client = PTYClient(
-                initial_cwd=args.cwd,
-                agentcore_mode=True,
-                agentcore_url=args.agentcore_url,
-                region=args.region,
-                agent_arn=args.agent_arn
-            )
-        else:
-            # Local API server mode
-            client = PTYClient(
-                base_url=args.url or "http://127.0.0.1:8000",
-                initial_cwd=args.cwd
-            )
+        client = PTYClient(
+            base_url=args.url,
+            initial_cwd=args.cwd
+        )
 
         # Override streaming setting if requested
         if args.no_streaming:
