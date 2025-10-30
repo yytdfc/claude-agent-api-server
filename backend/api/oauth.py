@@ -107,7 +107,7 @@ async def get_github_oauth_token(request: Request):
         Uses client.get_resource_oauth2_token() with:
         - workloadIdentityToken: From request header
         - resourceCredentialProviderName: "github-provider"
-        - scopes: ["repo", "read:user"]
+        - scopes: ["repo", "read:user", "read:org"]
         - oauth2Flow: "USER_FEDERATION"
         - sessionUri: user_id from JWT
         - forceAuthentication: True
@@ -176,7 +176,7 @@ async def get_github_oauth_token(request: Request):
         response = client.get_resource_oauth2_token(
             workloadIdentityToken=workload_token,
             resourceCredentialProviderName="github-provider",
-            scopes=["repo", "read:user"],
+            scopes=["repo", "read:user", "read:org"],
             oauth2Flow="USER_FEDERATION",
             resourceOauth2ReturnUrl=oauth_callback_url,
             forceAuthentication=False
