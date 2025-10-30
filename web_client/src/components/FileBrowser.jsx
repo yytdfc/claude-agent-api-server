@@ -3,7 +3,7 @@ import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } 
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger }) {
+function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger, disabled }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -15,6 +15,11 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
 
   // Create API client
   useEffect(() => {
+    if (disabled) {
+      setFiles([])
+      return
+    }
+
     const initApiClient = async () => {
       if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
         const agentCoreSessionId = await getAgentCoreSessionId()
@@ -22,21 +27,23 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
       }
     }
     initApiClient()
-  }, [serverUrl])
+  }, [serverUrl, disabled])
 
   // Load files when path changes
   useEffect(() => {
+    if (disabled) return
     if (currentPath && apiClientRef.current) {
       loadFiles(currentPath)
     }
-  }, [currentPath])
+  }, [currentPath, disabled])
 
   // Auto-refresh when refreshTrigger changes (messages update)
   useEffect(() => {
+    if (disabled) return
     if (refreshTrigger && currentPath && apiClientRef.current) {
       loadFiles(currentPath)
     }
-  }, [refreshTrigger])
+  }, [refreshTrigger, disabled])
 
   const loadFiles = async (path) => {
     if (!apiClientRef.current) return

@@ -50,7 +50,7 @@ hljs.registerLanguage('c', hljsCpp)
 hljs.registerLanguage('go', hljsGo)
 hljs.registerLanguage('rust', hljsRust)
 
-function FilePreview({ serverUrl, filePath, onClose }) {
+function FilePreview({ serverUrl, filePath, onClose, disabled }) {
   const [fileInfo, setFileInfo] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -64,6 +64,11 @@ function FilePreview({ serverUrl, filePath, onClose }) {
 
   // Create API client
   useEffect(() => {
+    if (disabled) {
+      setFileInfo(null)
+      return
+    }
+
     const initApiClient = async () => {
       if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
         const agentCoreSessionId = await getAgentCoreSessionId()
@@ -71,14 +76,15 @@ function FilePreview({ serverUrl, filePath, onClose }) {
       }
     }
     initApiClient()
-  }, [serverUrl])
+  }, [serverUrl, disabled])
 
   // Load file info when filePath changes
   useEffect(() => {
+    if (disabled) return
     if (filePath && apiClientRef.current) {
       loadFileInfo(filePath)
     }
-  }, [filePath])
+  }, [filePath, disabled])
 
   // Initialize CodeMirror when entering edit mode
   useEffect(() => {

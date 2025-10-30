@@ -6,7 +6,7 @@ import { X } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function TerminalPTY({ serverUrl, initialCwd, onClose }) {
+function TerminalPTY({ serverUrl, initialCwd, onClose, disabled }) {
   const terminalRef = useRef(null)
   const xtermRef = useRef(null)
   const fitAddonRef = useRef(null)
@@ -22,12 +22,29 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   const useStreamingRef = useRef(import.meta.env.VITE_TERMINAL_USE_STREAMING !== 'false') // Prefer streaming over polling
 
   useEffect(() => {
+    if (disabled) {
+      // Clean up terminal session if disconnected
+      if (sessionIdRef.current && apiClientRef.current) {
+        apiClientRef.current.closeTerminalSession(sessionIdRef.current).catch(console.error)
+      }
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+      setIsConnected(false)
+      return
+    }
+
     const initApiClient = async () => {
       const agentCoreSessionId = await getAgentCoreSessionId()
       apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
     }
     initApiClient()
-  }, [serverUrl])
+  }, [serverUrl, disabled])
 
   // Process input queue to ensure sequential sending
   const processInputQueue = async () => {

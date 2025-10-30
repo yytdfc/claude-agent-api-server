@@ -17,6 +17,7 @@ import { createAPIClient } from './api/client'
 import { Loader2 } from 'lucide-react'
 
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
+const SERVER_DISCONNECTED_KEY = 'claude-agent-server-disconnected'
 
 const DEFAULT_SETTINGS = {
   serverUrl: 'http://127.0.0.1:8000',
@@ -90,8 +91,17 @@ function AppContent() {
   const [githubAuthStatus, setGithubAuthStatus] = useState(null) // null | 'success' | 'pending' | 'error'
   const [githubAuthMessage, setGithubAuthMessage] = useState('')
 
-  // Server disconnect state
-  const [serverDisconnected, setServerDisconnected] = useState(false)
+  // Server disconnect state - load from localStorage on mount
+  const [serverDisconnected, setServerDisconnected] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SERVER_DISCONNECTED_KEY)
+      // Default to disconnected (true) if not set, so user must explicitly connect
+      return saved ? JSON.parse(saved) : true
+    } catch (error) {
+      console.error('Failed to load server disconnect state:', error)
+      return true // Default to disconnected on error
+    }
+  })
   const [disconnecting, setDisconnecting] = useState(false)
 
   const {
@@ -121,6 +131,15 @@ function AppContent() {
       console.error('Failed to save settings to localStorage:', error)
     }
   }, [settings])
+
+  // Save server disconnect state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(SERVER_DISCONNECTED_KEY, JSON.stringify(serverDisconnected))
+    } catch (error) {
+      console.error('Failed to save server disconnect state:', error)
+    }
+  }, [serverDisconnected])
 
   // Load available projects when user logs in
   useEffect(() => {
@@ -451,26 +470,31 @@ function AppContent() {
             padding: '2rem',
             borderRadius: '8px',
             textAlign: 'center',
-            maxWidth: '400px'
+            maxWidth: '500px'
           }}>
-            <h2 style={{ marginBottom: '1rem' }}>Server Disconnected</h2>
-            <p style={{ marginBottom: '1.5rem', color: '#666' }}>
-              All background requests have been stopped. Click reconnect to resume.
+            <h2 style={{ marginBottom: '1rem' }}>Connect to Server</h2>
+            <p style={{ marginBottom: '1.5rem', color: '#666', lineHeight: '1.6' }}>
+              Click the button below to connect to the server and start background services
+              (health checks, session polling, etc.).
             </p>
             <button
               onClick={handleReconnectServer}
               style={{
-                padding: '0.75rem 1.5rem',
+                padding: '0.75rem 2rem',
                 backgroundColor: 'var(--primary-color)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                fontWeight: '500'
               }}
             >
-              Reconnect to Server
+              Connect to Server
             </button>
+            <p style={{ marginTop: '1rem', color: '#999', fontSize: '0.875rem' }}>
+              Server: {settings.serverUrl}
+            </p>
           </div>
         </div>
       )}
@@ -502,6 +526,7 @@ function AppContent() {
             onPathChange={handleBrowsePathChange}
             onFileClick={handleFileClick}
             refreshTrigger={messages.length}
+            disabled={serverDisconnected}
           />
           <SessionList
             serverUrl={settings.serverUrl}
@@ -509,6 +534,7 @@ function AppContent() {
             onSessionSelect={handleSessionSelect}
             onNewSession={handleNewSession}
             cwd={settings.cwd}
+            disabled={serverDisconnected}
           />
           <div
             className="sidebar-resize-handle"
@@ -550,6 +576,7 @@ function AppContent() {
               serverUrl={settings.serverUrl}
               filePath={previewFilePath}
               onClose={handleClosePreview}
+              disabled={serverDisconnected}
             />
           </aside>
         )}
@@ -567,6 +594,7 @@ function AppContent() {
               serverUrl={settings.serverUrl}
               initialCwd={workingDirectory}
               onClose={() => setShowTerminal(false)}
+              disabled={serverDisconnected}
             />
           </aside>
         )}

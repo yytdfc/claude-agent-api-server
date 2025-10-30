@@ -3,13 +3,20 @@ import { Plus, Circle } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd }) {
+function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd, disabled }) {
   const [sessions, setSessions] = useState([])
   const [activeSessions, setActiveSessions] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const apiClientRef = useRef(null)
 
   useEffect(() => {
+    // Don't fetch sessions if disabled
+    if (disabled) {
+      setSessions([])
+      setActiveSessions(new Set())
+      return
+    }
+
     if (!serverUrl) return
 
     // Create or update API client when serverUrl changes
@@ -73,7 +80,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
       clearInterval(interval)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [serverUrl, cwd])
+  }, [serverUrl, cwd, disabled])
 
   const formatDate = (dateStr) => {
     try {
