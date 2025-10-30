@@ -440,6 +440,19 @@ class DirectAPIClient {
     }
     return response.text() // Returns HTML
   }
+
+  async stopAgentCoreSession(qualifier = 'DEFAULT') {
+    const authHeaders = await getAuthHeaders(true) // Include session ID
+    const url = qualifier ? `${this.baseUrl}/agentcore/session/stop?qualifier=${encodeURIComponent(qualifier)}` : `${this.baseUrl}/agentcore/session/stop`
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      throw new Error('Failed to stop AgentCore session')
+    }
+    return response.json()
+  }
 }
 
 /**
@@ -539,6 +552,10 @@ class InvocationsAPIClient {
 
   async completeGithubOAuthCallback(sessionId) {
     return this._invoke('/oauth/github/callback', 'GET', null, null, { session_id: sessionId })
+  }
+
+  async stopAgentCoreSession(qualifier = 'DEFAULT') {
+    return this._invoke('/agentcore/session/stop', 'POST', null, null, { qualifier })
   }
 
   async healthCheck() {

@@ -507,6 +507,15 @@ async def invocations(http_request: Request, request: dict[str, Any]):
                 )
             return await github_oauth_callback(http_request, session_id)
 
+        elif path == "/agentcore/session/stop" and method == "POST":
+            # Stop AgentCore runtime session
+            from .agentcore import stop_agentcore_session
+
+            # Extract qualifier from query_params if provided
+            query_params = request.get("query_params", {})
+            qualifier = query_params.get("qualifier", "DEFAULT")
+            return await stop_agentcore_session(http_request, qualifier)
+
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency
             from ..server import health_check

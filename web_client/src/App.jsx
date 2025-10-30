@@ -90,6 +90,9 @@ function AppContent() {
   const [githubAuthStatus, setGithubAuthStatus] = useState(null) // null | 'success' | 'pending' | 'error'
   const [githubAuthMessage, setGithubAuthMessage] = useState('')
 
+  // Close project state
+  const [closingProject, setClosingProject] = useState(false)
+
   const {
     connected,
     connecting,
@@ -254,6 +257,45 @@ function AppContent() {
     }, 5000)
   }
 
+  const handleCloseProject = async () => {
+    if (!currentProject) {
+      console.warn('No project to close')
+      return
+    }
+
+    if (!window.confirm(`Close project "${currentProject}"?\n\nThis will stop the AgentCore session.`)) {
+      return
+    }
+
+    setClosingProject(true)
+    console.log(`🛑 Closing project: ${currentProject}`)
+
+    try {
+      const agentCoreSessionId = await getAgentCoreSessionId()
+      const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
+      await apiClient.stopAgentCoreSession('DEFAULT')
+
+      console.log(`✅ Project "${currentProject}" closed successfully`)
+
+      // Disconnect current session
+      if (connected) {
+        disconnect()
+      }
+
+      // Switch back to default workspace
+      setCurrentProject(null)
+      const newSettings = { ...settings, cwd: '/workspace' }
+      setSettings(newSettings)
+      setWorkingDirectory('/workspace')
+      setCurrentBrowsePath('/workspace')
+    } catch (error) {
+      console.error('Failed to close project:', error)
+      alert(`Failed to close project: ${error.message}`)
+    } finally {
+      setClosingProject(false)
+    }
+  }
+
   const handleNewSession = () => {
     if (connected) {
       clearSession()
@@ -395,6 +437,8 @@ function AppContent() {
         onGithubAuthClick={handleGithubAuth}
         githubAuthStatus={githubAuthStatus}
         githubAuthMessage={githubAuthMessage}
+        onCloseProject={handleCloseProject}
+        closingProject={closingProject}
       />
 
       <div className="main-content">

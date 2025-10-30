@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import (
+    agentcore_router,
     files_router,
     invocations_router,
     messages_router,
@@ -155,6 +156,9 @@ app.include_router(workspace_router, tags=["workspace"])
 
 # OAuth endpoints
 app.include_router(oauth_router, tags=["oauth"])
+
+# AgentCore session management endpoints
+app.include_router(agentcore_router, tags=["agentcore"])
 
 # Unified invocations endpoint
 app.include_router(invocations_router, tags=["invocations"])

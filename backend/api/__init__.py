@@ -1,5 +1,6 @@
 """API endpoint routers."""
 
+from .agentcore import router as agentcore_router
 from .files import router as files_router
 from .invocations import router as invocations_router
 from .messages import router as messages_router
@@ -11,6 +12,7 @@ from .terminal import router as terminal_router
 from .workspace import router as workspace_router
 
 __all__ = [
+    "agentcore_router",
     "sessions_router",
     "messages_router",
     "permissions_router",

@@ -502,6 +502,24 @@ body {
     border-color: var(--danger-color);
 }
 
+.close-project-button {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.close-project-button:hover:not(:disabled) {
+    background-color: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+    transform: scale(1.05);
+}
+
+.close-project-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .btn-close-session:focus {
     outline: none;
     box-shadow: none;

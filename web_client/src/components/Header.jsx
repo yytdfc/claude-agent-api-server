@@ -1,4 +1,4 @@
-import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal, Folder, Github } from 'lucide-react'
+import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal, Folder, Github, XCircle } from 'lucide-react'
 
 function Header({
   serverConnected,
@@ -12,7 +12,9 @@ function Header({
   onProjectSwitcherOpen,
   onGithubAuthClick,
   githubAuthStatus,
-  githubAuthMessage
+  githubAuthMessage,
+  onCloseProject,
+  closingProject
 }) {
   return (
     <header className="header">
@@ -55,6 +57,16 @@ function Header({
         >
           <Terminal size={18} />
         </button>
+        {onCloseProject && currentProject && (
+          <button
+            className="btn-icon close-project-button"
+            onClick={onCloseProject}
+            title="Close Project (Stop AgentCore Session)"
+            disabled={closingProject}
+          >
+            <XCircle size={18} />
+          </button>
+        )}
         <button className="btn-icon settings-button" onClick={onSettingsClick} title="Settings">
           <Settings size={18} />
         </button>
