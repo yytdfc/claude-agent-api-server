@@ -39,19 +39,63 @@ export async function getValidAccessToken() {
 }
 
 /**
- * Create authorization headers for API requests
- * @returns {Promise<Object>} Headers object with Authorization header
+ * Get AgentCore session ID from access token
+ * Extracts user_id from JWT 'sub' claim and formats as session ID
+ * @returns {Promise<string|null>} Session ID or null if not available
  */
-export async function getAuthHeaders() {
+export async function getAgentCoreSessionId() {
+  try {
+    const token = await getValidAccessToken()
+    if (!token) {
+      return null
+    }
+
+    // Decode JWT token (without verification - just parse)
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+      return null
+    }
+
+    const payload = JSON.parse(atob(parts[1]))
+    const userId = payload.sub
+
+    if (!userId) {
+      return null
+    }
+
+    // Format: user_id@workspace
+    return `${userId}@workspace`
+  } catch (error) {
+    console.error('Failed to get AgentCore session ID:', error)
+    return null
+  }
+}
+
+/**
+ * Create authorization headers for API requests
+ * @param {boolean} includeSessionId - Whether to include X-Amzn-Bedrock-AgentCore-Runtime-Session-Id header
+ * @returns {Promise<Object>} Headers object with Authorization header and optionally session ID
+ */
+export async function getAuthHeaders(includeSessionId = false) {
   const token = await getValidAccessToken()
 
   if (!token) {
     throw new Error('Not authenticated')
   }
 
-  return {
+  const headers = {
     'Authorization': `Bearer ${token}`
   }
+
+  // Optionally include AgentCore session ID header
+  if (includeSessionId) {
+    const sessionId = await getAgentCoreSessionId()
+    if (sessionId) {
+      headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = sessionId
+    }
+  }
+
+  return headers
 }
 
 /**

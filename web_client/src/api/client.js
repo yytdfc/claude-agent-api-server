@@ -233,7 +233,7 @@ class DirectAPIClient {
   }
 
   async createTerminalSession(payload) {
-    const authHeaders = await getAuthHeaders()
+    const authHeaders = await getAuthHeaders(true) // Include session ID
     const response = await fetch(`${this.baseUrl}/terminal/sessions`, {
       method: 'POST',
       headers: {
@@ -250,7 +250,7 @@ class DirectAPIClient {
   }
 
   async getTerminalOutput(sessionId, seq) {
-    const authHeaders = await getAuthHeaders()
+    const authHeaders = await getAuthHeaders(true) // Include session ID
     const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/output?seq=${seq}`, {
       headers: authHeaders
     })
@@ -261,7 +261,7 @@ class DirectAPIClient {
   }
 
   async sendTerminalInput(sessionId, data) {
-    const authHeaders = await getAuthHeaders()
+    const authHeaders = await getAuthHeaders(true) // Include session ID
     const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/input`, {
       method: 'POST',
       headers: {
@@ -277,7 +277,7 @@ class DirectAPIClient {
   }
 
   async resizeTerminal(sessionId, rows, cols) {
-    const authHeaders = await getAuthHeaders()
+    const authHeaders = await getAuthHeaders(true) // Include session ID
     const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/resize`, {
       method: 'POST',
       headers: {
@@ -293,7 +293,7 @@ class DirectAPIClient {
   }
 
   async closeTerminalSession(sessionId) {
-    const authHeaders = await getAuthHeaders()
+    const authHeaders = await getAuthHeaders(true) // Include session ID
     const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: authHeaders
@@ -305,7 +305,7 @@ class DirectAPIClient {
   }
 
   async getTerminalStatus(sessionId) {
-    const authHeaders = await getAuthHeaders()
+    const authHeaders = await getAuthHeaders(true) // Include session ID
     const response = await fetch(`${this.baseUrl}/terminal/sessions/${sessionId}/status`, {
       headers: authHeaders
     })
@@ -316,7 +316,7 @@ class DirectAPIClient {
   }
 
   async listTerminalSessions() {
-    const authHeaders = await getAuthHeaders()
+    const authHeaders = await getAuthHeaders(true) // Include session ID
     const response = await fetch(`${this.baseUrl}/terminal/sessions`, {
       headers: authHeaders
     })
@@ -326,8 +326,15 @@ class DirectAPIClient {
     return response.json()
   }
 
-  createTerminalStream(sessionId, onData, onError, onEnd) {
-    const url = `${this.baseUrl}/terminal/sessions/${sessionId}/stream`
+  async createTerminalStream(sessionId, onData, onError, onEnd) {
+    // For SSE, we need to include auth headers in the URL or use a POST request
+    // EventSource doesn't support custom headers, so we need to handle this differently
+    // Note: This may need server-side changes to accept session ID from query params
+    const authHeaders = await getAuthHeaders(true) // Get headers to extract session ID
+    const agentCoreSessionId = authHeaders['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id']
+
+    // Append session ID as query parameter for SSE (EventSource doesn't support custom headers)
+    const url = `${this.baseUrl}/terminal/sessions/${sessionId}/stream${agentCoreSessionId ? `?agentcore_session_id=${encodeURIComponent(agentCoreSessionId)}` : ''}`
     const eventSource = new EventSource(url)
 
     eventSource.onmessage = (event) => {
