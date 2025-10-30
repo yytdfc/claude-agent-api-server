@@ -427,6 +427,19 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async completeGithubOAuthCallback(sessionId) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/oauth/github/callback?session_id=${encodeURIComponent(sessionId)}`, {
+      method: 'GET',
+      headers: authHeaders
+    })
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to complete OAuth callback: ${response.status} ${errorText}`)
+    }
+    return response.text() // Returns HTML
+  }
 }
 
 /**
@@ -446,7 +459,7 @@ class InvocationsAPIClient {
     this.agentCoreSessionId = sessionId
   }
 
-  async _invoke(path, method = 'GET', payload = null, pathParams = null) {
+  async _invoke(path, method = 'GET', payload = null, pathParams = null, queryParams = null) {
     const authHeaders = await getAuthHeaders()
     const body = {
       path,
@@ -459,6 +472,10 @@ class InvocationsAPIClient {
 
     if (pathParams) {
       body.path_params = pathParams
+    }
+
+    if (queryParams) {
+      body.query_params = queryParams
     }
 
     // Build headers with agent core session ID if available
@@ -518,6 +535,10 @@ class InvocationsAPIClient {
 
   async getGithubToken() {
     return this._invoke('/oauth/github/token', 'POST')
+  }
+
+  async completeGithubOAuthCallback(sessionId) {
+    return this._invoke('/oauth/github/callback', 'GET', null, null, { session_id: sessionId })
   }
 
   async healthCheck() {

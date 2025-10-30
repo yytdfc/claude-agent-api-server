@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../hooks/useAuth'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { getAgentCoreSessionId } from '../utils/authUtils'
+import { createAPIClient } from '../api/client'
 
 export default function OAuthCallback() {
   const [status, setStatus] = useState('processing') // 'processing' | 'success' | 'error'
   const [message, setMessage] = useState('Completing GitHub authentication...')
-  const { user } = useAuth()
 
   useEffect(() => {
     const completeOAuthFlow = async () => {
@@ -20,7 +20,10 @@ export default function OAuthCallback() {
           return
         }
 
-        if (!user?.token) {
+        // Get AgentCore session ID from token
+        const agentCoreSessionId = await getAgentCoreSessionId()
+
+        if (!agentCoreSessionId) {
           setStatus('error')
           setMessage('Not authenticated. Please log in first.')
           return
@@ -33,30 +36,20 @@ export default function OAuthCallback() {
 
         console.log(`📝 Completing OAuth flow for session: ${sessionId}`)
 
-        // Call backend OAuth callback endpoint
-        const response = await fetch(`${serverUrl}/oauth/github/callback?session_id=${sessionId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${user.token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        // Create API client with session ID (will use invocations endpoint if configured)
+        const apiClient = createAPIClient(serverUrl, agentCoreSessionId)
 
-        if (response.ok) {
-          setStatus('success')
-          setMessage('GitHub authentication completed successfully!')
-          console.log('✅ OAuth flow completed')
+        // Call backend OAuth callback endpoint through API client
+        const result = await apiClient.completeGithubOAuthCallback(sessionId)
 
-          // Close window after 2 seconds
-          setTimeout(() => {
-            window.close()
-          }, 2000)
-        } else {
-          const error = await response.json().catch(() => ({ detail: 'Unknown error' }))
-          setStatus('error')
-          setMessage(`Authentication failed: ${error.detail || 'Unknown error'}`)
-          console.error('❌ OAuth callback failed:', error)
-        }
+        setStatus('success')
+        setMessage('GitHub authentication completed successfully!')
+        console.log('✅ OAuth flow completed')
+
+        // Close window after 2 seconds
+        setTimeout(() => {
+          window.close()
+        }, 2000)
       } catch (error) {
         setStatus('error')
         setMessage(`Error: ${error.message}`)
@@ -65,7 +58,7 @@ export default function OAuthCallback() {
     }
 
     completeOAuthFlow()
-  }, [user])
+  }, [])
 
   return (
     <div style={{
