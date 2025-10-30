@@ -172,7 +172,7 @@ async def get_github_oauth_token(request: Request):
     try:
         client = get_bedrock_agentcore_client()
 
-        # Call get_resource_oauth2_token with correct parameter names from AWS API
+        # First attempt with forceAuthentication=False
         response = client.get_resource_oauth2_token(
             workloadIdentityToken=workload_token,
             resourceCredentialProviderName="github-provider",
@@ -213,6 +213,37 @@ async def get_github_oauth_token(request: Request):
                 logger.info(f"GitHub CLI authentication initialized for user {user_id}")
             elif gh_auth_result["status"] == "skipped":
                 logger.info(f"GitHub CLI not installed, skipping auth setup for user {user_id}")
+            elif gh_auth_result["status"] == "failed":
+                # gh auth failed - retry with forceAuthentication=True
+                logger.warning(f"GitHub CLI authentication failed, retrying with forceAuthentication=True")
+
+                retry_response = client.get_resource_oauth2_token(
+                    workloadIdentityToken=workload_token,
+                    resourceCredentialProviderName="github-provider",
+                    scopes=["repo", "read:user", "read:org"],
+                    oauth2Flow="USER_FEDERATION",
+                    resourceOauth2ReturnUrl=oauth_callback_url,
+                    forceAuthentication=True
+                )
+
+                retry_access_token = retry_response.get("accessToken")
+                retry_authorization_url = retry_response.get("authorizationUrl")
+                retry_session_status = retry_response.get("sessionStatus")
+
+                # Update result with retry response
+                result["access_token"] = retry_access_token
+                result["authorization_url"] = retry_authorization_url
+                result["session_uri"] = retry_response.get("sessionUri")
+                result["session_status"] = retry_session_status
+                result["retried_with_force"] = True
+
+                if retry_session_status == "IN_PROGRESS":
+                    logger.info(f"Retry: GitHub OAuth authorization in progress, URL: {retry_authorization_url}")
+                elif retry_access_token:
+                    logger.info(f"Retry: Successfully obtained GitHub OAuth token")
+                    # Try gh auth again with new token
+                    retry_gh_auth = await initialize_gh_auth(retry_access_token)
+                    result["gh_auth"] = retry_gh_auth
             else:
                 logger.warning(f"GitHub CLI authentication failed for user {user_id}: {gh_auth_result['message']}")
 

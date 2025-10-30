@@ -238,12 +238,34 @@ function AppContent() {
       if (result.access_token) {
         if (result.gh_auth?.status === 'success') {
           setGithubAuthStatus('success')
-          setGithubAuthMessage('GitHub authentication successful!')
+          setGithubAuthMessage('GitHub connected successfully!')
           console.log('✅ GitHub authenticated successfully')
+          // Keep green state persistent - don't auto-clear
+          return
         } else if (result.gh_auth?.status === 'skipped') {
           setGithubAuthStatus('success')
           setGithubAuthMessage('GitHub token obtained (gh CLI not installed)')
           console.log('⚠️  GitHub token obtained but gh CLI not installed')
+        } else if (result.gh_auth?.status === 'failed') {
+          // Server will retry with forceAuthentication=True
+          // Check if retry was successful
+          if (result.retried_with_force) {
+            if (result.authorization_url) {
+              // Retry needs user authorization
+              setGithubAuthStatus('pending')
+              setGithubAuthMessage('Re-authentication required. Opening authorization page...')
+              console.log('🔗 Retry: Opening GitHub authorization URL:', result.authorization_url)
+              window.open(result.authorization_url, '_blank')
+            } else {
+              setGithubAuthStatus('error')
+              setGithubAuthMessage('GitHub authentication failed. Please try again.')
+              console.error('GitHub CLI authentication failed after retry')
+            }
+          } else {
+            setGithubAuthStatus('error')
+            setGithubAuthMessage('GitHub authentication failed. Please try again.')
+            console.error('GitHub CLI authentication failed:', result.gh_auth)
+          }
         } else {
           setGithubAuthStatus('error')
           setGithubAuthMessage(`GitHub CLI auth failed: ${result.gh_auth?.message || 'Unknown error'}`)
@@ -257,7 +279,7 @@ function AppContent() {
         window.open(result.authorization_url, '_blank')
       } else if (result.session_status === 'FAILED') {
         setGithubAuthStatus('error')
-        setGithubAuthMessage('GitHub authorization failed')
+        setGithubAuthMessage('GitHub authorization failed. Please try again.')
         console.error('GitHub authorization failed')
       } else {
         setGithubAuthStatus('error')
@@ -270,11 +292,13 @@ function AppContent() {
       console.error('GitHub auth error:', error)
     }
 
-    // Clear status after 5 seconds
+    // Clear error/pending status after 8 seconds (but keep success state)
     setTimeout(() => {
-      setGithubAuthStatus(null)
-      setGithubAuthMessage('')
-    }, 5000)
+      if (githubAuthStatus !== 'success') {
+        setGithubAuthStatus(null)
+        setGithubAuthMessage('')
+      }
+    }, 8000)
   }
 
   const handleDisconnectServer = async () => {
