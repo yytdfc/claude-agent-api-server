@@ -84,6 +84,32 @@ All client tools (`cli_client/pty_client.py`, `temp/test_github_oauth.py`, web c
   export AWS_REGION="us-east-1"
   ```
 
+#### `AWS_DEFAULT_REGION` (Optional)
+- **Type**: AWS region string
+- **Required**: No
+- **Default**: `us-west-2`
+- **Description**: AWS region for boto3 client (bedrock-agentcore). Used by backend server.
+- **Example**:
+  ```bash
+  export AWS_DEFAULT_REGION="us-west-2"
+  ```
+
+### OAuth Configuration
+
+#### `OAUTH_CALLBACK_URL` (Optional)
+- **Type**: URL string
+- **Required**: No (required for OAuth operations)
+- **Default**: `http://localhost:8080/oauth/callback`
+- **Description**: OAuth callback URL for 3-legged OAuth flow. Backend passes this to AgentCore's `get_resource_oauth2_token()` as `resourceOauth2ReturnUrl` parameter. Must match the URL configured in GitHub OAuth App and AgentCore Identity.
+- **Example**:
+  ```bash
+  # Development
+  export OAUTH_CALLBACK_URL="http://localhost:8080/oauth/callback"
+
+  # Production
+  export OAUTH_CALLBACK_URL="https://your-agentcore-url/oauth/callback"
+  ```
+
 ## URL Convention
 
 **Important**: All URLs should be provided **WITHOUT** the `/invocations` suffix.

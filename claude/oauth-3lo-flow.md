@@ -200,6 +200,24 @@ Callback URL must match the web client's base URL:
 - Development: `http://localhost:8080/oauth/callback`
 - Production: `https://your-domain.com/oauth/callback`
 
+### Backend Server Configuration
+
+Set the `OAUTH_CALLBACK_URL` environment variable before starting the backend server:
+
+```bash
+# Development
+export OAUTH_CALLBACK_URL="http://localhost:8080/oauth/callback"
+./serve
+
+# Production (example with AgentCore)
+export OAUTH_CALLBACK_URL="https://bedrock-agentcore.us-west-2.amazonaws.com/runtimes/arn%3Aaws%3A.../oauth/callback"
+uv run uvicorn backend.server:app --host 0.0.0.0 --port 8080
+```
+
+**Default behavior**: If `OAUTH_CALLBACK_URL` is not set, the backend defaults to `http://localhost:8080/oauth/callback` with a warning logged.
+
+**How it works**: The backend passes this URL to AgentCore's `get_resource_oauth2_token()` API as the `resourceOauth2ReturnUrl` parameter. AgentCore uses this URL when redirecting the user back after OAuth authorization.
+
 ## Security Considerations
 
 1. **JWT Token Validation**: Backend extracts `user_id` from JWT token without signature verification (assumes token validated by API gateway)

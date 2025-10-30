@@ -161,6 +161,14 @@ async def get_github_oauth_token(request: Request):
 
     logger.info(f"Getting GitHub OAuth token for user: {user_id}")
 
+    # Get OAuth callback URL from environment variable
+    oauth_callback_url = os.environ.get("OAUTH_CALLBACK_URL")
+    if not oauth_callback_url:
+        logger.warning("OAUTH_CALLBACK_URL not set, using default: http://localhost:8080/oauth/callback")
+        oauth_callback_url = "http://localhost:8080/oauth/callback"
+
+    logger.info(f"Using OAuth callback URL: {oauth_callback_url}")
+
     try:
         client = get_bedrock_agentcore_client()
 
@@ -170,7 +178,7 @@ async def get_github_oauth_token(request: Request):
             resourceCredentialProviderName="github-provider",
             scopes=["repo", "read:user"],
             oauth2Flow="USER_FEDERATION",
-            sessionUri=f"urn:ietf:params:oauth:request_uri:{user_id}",  # Use user_id as session URI
+            resourceOauth2ReturnUrl=oauth_callback_url,
             forceAuthentication=False
         )
 
