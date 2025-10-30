@@ -258,39 +258,40 @@ function AppContent() {
   }
 
   const handleCloseProject = async () => {
-    if (!currentProject) {
-      console.warn('No project to close')
+    if (!connected) {
+      console.warn('No active session to close')
       return
     }
 
-    if (!window.confirm(`Close project "${currentProject}"?\n\nThis will stop the AgentCore session.`)) {
+    const projectName = currentProject || 'Default Workspace'
+    if (!window.confirm(`Close "${projectName}"?\n\nThis will stop the AgentCore session.`)) {
       return
     }
 
     setClosingProject(true)
-    console.log(`🛑 Closing project: ${currentProject}`)
+    console.log(`🛑 Closing session: ${projectName}`)
 
     try {
       const agentCoreSessionId = await getAgentCoreSessionId()
       const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
       await apiClient.stopAgentCoreSession('DEFAULT')
 
-      console.log(`✅ Project "${currentProject}" closed successfully`)
+      console.log(`✅ Session "${projectName}" closed successfully`)
 
       // Disconnect current session
-      if (connected) {
-        disconnect()
-      }
+      disconnect()
 
-      // Switch back to default workspace
-      setCurrentProject(null)
-      const newSettings = { ...settings, cwd: '/workspace' }
-      setSettings(newSettings)
-      setWorkingDirectory('/workspace')
-      setCurrentBrowsePath('/workspace')
+      // If closing a specific project, switch back to default workspace
+      if (currentProject) {
+        setCurrentProject(null)
+        const newSettings = { ...settings, cwd: '/workspace' }
+        setSettings(newSettings)
+        setWorkingDirectory('/workspace')
+        setCurrentBrowsePath('/workspace')
+      }
     } catch (error) {
-      console.error('Failed to close project:', error)
-      alert(`Failed to close project: ${error.message}`)
+      console.error('Failed to close session:', error)
+      alert(`Failed to close session: ${error.message}`)
     } finally {
       setClosingProject(false)
     }
@@ -426,6 +427,7 @@ function AppContent() {
     <div className="app-layout">
       <Header
         serverConnected={serverConnected}
+        connected={connected}
         onSettingsClick={() => setShowSettings(true)}
         user={user}
         onLogout={logout}

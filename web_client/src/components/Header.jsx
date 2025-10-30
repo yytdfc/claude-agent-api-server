@@ -2,6 +2,7 @@ import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal, Folder, Gith
 
 function Header({
   serverConnected,
+  connected,
   onSettingsClick,
   user,
   onLogout,
@@ -57,11 +58,11 @@ function Header({
         >
           <Terminal size={18} />
         </button>
-        {onCloseProject && currentProject && (
+        {onCloseProject && connected && (
           <button
             className="btn-icon close-project-button"
             onClick={onCloseProject}
-            title="Close Project (Stop AgentCore Session)"
+            title="Close Session (Stop AgentCore Session)"
             disabled={closingProject}
           >
             <XCircle size={18} />
