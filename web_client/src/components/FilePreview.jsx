@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { File, X, FileText, Calendar, HardDrive, AlertCircle, Loader2, Edit3, Save, Download, XCircle } from 'lucide-react'
 import { createAPIClient } from '../api/client'
+import { getAgentCoreSessionId } from '../utils/authUtils'
 import hljs from 'highlight.js/lib/core'
 import 'highlight.js/styles/github.css'
 
@@ -63,9 +64,13 @@ function FilePreview({ serverUrl, filePath, onClose }) {
 
   // Create API client
   useEffect(() => {
-    if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
-      apiClientRef.current = createAPIClient(serverUrl)
+    const initApiClient = async () => {
+      if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
+        const agentCoreSessionId = await getAgentCoreSessionId()
+        apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
+      }
     }
+    initApiClient()
   }, [serverUrl])
 
   // Load file info when filePath changes

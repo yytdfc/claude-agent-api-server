@@ -12,7 +12,7 @@ import Signup from './components/Signup'
 import ProjectSwitcher from './components/ProjectSwitcher'
 import { useClaudeAgent } from './hooks/useClaudeAgent'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
-import { setAuthErrorHandler } from './utils/authUtils'
+import { setAuthErrorHandler, getAgentCoreSessionId } from './utils/authUtils'
 import { createAPIClient } from './api/client'
 import { Loader2 } from 'lucide-react'
 
@@ -125,7 +125,8 @@ function AppContent() {
     const loadProjects = async () => {
       setProjectsLoading(true)
       try {
-        const apiClient = createAPIClient(settings.serverUrl)
+        const agentCoreSessionId = await getAgentCoreSessionId()
+        const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
         const result = await apiClient.listProjects(user.userId)
         setAvailableProjects(result.projects || [])
         console.log(`📁 Loaded ${result.projects?.length || 0} projects`)
@@ -149,7 +150,8 @@ function AppContent() {
     if (currentProject) {
       try {
         console.log(`💾 Backing up current project "${currentProject}" to S3...`)
-        const apiClient = createAPIClient(settings.serverUrl)
+        const agentCoreSessionId = await getAgentCoreSessionId()
+        const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
         const backupResult = await apiClient.backupProject(user.userId, currentProject)
 
         if (backupResult.status === 'success') {
@@ -185,7 +187,8 @@ function AppContent() {
   }
 
   const handleCreateProject = async (projectName) => {
-    const apiClient = createAPIClient(settings.serverUrl)
+    const agentCoreSessionId = await getAgentCoreSessionId()
+    const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
     const result = await apiClient.createProject(user.userId, projectName)
     console.log(`✅ Created project: ${projectName}`)
 
@@ -202,7 +205,8 @@ function AppContent() {
     setGithubAuthMessage('Requesting GitHub authentication...')
 
     try {
-      const apiClient = createAPIClient(settings.serverUrl)
+      const agentCoreSessionId = await getAgentCoreSessionId()
+      const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
       const result = await apiClient.getGithubToken()
 
       console.log('GitHub auth result:', result)

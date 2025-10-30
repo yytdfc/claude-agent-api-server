@@ -4,6 +4,7 @@ import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { X } from 'lucide-react'
 import { createAPIClient } from '../api/client'
+import { getAgentCoreSessionId } from '../utils/authUtils'
 
 function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   const terminalRef = useRef(null)
@@ -21,7 +22,11 @@ function TerminalPTY({ serverUrl, initialCwd, onClose }) {
   const useStreamingRef = useRef(import.meta.env.VITE_TERMINAL_USE_STREAMING !== 'false') // Prefer streaming over polling
 
   useEffect(() => {
-    apiClientRef.current = createAPIClient(serverUrl)
+    const initApiClient = async () => {
+      const agentCoreSessionId = await getAgentCoreSessionId()
+      apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
+    }
+    initApiClient()
   }, [serverUrl])
 
   // Process input queue to ensure sequential sending

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } from 'lucide-react'
 import { createAPIClient } from '../api/client'
+import { getAgentCoreSessionId } from '../utils/authUtils'
 
 function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger }) {
   const [files, setFiles] = useState([])
@@ -14,9 +15,13 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
 
   // Create API client
   useEffect(() => {
-    if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
-      apiClientRef.current = createAPIClient(serverUrl)
+    const initApiClient = async () => {
+      if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
+        const agentCoreSessionId = await getAgentCoreSessionId()
+        apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
+      }
     }
+    initApiClient()
   }, [serverUrl])
 
   // Load files when path changes

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Plus, Circle } from 'lucide-react'
 import { createAPIClient } from '../api/client'
+import { getAgentCoreSessionId } from '../utils/authUtils'
 
 function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd }) {
   const [sessions, setSessions] = useState([])
@@ -12,9 +13,13 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     if (!serverUrl) return
 
     // Create or update API client when serverUrl changes
-    if (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl) {
-      apiClientRef.current = createAPIClient(serverUrl)
+    const initApiClient = async () => {
+      if (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl) {
+        const agentCoreSessionId = await getAgentCoreSessionId()
+        apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
+      }
     }
+    initApiClient()
 
     const fetchSessions = async () => {
       if (!apiClientRef.current) return
