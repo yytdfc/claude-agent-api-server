@@ -65,6 +65,7 @@ For detailed documentation, see the `claude/` directory:
 - **[Architecture](claude/architecture.md)** - System design and components
 - **[Workspace Sync](claude/workspace-sync.md)** - S3 workspace management
 - **[Web Client](claude/web-client/readme.md)** - Web interface documentation
+- **[User Registration](claude/cognito-signup-guide.md)** - AWS Cognito user signup configuration
 - **[CLI Client](claude/cli-client/readme.md)** - Command-line interface
 - **[Docker](claude/docker/readme.md)** - Container deployment
 
