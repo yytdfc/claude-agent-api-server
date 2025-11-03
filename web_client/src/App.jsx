@@ -146,9 +146,9 @@ function AppContent() {
     }
   }, [serverDisconnected])
 
-  // Load available projects when user logs in
+  // Load available projects when user logs in and server is connected
   useEffect(() => {
-    if (!user?.userId) return
+    if (!user?.userId || serverDisconnected) return
 
     const loadProjects = async () => {
       setProjectsLoading(true)
@@ -167,7 +167,7 @@ function AppContent() {
     }
 
     loadProjects()
-  }, [user?.userId, settings.serverUrl])
+  }, [user?.userId, settings.serverUrl, serverDisconnected])
 
   const handleProjectChange = async (projectName) => {
     if (projectName === currentProject) return
