@@ -255,27 +255,29 @@ async def clone_git_repository(
     shallow: bool = False,
 ) -> dict:
     """
-    Clone a Git repository into a user's workspace.
+    Clone a Git repository into a user's workspace using GitHub CLI.
+
+    Uses 'gh repo clone' instead of 'git clone' for better authentication handling.
 
     Args:
         user_id: User ID
-        git_url: Git repository URL (https or ssh)
+        git_url: Git repository URL (GitHub URL, org/repo, or full URL)
         local_base_path: Local base directory for workspaces
-        branch: Specific branch to clone (default: repository default branch)
+        branch: Specific branch to checkout after cloning (default: repository default branch)
         repo_name: Custom name for the cloned repository (default: extract from URL)
-        shallow: If True, perform shallow clone (--depth=1) for faster cloning
+        shallow: If True, convert to shallow clone after cloning for reduced size
 
     Returns:
         dict: Clone result with status, local_path, repo info
 
     Raises:
-        WorkspaceSyncError: If clone fails or git is not installed
+        WorkspaceSyncError: If clone fails or gh CLI is not installed
     """
-    # Check if git is installed
-    if not shutil.which("git"):
+    # Check if gh CLI is installed
+    if not shutil.which("gh"):
         raise WorkspaceSyncError(
-            "git is not installed. Please install git: "
-            "https://git-scm.com/downloads"
+            "gh CLI is not installed. Please install GitHub CLI: "
+            "https://cli.github.com/"
         )
 
     # Build local path: /workspace/
@@ -301,19 +303,14 @@ async def clone_git_repository(
 
     logger.info(f"Cloning repository {git_url} to {repo_path}")
 
-    # Build git clone command
-    cmd = ["git", "clone"]
+    # Build gh repo clone command (uses GitHub CLI for better auth handling)
+    cmd = ["gh", "repo", "clone", git_url, str(repo_path)]
 
-    if shallow:
-        cmd.extend(["--depth", "1"])
-
-    if branch:
-        cmd.extend(["--branch", branch])
-
-    cmd.extend([git_url, str(repo_path)])
+    # Note: gh repo clone doesn't support --depth or --branch flags directly
+    # We'll need to handle these after cloning if needed
 
     try:
-        # Execute git clone
+        # Execute gh repo clone
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
@@ -326,9 +323,32 @@ async def clone_git_repository(
         stderr_text = stderr.decode() if stderr else ""
 
         if process.returncode != 0:
-            error_msg = f"git clone failed with exit code {process.returncode}: {stderr_text}"
+            error_msg = f"gh repo clone failed with exit code {process.returncode}: {stderr_text}"
             logger.error(error_msg)
             raise WorkspaceSyncError(error_msg)
+
+        # Handle branch checkout if specified
+        if branch:
+            logger.info(f"Checking out branch: {branch}")
+            checkout_process = await asyncio.create_subprocess_exec(
+                "git", "-C", str(repo_path), "checkout", branch,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            checkout_stdout, checkout_stderr = await checkout_process.communicate()
+            if checkout_process.returncode != 0:
+                checkout_error = checkout_stderr.decode() if checkout_stderr else ""
+                logger.warning(f"Branch checkout failed: {checkout_error}")
+
+        # Handle shallow clone if specified (convert to shallow after cloning)
+        if shallow:
+            logger.info("Converting to shallow clone")
+            shallow_process = await asyncio.create_subprocess_exec(
+                "git", "-C", str(repo_path), "fetch", "--depth", "1",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await shallow_process.communicate()
 
         # Get repository info
         try:

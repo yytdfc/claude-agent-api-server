@@ -173,15 +173,16 @@ async def workspace_info(user_id: str):
 @router.post("/workspace/clone-git", response_model=CloneGitRepositoryResponse)
 async def clone_git(request: CloneGitRepositoryRequest):
     """
-    Clone a Git repository into a user's workspace.
+    Clone a Git repository into a user's workspace using GitHub CLI.
 
-    Downloads a Git repository to the user's workspace directory.
-    Supports both HTTPS and SSH URLs, branch selection, and shallow cloning.
+    Downloads a Git repository to the user's workspace directory using 'gh repo clone'
+    for better authentication handling. Supports GitHub URLs, org/repo format,
+    branch selection, and shallow cloning.
 
     Environment Variables:
     - WORKSPACE_BASE_PATH: Local base directory (default: "/workspace")
 
-    Repository Path: {base_path}/{user_id}/{repo_name}/
+    Repository Path: {base_path}/{repo_name}/
 
     Args:
         request: CloneGitRepositoryRequest containing user_id, git_url, and options
@@ -190,7 +191,7 @@ async def clone_git(request: CloneGitRepositoryRequest):
         CloneGitRepositoryResponse with clone status and repository details
 
     Raises:
-        HTTPException: If git is not installed or clone fails
+        HTTPException: If gh CLI is not installed or clone fails
     """
     logger.info(f"Cloning repository {request.git_url} for user: {request.user_id}")
 
