@@ -45,8 +45,6 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
 
   // Auto-refresh when tab becomes active
   useEffect(() => {
-    console.log('Files tab isActive changed:', isActive, 'previous:', previousActiveRef.current, 'disabled:', disabled, 'currentPath:', currentPath, 'hasApiClient:', !!apiClientRef.current)
-
     if (disabled) {
       previousActiveRef.current = isActive
       return
@@ -54,15 +52,10 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
 
     // Check if tab just became active (transition from false to true)
     if (isActive && !previousActiveRef.current) {
-      console.log('Files tab activated, triggering refresh')
-
       // Use a small delay to ensure apiClient is initialized
       const timer = setTimeout(() => {
         if (currentPath && apiClientRef.current) {
-          console.log('Refreshing file list for path:', currentPath)
           loadFiles(currentPath)
-        } else {
-          console.log('Cannot refresh: currentPath or apiClient missing')
         }
       }, 100)
 
