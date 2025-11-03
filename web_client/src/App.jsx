@@ -114,6 +114,7 @@ function AppContent() {
     pendingPermission,
     serverConnected,
     sessionError,
+    githubAuthStatus: githubAuthFromHealth,
     serverUrl,
     connect,
     disconnect,
@@ -301,6 +302,25 @@ function AppContent() {
       }
     }, 8000)
   }
+
+  // Update GitHub auth status from health check
+  useEffect(() => {
+    if (githubAuthFromHealth) {
+      if (githubAuthFromHealth.authenticated) {
+        setGithubAuthStatus('success')
+        const username = githubAuthFromHealth.username ? ` as ${githubAuthFromHealth.username}` : ''
+        setGithubAuthMessage(`GitHub connected${username}`)
+      } else if (githubAuthFromHealth.message === 'gh CLI not installed') {
+        // Don't show as error if gh is not installed
+        setGithubAuthStatus(null)
+        setGithubAuthMessage('')
+      } else {
+        // Not authenticated but gh is installed
+        setGithubAuthStatus(null)
+        setGithubAuthMessage('Click to authenticate with GitHub')
+      }
+    }
+  }, [githubAuthFromHealth])
 
   const handleDisconnectServer = async () => {
     if (!serverConnected) {

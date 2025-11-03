@@ -19,6 +19,70 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def check_gh_auth_status() -> dict:
+    """
+    Check GitHub CLI authentication status.
+
+    Returns:
+        dict: Status information
+            - authenticated: bool - Whether gh is authenticated
+            - username: str | None - GitHub username if authenticated
+            - message: str - Status message
+    """
+    # Check if gh is installed
+    if not shutil.which("gh"):
+        return {
+            "authenticated": False,
+            "username": None,
+            "message": "gh CLI not installed"
+        }
+
+    try:
+        # Run 'gh auth status' to check authentication
+        process = await asyncio.create_subprocess_exec(
+            "gh", "auth", "status",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await process.communicate()
+
+        # gh auth status returns 0 if authenticated, non-zero otherwise
+        if process.returncode == 0:
+            # Parse output to get username
+            # Output format: "✓ Logged in to github.com as USERNAME (oauth_token)"
+            output = stdout.decode() + stderr.decode()
+            username = None
+            for line in output.split('\n'):
+                if 'Logged in' in line and ' as ' in line:
+                    # Extract username between "as" and next space or parenthesis
+                    parts = line.split(' as ')
+                    if len(parts) > 1:
+                        username_part = parts[1].split()[0]
+                        username = username_part.strip()
+                        break
+
+            return {
+                "authenticated": True,
+                "username": username,
+                "message": "GitHub CLI authenticated"
+            }
+        else:
+            return {
+                "authenticated": False,
+                "username": None,
+                "message": "Not authenticated to GitHub CLI"
+            }
+
+    except Exception as e:
+        logger.error(f"Error checking gh auth status: {str(e)}")
+        return {
+            "authenticated": False,
+            "username": None,
+            "message": f"Error checking status: {str(e)}"
+        }
+
+
 async def initialize_gh_auth(access_token: str) -> dict:
     """
     Initialize GitHub CLI authentication with access token.

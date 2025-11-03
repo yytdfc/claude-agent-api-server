@@ -21,6 +21,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
   const [pendingPermission, setPendingPermission] = useState(null)
   const [serverConnected, setServerConnected] = useState(false) // Backend service connection status
   const [sessionError, setSessionError] = useState(null) // Critical session error state
+  const [githubAuthStatus, setGithubAuthStatus] = useState(null) // GitHub authentication status from health check
 
   const serverUrlRef = useRef(initialServerUrl)
   const configRef = useRef(null)
@@ -64,16 +65,24 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     setMessages(prev => [...prev, { type: 'error', content }])
   }, [])
 
-  // Check server health
+  // Check server health and GitHub auth status
   const checkServerHealth = useCallback(async () => {
     if (!apiClientRef.current) return
 
     try {
-      await apiClientRef.current.healthCheck()
+      const healthData = await apiClientRef.current.healthCheck()
       setServerConnected(true)
+
+      // Update GitHub auth status if available
+      if (healthData?.github_auth) {
+        setGithubAuthStatus(healthData.github_auth)
+      }
+
+      return healthData?.github_auth || null
     } catch (error) {
       console.warn('Server health check failed:', error)
       setServerConnected(false)
+      return null
     }
   }, [])
 
@@ -594,6 +603,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     pendingPermission,
     serverConnected,
     sessionError,
+    githubAuthStatus,
     serverUrl: serverUrlRef.current,
     connect,
     disconnect,

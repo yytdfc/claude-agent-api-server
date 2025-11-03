@@ -174,11 +174,16 @@ app.include_router(proxy_router, tags=["proxy"])
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint with GitHub auth status."""
+    from backend.api.oauth import check_gh_auth_status
+
+    gh_status = await check_gh_auth_status()
+
     return {
         "status": "healthy",
         "active_sessions": len(session_manager.sessions),
         "timestamp": datetime.now().isoformat(),
+        "github_auth": gh_status
     }
 
 
