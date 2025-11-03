@@ -2319,6 +2319,11 @@ body {
     color: var(--text-secondary);
 }
 
+.section-header .header-actions {
+    display: flex;
+    gap: 8px;
+}
+
 .btn-small {
     padding: 6px 10px;
     font-size: 13px;
@@ -2642,63 +2647,3 @@ body {
     border-radius: 4px;
 }
 
-/* Project Creation Options */
-.project-creation-options {
-    margin-bottom: 24px;
-}
-
-.creation-option-btn {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 20px;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--bg-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.creation-option-btn:hover {
-    border-color: var(--primary-color);
-    background-color: var(--hover-bg);
-}
-
-.creation-option-btn .option-title {
-    font-size: 1.1em;
-    font-weight: 600;
-}
-
-.creation-option-btn .option-desc {
-    font-size: 0.9em;
-    color: var(--text-secondary);
-    text-align: center;
-}
-
-.option-divider {
-    text-align: center;
-    margin: 16px 0;
-    color: var(--text-secondary);
-    font-weight: 600;
-    position: relative;
-}
-
-.option-divider::before,
-.option-divider::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    width: 40%;
-    height: 1px;
-    background-color: var(--border-color);
-}
-
-.option-divider::before {
-    left: 0;
-}
-
-.option-divider::after {
-    right: 0;
-}

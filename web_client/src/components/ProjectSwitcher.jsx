@@ -120,13 +120,22 @@ export default function ProjectSwitcher({
                 <div className="project-list-section">
                   <div className="section-header">
                     <label>Available Projects</label>
-                    <button
-                      onClick={() => setShowCreateForm(true)}
-                      className="btn-secondary btn-small"
-                    >
-                      <Plus size={14} />
-                      New Project
-                    </button>
+                    <div className="header-actions">
+                      <button
+                        onClick={() => setShowCreateForm(true)}
+                        className="btn-secondary btn-small"
+                      >
+                        <Plus size={14} />
+                        New Project
+                      </button>
+                      <button
+                        onClick={() => setShowGithubSelector(true)}
+                        className="btn-secondary btn-small"
+                      >
+                        <Github size={14} />
+                        From GitHub
+                      </button>
+                    </div>
                   </div>
 
                   <div className="project-list-modal">
@@ -162,24 +171,9 @@ export default function ProjectSwitcher({
             ) : (
               <div className="create-project-section">
                 <h3>Create New Project</h3>
-
-                <div className="project-creation-options">
-                  <button
-                    type="button"
-                    className="creation-option-btn"
-                    onClick={() => setShowGithubSelector(true)}
-                  >
-                    <Github size={24} />
-                    <span className="option-title">From GitHub</span>
-                    <span className="option-desc">Clone a repository from your GitHub account</span>
-                  </button>
-
-                  <div className="option-divider">OR</div>
-                </div>
-
                 <form onSubmit={handleCreate}>
                   <div className="form-group">
-                    <label>Empty Project Name</label>
+                    <label>Project Name</label>
                     <input
                       type="text"
                       value={newProjectName}
