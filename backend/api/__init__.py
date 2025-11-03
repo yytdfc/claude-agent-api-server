@@ -2,6 +2,7 @@
 
 from .agentcore import router as agentcore_router
 from .files import router as files_router
+from .git import router as git_router
 from .invocations import router as invocations_router
 from .messages import router as messages_router
 from .oauth import router as oauth_router
@@ -18,6 +19,7 @@ __all__ = [
     "permissions_router",
     "invocations_router",
     "files_router",
+    "git_router",
     "shell_router",
     "terminal_router",
     "workspace_router",

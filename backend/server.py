@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api import (
     agentcore_router,
     files_router,
+    git_router,
     invocations_router,
     messages_router,
     oauth_router,
@@ -144,6 +145,9 @@ app.include_router(permissions_router, tags=["permissions"])
 
 # File browser endpoints
 app.include_router(files_router, tags=["files"])
+
+# Git operations endpoints
+app.include_router(git_router, tags=["git"])
 
 # Shell terminal endpoints
 app.include_router(shell_router, tags=["shell"])

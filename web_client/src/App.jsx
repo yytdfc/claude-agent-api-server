@@ -4,6 +4,7 @@ import ChatContainer from './components/ChatContainer'
 import PermissionModal from './components/PermissionModal'
 import SessionList from './components/SessionList'
 import FileBrowser from './components/FileBrowser'
+import GitPanel from './components/GitPanel'
 import FilePreview from './components/FilePreview'
 import SettingsModal from './components/SettingsModal'
 import TerminalPTY from './components/TerminalPTY'
@@ -586,6 +587,11 @@ function AppContent() {
             onPathChange={handleBrowsePathChange}
             onFileClick={handleFileClick}
             refreshTrigger={messages.length + fileRefreshTrigger}
+            disabled={serverDisconnected}
+          />
+          <GitPanel
+            serverUrl={settings.serverUrl}
+            cwd={workingDirectory}
             disabled={serverDisconnected}
           />
           <SessionList
