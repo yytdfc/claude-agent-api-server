@@ -5,6 +5,7 @@ import PermissionModal from './components/PermissionModal'
 import SessionList from './components/SessionList'
 import FileBrowser from './components/FileBrowser'
 import GitPanel from './components/GitPanel'
+import ProjectPanel from './components/ProjectPanel'
 import FilePreview from './components/FilePreview'
 import SettingsModal from './components/SettingsModal'
 import TerminalPTY from './components/TerminalPTY'
@@ -93,7 +94,7 @@ function AppContent() {
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false)
 
   // Sidebar tab state
-  const [activeTab, setActiveTab] = useState('sessions') // 'files' | 'git' | 'sessions'
+  const [activeTab, setActiveTab] = useState('sessions') // 'files' | 'git' | 'sessions' | 'projects'
 
   // GitHub auth state
   const [githubAuthStatus, setGithubAuthStatus] = useState(null) // null | 'success' | 'pending' | 'error'
@@ -153,25 +154,26 @@ function AppContent() {
   // Load available projects when user logs in and server is connected
   useEffect(() => {
     if (!user?.userId || serverDisconnected) return
-
-    const loadProjects = async () => {
-      setProjectsLoading(true)
-      try {
-        const agentCoreSessionId = await getAgentCoreSessionId()
-        const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
-        const result = await apiClient.listProjects(user.userId)
-        setAvailableProjects(result.projects || [])
-        console.log(`📁 Loaded ${result.projects?.length || 0} projects`)
-      } catch (error) {
-        console.error('Failed to load projects:', error)
-        setAvailableProjects([])
-      } finally {
-        setProjectsLoading(false)
-      }
-    }
-
     loadProjects()
   }, [user?.userId, settings.serverUrl, serverDisconnected])
+
+  const loadProjects = async () => {
+    if (!user?.userId || serverDisconnected) return
+
+    setProjectsLoading(true)
+    try {
+      const agentCoreSessionId = await getAgentCoreSessionId()
+      const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
+      const result = await apiClient.listProjects(user.userId)
+      setAvailableProjects(result.projects || [])
+      console.log(`📁 Loaded ${result.projects?.length || 0} projects`)
+    } catch (error) {
+      console.error('Failed to load projects:', error)
+      setAvailableProjects([])
+    } finally {
+      setProjectsLoading(false)
+    }
+  }
 
   const handleProjectChange = async (projectName) => {
     if (projectName === currentProject) return
@@ -585,6 +587,24 @@ function AppContent() {
         <aside className="sidebar" style={{ width: `${sidebarWidth}px` }}>
           <div className="sidebar-tabs">
             <button
+              className={`sidebar-tab ${activeTab === 'sessions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('sessions')}
+              title="Sessions"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+            <button
+              className={`sidebar-tab ${activeTab === 'projects' ? 'active' : ''}`}
+              onClick={() => setActiveTab('projects')}
+              title="Projects"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+            <button
               className={`sidebar-tab ${activeTab === 'files' ? 'active' : ''}`}
               onClick={() => setActiveTab('files')}
               title="Files"
@@ -606,18 +626,32 @@ function AppContent() {
                 <line x1="6" y1="9" x2="6" y2="21"></line>
               </svg>
             </button>
-            <button
-              className={`sidebar-tab ${activeTab === 'sessions' ? 'active' : ''}`}
-              onClick={() => setActiveTab('sessions')}
-              title="Sessions"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </button>
           </div>
 
           <div className="sidebar-content">
+            {activeTab === 'sessions' && (
+              <SessionList
+                serverUrl={settings.serverUrl}
+                currentSessionId={sessionId}
+                onSessionSelect={handleSessionSelect}
+                onNewSession={handleNewSession}
+                cwd={settings.cwd}
+                disabled={serverDisconnected}
+              />
+            )}
+
+            {activeTab === 'projects' && (
+              <ProjectPanel
+                projects={availableProjects}
+                currentProject={currentProject}
+                onProjectChange={handleProjectChange}
+                onCreateProject={handleCreateProject}
+                onRefresh={loadProjects}
+                hasActiveSession={connected}
+                loading={projectsLoading}
+              />
+            )}
+
             {activeTab === 'files' && (
               <FileBrowser
                 serverUrl={settings.serverUrl}
@@ -634,17 +668,6 @@ function AppContent() {
               <GitPanel
                 serverUrl={settings.serverUrl}
                 cwd={workingDirectory}
-                disabled={serverDisconnected}
-              />
-            )}
-
-            {activeTab === 'sessions' && (
-              <SessionList
-                serverUrl={settings.serverUrl}
-                currentSessionId={sessionId}
-                onSessionSelect={handleSessionSelect}
-                onNewSession={handleNewSession}
-                cwd={settings.cwd}
                 disabled={serverDisconnected}
               />
             )}
