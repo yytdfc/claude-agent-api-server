@@ -25,7 +25,6 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
 
   const serverUrlRef = useRef(initialServerUrl)
   const configRef = useRef(null)
-  const permissionCheckIntervalRef = useRef(null)
   const healthCheckIntervalRef = useRef(null)
   const apiClientRef = useRef(null)
   const agentCoreSessionIdRef = useRef(null)
@@ -86,51 +85,17 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     }
   }, [])
 
-  // Check for pending permissions
-  const checkPermissions = useCallback(async () => {
-    if (!sessionId || !apiClientRef.current) return
-
-    // Don't check if we've hit the error limit
-    if (sessionError) return
-
-    try {
-      const { response, data } = await apiClientRef.current.getSessionStatus(sessionId)
-
-      // Handle 404 - Session not found
-      if (response.status === 404) {
-        sessionErrorCountRef.current += 1
-        console.warn(`Session not found (attempt ${sessionErrorCountRef.current}/${MAX_SESSION_ERRORS})`)
-
-        if (sessionErrorCountRef.current >= MAX_SESSION_ERRORS) {
-          setSessionError({
-            type: 'session_not_found',
-            message: 'Session not found after multiple attempts. The session may have expired or been deleted.',
-            attemptCount: sessionErrorCountRef.current
-          })
-          // Stop checking
-          return
-        }
-        return
-      }
-
-      // Reset error count on successful response
-      if (response.ok && data) {
-        sessionErrorCountRef.current = 0
-
-        if (data.pending_permission && !pendingPermission) {
-          // Add permission request as a message in the chat
-          setMessages(prev => [...prev, {
-            type: 'permission',
-            permission: data.pending_permission
-          }])
-          setPendingPermission(data.pending_permission)
-        }
-      }
-    } catch (error) {
-      console.error('Permission check error:', error)
-      // Don't count non-404 errors toward the limit
+  // Handle permission event from streaming
+  const handlePermissionEvent = useCallback((permissionData) => {
+    if (!pendingPermission) {
+      // Add permission request as a message in the chat
+      setMessages(prev => [...prev, {
+        type: 'permission',
+        permission: permissionData
+      }])
+      setPendingPermission(permissionData)
     }
-  }, [sessionId, pendingPermission, sessionError])
+  }, [pendingPermission])
 
   // Start health check interval (only when page is visible and user is logged in)
   useEffect(() => {
@@ -185,53 +150,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     }
   }, [userId, checkServerHealth, disabled])
 
-  // Start permission checking interval (only when page is visible)
-  useEffect(() => {
-    // Don't start permission check if disabled
-    if (disabled) {
-      // Stop any existing interval
-      if (permissionCheckIntervalRef.current) {
-        clearInterval(permissionCheckIntervalRef.current)
-        permissionCheckIntervalRef.current = null
-      }
-      return
-    }
-
-    if (!connected || !sessionId) return
-
-    // Start interval if page is currently visible
-    const startInterval = () => {
-      if (!document.hidden && !permissionCheckIntervalRef.current) {
-        permissionCheckIntervalRef.current = setInterval(checkPermissions, 1000)
-      }
-    }
-
-    // Stop interval
-    const stopInterval = () => {
-      if (permissionCheckIntervalRef.current) {
-        clearInterval(permissionCheckIntervalRef.current)
-        permissionCheckIntervalRef.current = null
-      }
-    }
-
-    // Handle visibility change
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopInterval()
-      } else {
-        startInterval()
-      }
-    }
-
-    // Start interval and listen for visibility changes
-    startInterval()
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      stopInterval()
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [connected, sessionId, checkPermissions, disabled])
+  // Permission checking is now handled via streaming events, no need for polling
 
   // Connect to server
   const connect = useCallback(async (config) => {
@@ -428,6 +347,12 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
               console.log('👤 User message:', data.content)
               break
 
+            case 'permission':
+              // Permission request from agent
+              console.log('🔐 Permission request:', data.permission)
+              handlePermissionEvent(data.permission)
+              break
+
             case 'result':
               // Mark last message as complete
               setMessages(prev => {
@@ -473,7 +398,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     } catch (error) {
       addErrorMessage(`Failed to send message: ${error.message}`)
     }
-  }, [sessionId, addSystemMessage, addErrorMessage])
+  }, [sessionId, addSystemMessage, addErrorMessage, handlePermissionEvent])
 
   // Respond to permission request
   const respondToPermission = useCallback(async (requestId, allowed, applySuggestions = false) => {

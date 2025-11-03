@@ -375,8 +375,21 @@ class AgentSession:
         # Send message
         await self.client.query(message)
 
+        # Track last reported permission to avoid duplicates
+        last_permission_id = None
+
         # Stream response
         async for msg in self.client.receive_response():
+            # Check for pending permission and send event if new
+            if self.pending_permission:
+                current_permission_id = self.pending_permission.get("request_id")
+                if current_permission_id != last_permission_id:
+                    yield {
+                        "type": "permission",
+                        "permission": self.pending_permission
+                    }
+                    last_permission_id = current_permission_id
+
             if isinstance(msg, UserMessage):
                 # User message event
                 yield {
