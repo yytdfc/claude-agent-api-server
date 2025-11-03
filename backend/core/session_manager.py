@@ -33,6 +33,7 @@ class SessionManager:
 
     async def create_session(
         self,
+        user_id: Optional[str] = None,
         resume_session_id: Optional[str] = None,
         model: Optional[str] = None,
         background_model: Optional[str] = None,
@@ -44,6 +45,7 @@ class SessionManager:
         Create a new session or resume an existing one.
 
         Args:
+            user_id: User ID for S3 sync tracking
             resume_session_id: Optional session ID to resume
             model: Optional model name override
             background_model: Optional background model for agents
@@ -61,6 +63,7 @@ class SessionManager:
 
         session = AgentSession(
             session_id,
+            user_id,
             model,
             background_model,
             enable_proxy,
@@ -70,6 +73,18 @@ class SessionManager:
         await session.connect(resume_session_id)
 
         self.sessions[session_id] = session
+
+        if user_id:
+            from .claude_sync_manager import get_claude_sync_manager
+            sync_manager = get_claude_sync_manager()
+            if sync_manager:
+                sync_manager._synced_users.add(user_id)
+
+                if cwd and cwd.startswith("/workspace/") and cwd != "/workspace":
+                    project_name = cwd.replace("/workspace/", "")
+                    if "/" not in project_name:
+                        sync_manager.set_user_project(user_id, project_name)
+
         return session_id
 
     def get_session(self, session_id: str) -> AgentSession:

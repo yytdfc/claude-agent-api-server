@@ -13,6 +13,7 @@ from pydantic import BaseModel
 class CreateSessionRequest(BaseModel):
     """Request to create a new session or resume an existing one."""
 
+    user_id: Optional[str] = None  # User ID for S3 sync tracking
     resume_session_id: Optional[str] = None
     model: Optional[str] = None  # e.g., "claude-3-5-sonnet-20241022"
     background_model: Optional[

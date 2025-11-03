@@ -69,6 +69,7 @@ class AgentSession:
     def __init__(
         self,
         session_id: str,
+        user_id: Optional[str] = None,
         model: Optional[str] = None,
         background_model: Optional[str] = None,
         enable_proxy: bool = False,
@@ -80,6 +81,7 @@ class AgentSession:
 
         Args:
             session_id: Unique session identifier
+            user_id: User ID for S3 sync tracking
             model: Optional model name (defaults to ANTHROPIC_MODEL env var)
             background_model: Optional background model for agents
             enable_proxy: Enable LiteLLM proxy mode (sets ANTHROPIC_BASE_URL)
@@ -87,6 +89,7 @@ class AgentSession:
             cwd: Working directory for the session
         """
         self.session_id = session_id
+        self.user_id = user_id
         self.client: Optional[ClaudeSDKClient] = None
         self.created_at = datetime.now()
         self.last_activity = datetime.now()
@@ -465,6 +468,11 @@ class AgentSession:
             "type": "done",
             "session_id": self.session_id
         }
+
+        from .claude_sync_manager import get_claude_sync_manager
+        sync_manager = get_claude_sync_manager()
+        if sync_manager:
+            asyncio.create_task(sync_manager.backup_after_task(self.user_id))
 
     async def set_model(self, model: Optional[str]):
         """

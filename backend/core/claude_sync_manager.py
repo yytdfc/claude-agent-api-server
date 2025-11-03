@@ -12,6 +12,7 @@ from typing import Optional, Set
 
 from .workspace_sync import (
     backup_claude_dir_to_s3,
+    backup_project_to_s3,
     sync_claude_dir_from_s3,
     WorkspaceSyncError,
 )
@@ -32,7 +33,8 @@ class ClaudeSyncManager:
         self,
         bucket_name: str,
         s3_prefix: str = "user_data",
-        backup_interval_minutes: int = 5,
+        backup_interval_minutes: int = 10,
+        workspace_base_path: str = "/workspace",
     ):
         """
         Initialize Claude Sync Manager.
@@ -40,14 +42,19 @@ class ClaudeSyncManager:
         Args:
             bucket_name: S3 bucket name for sync/backup
             s3_prefix: S3 key prefix (default: "user_data")
-            backup_interval_minutes: Interval for periodic backups (default: 5)
+            backup_interval_minutes: Interval for periodic backups (default: 10)
+            workspace_base_path: Base path for workspace projects (default: "/workspace")
         """
         self.bucket_name = bucket_name
         self.s3_prefix = s3_prefix
         self.backup_interval_minutes = backup_interval_minutes
+        self.workspace_base_path = workspace_base_path
 
         # Track users who have completed initial sync
         self._synced_users: Set[str] = set()
+
+        # Track current project for each user (user_id -> project_name)
+        self._user_projects: dict[str, Optional[str]] = {}
 
         # Background task handle
         self._backup_task: Optional[asyncio.Task] = None
@@ -154,6 +161,15 @@ class ClaudeSyncManager:
                 "message": f"Sync failed: {str(e)}",
             }
 
+    def set_user_project(self, user_id: str, project_name: Optional[str]):
+        """Set the current project for a user."""
+        self._user_projects[user_id] = project_name
+        logger.debug(f"Set project for user {user_id}: {project_name}")
+
+    def get_user_project(self, user_id: str) -> Optional[str]:
+        """Get the current project for a user."""
+        return self._user_projects.get(user_id)
+
     async def backup_user_claude_dir(self, user_id: str) -> dict:
         """
         Backup a single user's .claude directory to S3.
@@ -179,6 +195,59 @@ class ClaudeSyncManager:
                 "user_id": user_id,
                 "message": f"Backup failed: {str(e)}",
             }
+
+    async def backup_user_project(self, user_id: str, project_name: str) -> dict:
+        """
+        Backup a single user's project workspace to S3.
+
+        Args:
+            user_id: User ID
+            project_name: Project name
+
+        Returns:
+            dict: Backup result
+        """
+        try:
+            result = await backup_project_to_s3(
+                user_id=user_id,
+                project_name=project_name,
+                bucket_name=self.bucket_name,
+                s3_prefix=self.s3_prefix,
+                local_base_path=self.workspace_base_path,
+            )
+            return result
+
+        except WorkspaceSyncError as e:
+            logger.error(f"Failed to backup project {project_name} for user {user_id}: {e}")
+            return {
+                "status": "error",
+                "user_id": user_id,
+                "project_name": project_name,
+                "message": f"Backup failed: {str(e)}",
+            }
+
+    async def backup_after_task(self, user_id: str):
+        """
+        Trigger immediate backup after agent completes a task.
+        Backs up both .claude directory and current project workspace.
+
+        Args:
+            user_id: User ID
+        """
+        logger.info(f"🔄 Starting post-task backup for user {user_id}")
+
+        await self.backup_user_claude_dir(user_id)
+
+        project_name = self._user_projects.get(user_id)
+        if project_name:
+            project_result = await self.backup_user_project(user_id, project_name)
+            if project_result.get("status") == "success":
+                logger.info(
+                    f"✅ Backed up project {project_name}: "
+                    f"{project_result.get('files_synced', 0)} files"
+                )
+        else:
+            logger.debug(f"⏭️  No active project for user {user_id}, skipping project backup")
 
     async def _backup_loop(self):
         """Background loop for periodic backups of all synced users."""
@@ -236,6 +305,26 @@ class ClaudeSyncManager:
                                 f"⚠️  Error backing up user {user_id}: "
                                 f"{result.get('message', 'Unknown error')}"
                             )
+
+                        project_name = self._user_projects.get(user_id)
+                        if project_name:
+                            project_result = await self.backup_user_project(user_id, project_name)
+                            if project_result["status"] == "success":
+                                logger.info(
+                                    f"✅ Backed up project {project_name} for user {user_id}: "
+                                    f"{project_result.get('files_synced', 0)} files"
+                                )
+                            elif project_result["status"] == "skipped":
+                                logger.debug(
+                                    f"⏭️  Skipped project backup for {project_name}: "
+                                    f"{project_result.get('message', 'No data')}"
+                                )
+                            elif project_result["status"] == "error":
+                                logger.warning(
+                                    f"⚠️  Error backing up project {project_name}: "
+                                    f"{project_result.get('message', 'Unknown error')}"
+                                )
+
                     except Exception as e:
                         error_count += 1
                         logger.error(
