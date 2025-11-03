@@ -164,6 +164,12 @@ class SessionManager:
             for session_file in project_dir.glob("*.jsonl"):
                 try:
                     session_id = session_file.stem
+
+                    # Skip SDK internal sessions (agent-xxxxxxxx format)
+                    # These are created by Claude Agent SDK and not user-visible
+                    if session_id.startswith("agent-"):
+                        continue
+
                     mtime = session_file.stat().st_mtime
                     modified = datetime.fromtimestamp(mtime)
 
