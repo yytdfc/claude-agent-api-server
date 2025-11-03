@@ -167,7 +167,7 @@ async def invocations(http_request: Request, request: dict[str, Any]):
 
     # Ensure project directory is synced from S3 (first time only)
     if user_id and project_name:
-        from ..core.workspace_sync import sync_project_from_s3
+        from ..core.workspace_sync import sync_project_from_s3, backup_project_to_s3
         try:
             print(f"📁 Attempting project sync for user {user_id}, project: {project_name}")
             project_result = await sync_project_from_s3(
@@ -177,6 +177,38 @@ async def invocations(http_request: Request, request: dict[str, Any]):
                 s3_prefix=os.environ.get("S3_WORKSPACE_PREFIX", "user_data"),
             )
             print(f"📊 Project sync result: {project_result.get('status')} - {project_result.get('message', 'No message')}")
+
+            # If S3 had no data, try to backup local project to S3
+            if project_result.get("status") == "skipped":
+                s3_path = project_result.get("s3_path", "")
+                print(
+                    f"⏭️  No S3 data found for project {project_name}\n"
+                    f"   📍 S3 Path: {s3_path}\n"
+                    f"   Checking for local project data to backup"
+                )
+
+                # Try to backup local project to S3
+                backup_result = await backup_project_to_s3(
+                    user_id=user_id,
+                    project_name=project_name,
+                    bucket_name=os.environ.get("S3_WORKSPACE_BUCKET", ""),
+                    s3_prefix=os.environ.get("S3_WORKSPACE_PREFIX", "user_data"),
+                )
+
+                if backup_result.get("status") == "success":
+                    s3_path = backup_result.get("s3_path", "")
+                    print(
+                        f"✅ Initial project backup completed: "
+                        f"{backup_result.get('files_synced', 0)} files backed up\n"
+                        f"   📍 S3 Path: {s3_path}"
+                    )
+                elif backup_result.get("status") == "skipped":
+                    local_path = backup_result.get("local_path", "")
+                    print(
+                        f"⏭️  No local project data to backup for {project_name}\n"
+                        f"   📂 Local Path: {local_path}"
+                    )
+
         except Exception as e:
             print(f"⚠️  Warning: Exception during project sync: {e}")
 
