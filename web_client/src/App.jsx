@@ -92,6 +92,9 @@ function AppContent() {
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false)
 
+  // Sidebar tab state
+  const [activeTab, setActiveTab] = useState('files') // 'files' | 'git' | 'sessions'
+
   // GitHub auth state
   const [githubAuthStatus, setGithubAuthStatus] = useState(null) // null | 'success' | 'pending' | 'error'
   const [githubAuthMessage, setGithubAuthMessage] = useState('')
@@ -580,28 +583,73 @@ function AppContent() {
 
       <div className="main-content">
         <aside className="sidebar" style={{ width: `${sidebarWidth}px` }}>
-          <FileBrowser
-            serverUrl={settings.serverUrl}
-            currentPath={currentBrowsePath}
-            workingDirectory={workingDirectory}
-            onPathChange={handleBrowsePathChange}
-            onFileClick={handleFileClick}
-            refreshTrigger={messages.length + fileRefreshTrigger}
-            disabled={serverDisconnected}
-          />
-          <GitPanel
-            serverUrl={settings.serverUrl}
-            cwd={workingDirectory}
-            disabled={serverDisconnected}
-          />
-          <SessionList
-            serverUrl={settings.serverUrl}
-            currentSessionId={sessionId}
-            onSessionSelect={handleSessionSelect}
-            onNewSession={handleNewSession}
-            cwd={settings.cwd}
-            disabled={serverDisconnected}
-          />
+          <div className="sidebar-tabs">
+            <button
+              className={`sidebar-tab ${activeTab === 'files' ? 'active' : ''}`}
+              onClick={() => setActiveTab('files')}
+              title="Files"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                <polyline points="13 2 13 9 20 9"></polyline>
+              </svg>
+            </button>
+            <button
+              className={`sidebar-tab ${activeTab === 'git' ? 'active' : ''}`}
+              onClick={() => setActiveTab('git')}
+              title="Git"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="18" cy="18" r="3"></circle>
+                <circle cx="6" cy="6" r="3"></circle>
+                <path d="M13 6h3a2 2 0 0 1 2 2v7"></path>
+                <line x1="6" y1="9" x2="6" y2="21"></line>
+              </svg>
+            </button>
+            <button
+              className={`sidebar-tab ${activeTab === 'sessions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('sessions')}
+              title="Sessions"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div className="sidebar-content">
+            {activeTab === 'files' && (
+              <FileBrowser
+                serverUrl={settings.serverUrl}
+                currentPath={currentBrowsePath}
+                workingDirectory={workingDirectory}
+                onPathChange={handleBrowsePathChange}
+                onFileClick={handleFileClick}
+                refreshTrigger={messages.length + fileRefreshTrigger}
+                disabled={serverDisconnected}
+              />
+            )}
+
+            {activeTab === 'git' && (
+              <GitPanel
+                serverUrl={settings.serverUrl}
+                cwd={workingDirectory}
+                disabled={serverDisconnected}
+              />
+            )}
+
+            {activeTab === 'sessions' && (
+              <SessionList
+                serverUrl={settings.serverUrl}
+                currentSessionId={sessionId}
+                onSessionSelect={handleSessionSelect}
+                onNewSession={handleNewSession}
+                cwd={settings.cwd}
+                disabled={serverDisconnected}
+              />
+            )}
+          </div>
+
           <div
             className="sidebar-resize-handle"
             onMouseDown={handleResizeStart}
