@@ -10,6 +10,9 @@ function Login({ onSwitchToSignup }) {
 
   const { login } = useAuth()
 
+  // Debug: log error state changes
+  console.log('🎨 Login component render, error state:', error)
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -22,7 +25,9 @@ function Login({ onSwitchToSignup }) {
 
       if (!result.success) {
         console.log('❌ Login failed, setting error:', result.error)
-        setError(result.error || 'Login failed. Please try again.')
+        const errorMessage = result.error || 'Login failed. Please try again.'
+        setError(errorMessage)
+        console.log('🔴 Error state set to:', errorMessage)
       } else {
         console.log('✅ Login successful!')
       }
