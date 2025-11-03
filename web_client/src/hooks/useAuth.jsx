@@ -87,6 +87,8 @@ export function AuthProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
+      console.log('📝 Starting signup for:', { username, email })
+
       const result = await signUp({
         username: username,
         password,
@@ -97,13 +99,21 @@ export function AuthProvider({ children }) {
         }
       })
 
+      console.log('✅ Signup result:', result)
+      console.log('📧 Next step:', result.nextStep)
+      console.log('🆔 User ID:', result.userId)
+
       return {
         success: true,
         userId: result.userId,
-        nextStep: result.nextStep.signUpStep
+        nextStep: result.nextStep.signUpStep,
+        isSignUpComplete: result.isSignUpComplete,
+        nextStepDetails: result.nextStep
       }
     } catch (err) {
-      console.error('Signup error:', err)
+      console.error('❌ Signup error:', err)
+      console.error('Error name:', err.name)
+      console.error('Error message:', err.message)
       setError(err.message || 'Failed to sign up')
       return { success: false, error: err.message }
     } finally {

@@ -35,15 +35,39 @@ function Signup({ onSwitchToLogin }) {
     setLoading(true)
 
     try {
+      console.log('🚀 Submitting signup form...')
       const result = await signup(username, email, password)
+      console.log('📬 Signup result received:', result)
 
       if (result.success) {
+        console.log('✅ Signup successful, switching to confirm step')
+        console.log('Next step details:', result.nextStepDetails)
+
+        // Check if email delivery details are present
+        const deliveryDetails = result.nextStepDetails?.codeDeliveryDetails
+        if (deliveryDetails && !deliveryDetails.destination && !deliveryDetails.deliveryMedium) {
+          // Email delivery details are missing - Cognito configuration issue
+          console.warn('⚠️  Email delivery details missing:', deliveryDetails)
+          console.error('❌ Cognito is not configured to send verification emails!')
+          console.error('To fix: AWS Console → Cognito → User Pool → Sign-up experience')
+          console.error('Enable "Email" in "Attribute verification and user account confirmation"')
+
+          setError(
+            'Account created but verification email was not sent. ' +
+            'Cognito email verification is not properly configured. ' +
+            'Please contact the administrator to enable email verification in Cognito User Pool settings.'
+          )
+          return
+        }
+
         setSuccess('Account created! Check your email for verification code.')
         setStep('confirm')
       } else {
+        console.log('❌ Signup failed:', result.error)
         setError(result.error || 'Signup failed. Please try again.')
       }
     } catch (err) {
+      console.error('💥 Unexpected error in handleSignup:', err)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
