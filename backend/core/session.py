@@ -346,6 +346,73 @@ class AgentSession:
             num_turns=num_turns,
         )
 
+    async def send_message_stream(self, message: str):
+        """
+        Send a message and stream the response in real-time.
+
+        Args:
+            message: The user's message
+
+        Yields:
+            Dictionary events with type and data for each step
+
+        Raises:
+            HTTPException: If session not connected
+        """
+        if not self.client or self.status != "connected":
+            raise HTTPException(status_code=400, detail="Session not connected")
+
+        self.last_activity = datetime.now()
+        self.message_count += 1
+
+        # Send initial event
+        yield {
+            "type": "start",
+            "session_id": self.session_id,
+            "message": message
+        }
+
+        # Send message
+        await self.client.query(message)
+
+        # Stream response
+        async for msg in self.client.receive_response():
+            if isinstance(msg, UserMessage):
+                # User message event
+                yield {
+                    "type": "user_message",
+                    "content": msg.content
+                }
+            elif isinstance(msg, AssistantMessage):
+                # Assistant message with content blocks
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        yield {
+                            "type": "text",
+                            "content": block.text
+                        }
+                    elif isinstance(block, ToolUseBlock):
+                        yield {
+                            "type": "tool_use",
+                            "tool_name": block.name,
+                            "tool_input": block.input,
+                            "tool_use_id": block.id
+                        }
+            elif isinstance(msg, ResultMessage):
+                # Final result with metadata
+                yield {
+                    "type": "result",
+                    "cost_usd": msg.total_cost_usd,
+                    "num_turns": msg.num_turns,
+                    "session_id": self.session_id
+                }
+
+        # Send completion event
+        yield {
+            "type": "done",
+            "session_id": self.session_id
+        }
+
     async def set_model(self, model: Optional[str]):
         """
         Change the model for this session.

@@ -5,8 +5,9 @@ Provides REST API endpoints for sending messages to sessions,
 checking session status, and managing session models.
 """
 
-
+import json
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 from ..core import SessionManager
 from ..models import (
@@ -46,7 +47,7 @@ async def get_session_status(session_id: str):
 @router.post("/sessions/{session_id}/messages", response_model=SendMessageResponse)
 async def send_message(session_id: str, request: SendMessageRequest):
     """
-    Send a message in a session.
+    Send a message in a session (non-streaming).
 
     Args:
         session_id: The session ID
@@ -58,6 +59,46 @@ async def send_message(session_id: str, request: SendMessageRequest):
     manager = get_session_manager()
     session = manager.get_session(session_id)
     return await session.send_message(request.message)
+
+
+@router.post("/sessions/{session_id}/messages/stream")
+async def send_message_stream(session_id: str, request: SendMessageRequest):
+    """
+    Send a message in a session with streaming response (SSE).
+
+    Args:
+        session_id: The session ID
+        request: Message request
+
+    Returns:
+        Server-Sent Events stream with real-time updates
+    """
+    manager = get_session_manager()
+    session = manager.get_session(session_id)
+
+    async def event_generator():
+        """Generate SSE events from the agent response."""
+        try:
+            async for event in session.send_message_stream(request.message):
+                # Format as SSE: data: {json}\n\n
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            # Send error event
+            error_event = {
+                "type": "error",
+                "error": str(e)
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
 
 
 @router.post("/sessions/{session_id}/model")
