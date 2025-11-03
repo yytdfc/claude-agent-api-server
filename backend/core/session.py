@@ -33,6 +33,31 @@ from claude_agent_sdk import (
 from ..models import MessageBlock, PermissionRequest, SendMessageResponse, SessionStatus
 
 
+def load_custom_system_prompt() -> Optional[str]:
+    """
+    Load custom system prompt from backend/claude_system_prompt.md.
+
+    Returns:
+        The content of the file if it exists, None otherwise.
+    """
+    try:
+        # Get the backend directory path
+        backend_dir = Path(__file__).parent.parent
+        prompt_file = backend_dir / "claude_system_prompt.md"
+
+        if prompt_file.exists():
+            with open(prompt_file, encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    return content
+    except Exception as e:
+        # Log error but don't fail session creation
+        import logging
+        logging.warning(f"Failed to load custom system prompt: {e}")
+
+    return None
+
+
 class AgentSession:
     """
     Represents a single Claude Agent session.
@@ -97,9 +122,27 @@ class AgentSession:
         Args:
             resume_session_id: Optional session ID to resume from
         """
+        # Load custom system prompt from file
+        custom_prompt = load_custom_system_prompt()
+
+        # Build system prompt configuration
+        # Use preset (Claude Code default) with custom append if available
+        if custom_prompt:
+            system_prompt_config = {
+                "type": "preset",
+                "preset": "claude_code",
+                "append": custom_prompt,
+            }
+        else:
+            # Use preset without custom append
+            system_prompt_config = {
+                "type": "preset",
+                "preset": "claude_code",
+            }
+
         options_dict = {
             "allowed_tools": ["Read", "Glob", "Grep"],
-            "system_prompt": self.system_prompt,
+            "system_prompt": system_prompt_config,
             "max_turns": 0,
             "can_use_tool": self.permission_callback,
             "permission_mode": "default",
