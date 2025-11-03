@@ -63,6 +63,9 @@ function AppContent() {
   // File preview state
   const [previewFilePath, setPreviewFilePath] = useState(null)
 
+  // File refresh trigger (incremented to trigger FileBrowser refresh)
+  const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0)
+
   // Sidebar width state
   const [sidebarWidth, setSidebarWidth] = useState(300) // Default 300px
   const [isResizingSidebar, setIsResizingSidebar] = useState(false)
@@ -322,6 +325,18 @@ function AppContent() {
     }
   }, [githubAuthFromHealth])
 
+  // Refresh files once when initially connected
+  const prevConnectedRef = useRef(false)
+  useEffect(() => {
+    // Only trigger refresh when transitioning from disconnected to connected
+    if (connected && !prevConnectedRef.current && !serverDisconnected) {
+      console.log('🔄 Session connected, refreshing file browser')
+      // Increment trigger to cause FileBrowser to refresh
+      setFileRefreshTrigger(prev => prev + 1)
+    }
+    prevConnectedRef.current = connected
+  }, [connected, serverDisconnected])
+
   const handleDisconnectServer = async () => {
     if (!serverConnected) {
       console.warn('Server already disconnected')
@@ -570,7 +585,7 @@ function AppContent() {
             workingDirectory={workingDirectory}
             onPathChange={handleBrowsePathChange}
             onFileClick={handleFileClick}
-            refreshTrigger={messages.length}
+            refreshTrigger={messages.length + fileRefreshTrigger}
             disabled={serverDisconnected}
           />
           <SessionList
