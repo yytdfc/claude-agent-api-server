@@ -62,6 +62,26 @@ async def send_message(session_id: str, request: SendMessageRequest):
 
 
 @router.post("/sessions/{session_id}/messages/stream")
+def safe_json_dumps(obj):
+    """
+    Safely serialize objects to JSON, handling non-serializable objects.
+
+    Args:
+        obj: Object to serialize
+
+    Returns:
+        JSON string
+    """
+    def default_handler(o):
+        # Handle objects with __dict__ attribute
+        if hasattr(o, '__dict__'):
+            return o.__dict__
+        # Handle other non-serializable types
+        return str(o)
+
+    return json.dumps(obj, default=default_handler)
+
+
 async def send_message_stream(session_id: str, request: SendMessageRequest):
     """
     Send a message in a session with streaming response (SSE).
@@ -81,14 +101,15 @@ async def send_message_stream(session_id: str, request: SendMessageRequest):
         try:
             async for event in session.send_message_stream(request.message):
                 # Format as SSE: data: {json}\n\n
-                yield f"data: {json.dumps(event)}\n\n"
+                # Use safe_json_dumps to handle non-serializable objects
+                yield f"data: {safe_json_dumps(event)}\n\n"
         except Exception as e:
             # Send error event
             error_event = {
                 "type": "error",
                 "error": str(e)
             }
-            yield f"data: {json.dumps(error_event)}\n\n"
+            yield f"data: {safe_json_dumps(error_event)}\n\n"
 
     return StreamingResponse(
         event_generator(),
