@@ -2233,17 +2233,15 @@ body {
     font-weight: 500;
     border: 1px solid var(--border-color);
     background-color: var(--card-bg);
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .project-switcher-button:hover {
-    background-color: var(--bg-color);
+    background-color: var(--primary-color);
+    color: white;
     border-color: var(--primary-color);
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
-    transform: translateY(-1px);
 }
 
 .project-switcher-button .project-name {
@@ -2257,17 +2255,15 @@ body {
 .project-switcher-modal {
     width: 540px;
     max-height: 75vh;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
 .project-switcher-modal .modal-header {
-    padding: 24px 28px;
-    border-bottom: 2px solid var(--border-color);
-    background: linear-gradient(to bottom, var(--card-bg), var(--bg-color));
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .project-switcher-modal .modal-header h2 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     color: var(--text-primary);
     display: flex;
@@ -2276,23 +2272,22 @@ body {
 }
 
 .project-switcher-modal .modal-body {
-    padding: 28px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
 }
 
 .info-banner {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    background: linear-gradient(135deg, #fef3c7 0%, #fef9e7 100%);
-    border-left: 4px solid #f59e0b;
-    border-radius: 8px;
+    gap: 10px;
+    padding: 12px 16px;
+    background-color: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
     color: #92400e;
     font-size: 13px;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
 }
 
 .info-banner svg {
@@ -2303,28 +2298,25 @@ body {
 .current-project-info {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .current-project-info label {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .current-project-name {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 16px;
-    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
-    border: 2px solid #3b82f6;
-    border-radius: 8px;
-    font-size: 15px;
+    padding: 12px 14px;
+    background-color: #dbeafe;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    font-size: 14px;
     font-weight: 600;
-    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
 }
 
 .current-project-name svg {
@@ -2341,81 +2333,72 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .section-header label {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .section-header .header-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .btn-small {
-    padding: 8px 14px;
+    padding: 7px 12px;
     font-size: 13px;
     font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 6px;
-    border-radius: 8px;
+    gap: 5px;
+    border-radius: 6px;
     transition: all 0.2s;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .btn-small:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    opacity: 0.9;
 }
 
 .project-list-modal {
-    max-height: 320px;
+    max-height: 300px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 16px;
-    background: linear-gradient(to bottom, var(--bg-color), #fafafa);
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
+    gap: 8px;
+    padding: 12px;
+    background-color: var(--bg-color);
+    border-radius: 6px;
 }
 
 .project-list-modal .project-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 10px;
+    padding: 12px 14px;
     background-color: white;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
     font-size: 14px;
     font-weight: 500;
     text-align: left;
     width: 100%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .project-list-modal .project-item:hover {
     background-color: #f0f9ff;
     border-color: var(--primary-color);
-    transform: translateX(4px);
-    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.15);
 }
 
 .project-list-modal .project-item.active {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    background-color: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .project-list-modal .project-item.active svg {
@@ -2424,12 +2407,11 @@ body {
 
 .project-list-modal .project-item .badge {
     margin-left: auto;
-    padding: 4px 10px;
-    background-color: rgba(255, 255, 255, 0.25);
-    border-radius: 12px;
+    padding: 3px 8px;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.3px;
 }
 
 .empty-state {
@@ -2442,16 +2424,16 @@ body {
 .create-project-section {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
 }
 
 .create-project-section h3 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
     margin: 0;
     color: var(--text-primary);
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .form-group {
