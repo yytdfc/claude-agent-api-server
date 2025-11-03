@@ -678,6 +678,8 @@ function AppContent() {
           onProjectChange={handleProjectChange}
           onCreateProject={handleCreateProject}
           hasActiveSession={connected}
+          serverUrl={settings.serverUrl}
+          userId={user?.userId}
         />
       )}
     </div>

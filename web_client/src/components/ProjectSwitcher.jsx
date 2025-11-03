@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { FolderOpen, Plus, Folder, X, AlertTriangle } from 'lucide-react'
+import { FolderOpen, Plus, Folder, X, AlertTriangle, Github } from 'lucide-react'
+import GithubProjectSelector from './GithubProjectSelector'
 
 export default function ProjectSwitcher({
   isOpen,
@@ -8,9 +9,12 @@ export default function ProjectSwitcher({
   currentProject,
   onProjectChange,
   onCreateProject,
-  hasActiveSession
+  hasActiveSession,
+  serverUrl,
+  userId
 }) {
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showGithubSelector, setShowGithubSelector] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [creating, setCreating] = useState(false)
   const [selectedProject, setSelectedProject] = useState(null)
@@ -56,7 +60,32 @@ export default function ProjectSwitcher({
     setSelectedProject(null)
   }
 
+  const handleGithubProjectCreated = (projectInfo) => {
+    // GitHub project created successfully
+    console.log('GitHub project created:', projectInfo)
+    setShowGithubSelector(false)
+    // Switch to the new project
+    onProjectChange(projectInfo.projectName)
+    onClose()
+  }
+
   if (!isOpen) return null
+
+  // Show GitHub selector
+  if (showGithubSelector) {
+    return (
+      <div className="modal-overlay" onClick={() => setShowGithubSelector(false)}>
+        <div className="modal-content project-switcher-modal" onClick={(e) => e.stopPropagation()}>
+          <GithubProjectSelector
+            serverUrl={serverUrl}
+            userId={userId}
+            onProjectSelect={handleGithubProjectCreated}
+            onCancel={() => setShowGithubSelector(false)}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -133,15 +162,29 @@ export default function ProjectSwitcher({
             ) : (
               <div className="create-project-section">
                 <h3>Create New Project</h3>
+
+                <div className="project-creation-options">
+                  <button
+                    type="button"
+                    className="creation-option-btn"
+                    onClick={() => setShowGithubSelector(true)}
+                  >
+                    <Github size={24} />
+                    <span className="option-title">From GitHub</span>
+                    <span className="option-desc">Clone a repository from your GitHub account</span>
+                  </button>
+
+                  <div className="option-divider">OR</div>
+                </div>
+
                 <form onSubmit={handleCreate}>
                   <div className="form-group">
-                    <label>Project Name</label>
+                    <label>Empty Project Name</label>
                     <input
                       type="text"
                       value={newProjectName}
                       onChange={(e) => setNewProjectName(e.target.value)}
                       placeholder="e.g., my-website, api-server"
-                      autoFocus
                       disabled={creating}
                     />
                     <small>Use lowercase with hyphens (no spaces)</small>

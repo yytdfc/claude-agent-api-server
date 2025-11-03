@@ -453,6 +453,32 @@ class DirectAPIClient {
     }
     return response.json()
   }
+
+  async listGithubRepositories() {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/github/repositories`, {
+      headers: authHeaders
+    })
+    handleFetchResponse(response)
+    return response.json()
+  }
+
+  async createProjectFromGithub(userId, repositoryUrl, projectName = null, branch = null) {
+    const authHeaders = await getAuthHeaders()
+    const params = new URLSearchParams({
+      user_id: userId,
+      repository_url: repositoryUrl
+    })
+    if (projectName) params.append('project_name', projectName)
+    if (branch) params.append('branch', branch)
+
+    const response = await fetch(`${this.baseUrl}/github/create-project?${params}`, {
+      method: 'POST',
+      headers: authHeaders
+    })
+    handleFetchResponse(response)
+    return response.json()
+  }
 }
 
 /**
@@ -850,6 +876,21 @@ class InvocationsAPIClient {
       onError(error)
       return null
     }
+  }
+
+  async listGithubRepositories() {
+    return this._invoke('/github/repositories', 'GET')
+  }
+
+  async createProjectFromGithub(userId, repositoryUrl, projectName = null, branch = null) {
+    const params = {
+      user_id: userId,
+      repository_url: repositoryUrl
+    }
+    if (projectName) params.project_name = projectName
+    if (branch) params.branch = branch
+
+    return this._invoke('/github/create-project', 'POST', null, params)
   }
 }
 

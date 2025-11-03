@@ -467,3 +467,148 @@ async def github_oauth_callback(request: Request, session_id: str):
             status_code=500,
             detail=f"Failed to complete OAuth flow: {str(e)}"
         )
+
+
+@router.get("/github/repositories")
+async def list_github_repositories():
+    """
+    List GitHub repositories for the authenticated user.
+
+    Uses 'gh' CLI to fetch repositories. Requires GitHub CLI to be authenticated.
+
+    Returns:
+        dict: Repository list with:
+            - repositories: List of repositories with name, full_name, description, url, private
+            - count: Number of repositories
+            - message: Status message
+    """
+    # Check if gh is installed
+    if not shutil.which("gh"):
+        raise HTTPException(
+            status_code=400,
+            detail="GitHub CLI (gh) is not installed"
+        )
+
+    try:
+        # Use gh repo list to get repositories
+        # Format: JSON output with relevant fields
+        process = await asyncio.create_subprocess_exec(
+            "gh", "repo", "list",
+            "--limit", "100",  # Get up to 100 repos
+            "--json", "name,nameWithOwner,description,url,isPrivate,updatedAt",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            error_msg = stderr.decode() if stderr else "Unknown error"
+            logger.error(f"Failed to list GitHub repositories: {error_msg}")
+
+            # Check if it's an authentication error
+            if "not logged into" in error_msg or "authentication" in error_msg.lower():
+                raise HTTPException(
+                    status_code=401,
+                    detail="Not authenticated with GitHub. Please authenticate first."
+                )
+
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to list repositories: {error_msg}"
+            )
+
+        # Parse JSON output
+        import json
+        repos_data = json.loads(stdout.decode())
+
+        # Transform to simpler format
+        repositories = []
+        for repo in repos_data:
+            repositories.append({
+                "name": repo.get("name"),
+                "full_name": repo.get("nameWithOwner"),
+                "description": repo.get("description") or "",
+                "url": repo.get("url"),
+                "private": repo.get("isPrivate", False),
+                "updated_at": repo.get("updatedAt")
+            })
+
+        logger.info(f"Successfully listed {len(repositories)} GitHub repositories")
+
+        return {
+            "repositories": repositories,
+            "count": len(repositories),
+            "message": f"Found {len(repositories)} repositories"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error listing GitHub repositories: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list repositories: {str(e)}"
+        )
+
+
+@router.post("/github/create-project")
+async def create_project_from_github(
+    user_id: str,
+    repository_url: str,
+    project_name: Optional[str] = None,
+    branch: Optional[str] = None
+):
+    """
+    Create a new project by cloning a GitHub repository.
+
+    This is a convenience endpoint that combines repository cloning with project creation.
+    It clones the specified repository into the user's workspace.
+
+    Args:
+        user_id: User ID for workspace path
+        repository_url: GitHub repository URL (HTTPS or SSH)
+        project_name: Optional custom project name (defaults to repo name)
+        branch: Optional branch to clone (defaults to default branch)
+
+    Returns:
+        dict: Clone result with:
+            - success: Whether clone succeeded
+            - message: Status message
+            - local_path: Local path to cloned repository
+            - project_name: Name of the created project
+    """
+    from ..core.workspace_sync import clone_git_repository
+
+    logger.info(f"Creating project from GitHub repository {repository_url} for user {user_id}")
+
+    # Get workspace base path
+    local_base_path = os.getenv("WORKSPACE_BASE_PATH", "/workspace")
+
+    try:
+        result = await clone_git_repository(
+            user_id=user_id,
+            git_url=repository_url,
+            local_base_path=local_base_path,
+            branch=branch,
+            repo_name=project_name,
+            shallow=False  # Clone full repo for projects
+        )
+
+        logger.info(f"Successfully created project from GitHub for user {user_id}: {result['local_path']}")
+
+        return {
+            "success": True,
+            "message": result["message"],
+            "local_path": result["local_path"],
+            "project_name": result["repo_name"],
+            "repository_url": repository_url,
+            "branch": result.get("branch")
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to create project from GitHub for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create project: {str(e)}"
+        )
