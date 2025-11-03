@@ -80,7 +80,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
       clearInterval(interval)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [serverUrl, cwd, disabled])
+  }, [serverUrl, cwd, disabled, currentSessionId])
 
   const formatDate = (dateStr) => {
     try {
