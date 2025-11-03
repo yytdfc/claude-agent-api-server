@@ -58,15 +58,20 @@ export function AuthProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
+      console.log('🔐 Starting login for:', usernameOrEmail)
+
       const result = await signIn({
         username: usernameOrEmail,
         password
       })
 
+      console.log('✅ Login result:', result)
+
       if (result.isSignedIn) {
         await checkUser()
         return { success: true }
       } else if (result.nextStep) {
+        console.log('📋 Additional step required:', result.nextStep)
         return {
           success: false,
           nextStep: result.nextStep.signInStep,
@@ -74,9 +79,29 @@ export function AuthProvider({ children }) {
         }
       }
     } catch (err) {
-      console.error('Login error:', err)
-      setError(err.message || 'Failed to sign in')
-      return { success: false, error: err.message }
+      console.error('❌ Login error:', err)
+      console.error('Error name:', err.name)
+      console.error('Error message:', err.message)
+
+      // Map Cognito errors to user-friendly messages
+      let userMessage = err.message || 'Failed to sign in'
+
+      if (err.name === 'UserNotFoundException') {
+        userMessage = 'User does not exist. Please check your username/email or sign up for a new account.'
+      } else if (err.name === 'NotAuthorizedException') {
+        userMessage = 'Incorrect username or password. Please try again.'
+      } else if (err.name === 'UserNotConfirmedException') {
+        userMessage = 'Your email is not verified. Please check your email for the verification code.'
+      } else if (err.name === 'PasswordResetRequiredException') {
+        userMessage = 'Password reset is required. Please reset your password.'
+      } else if (err.name === 'TooManyRequestsException' || err.name === 'LimitExceededException') {
+        userMessage = 'Too many login attempts. Please try again later.'
+      } else if (err.name === 'InvalidParameterException') {
+        userMessage = 'Invalid username or password format.'
+      }
+
+      setError(userMessage)
+      return { success: false, error: userMessage, errorName: err.name }
     } finally {
       setLoading(false)
     }
@@ -114,8 +139,26 @@ export function AuthProvider({ children }) {
       console.error('❌ Signup error:', err)
       console.error('Error name:', err.name)
       console.error('Error message:', err.message)
-      setError(err.message || 'Failed to sign up')
-      return { success: false, error: err.message }
+
+      // Map Cognito errors to user-friendly messages
+      let userMessage = err.message || 'Failed to sign up'
+
+      if (err.name === 'UsernameExistsException') {
+        userMessage = 'Username already exists. Please choose a different username.'
+      } else if (err.name === 'InvalidPasswordException') {
+        userMessage = 'Password does not meet requirements. It must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.'
+      } else if (err.name === 'InvalidParameterException') {
+        userMessage = 'Invalid input. Please check your username, email, and password format.'
+      } else if (err.name === 'TooManyRequestsException' || err.name === 'LimitExceededException') {
+        userMessage = 'Too many signup attempts. Please try again later.'
+      } else if (err.name === 'CodeDeliveryFailureException') {
+        userMessage = 'Failed to send verification email. Please contact support.'
+      } else if (err.name === 'UserLambdaValidationException') {
+        userMessage = 'Signup validation failed. Please contact support.'
+      }
+
+      setError(userMessage)
+      return { success: false, error: userMessage, errorName: err.name }
     } finally {
       setLoading(false)
     }
@@ -126,15 +169,39 @@ export function AuthProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
+      console.log('📧 Confirming signup for:', username)
+
       await confirmSignUp({
         username: username,
         confirmationCode: code
       })
+
+      console.log('✅ Email confirmed successfully')
       return { success: true }
     } catch (err) {
-      console.error('Confirm signup error:', err)
-      setError(err.message || 'Failed to confirm sign up')
-      return { success: false, error: err.message }
+      console.error('❌ Confirm signup error:', err)
+      console.error('Error name:', err.name)
+      console.error('Error message:', err.message)
+
+      // Map Cognito errors to user-friendly messages
+      let userMessage = err.message || 'Failed to confirm sign up'
+
+      if (err.name === 'CodeMismatchException') {
+        userMessage = 'Invalid verification code. Please check the code and try again.'
+      } else if (err.name === 'ExpiredCodeException') {
+        userMessage = 'Verification code has expired. Please click "Resend Code" to get a new one.'
+      } else if (err.name === 'UserNotFoundException') {
+        userMessage = 'User not found. Please sign up first.'
+      } else if (err.name === 'NotAuthorizedException') {
+        userMessage = 'User is already confirmed or code is invalid.'
+      } else if (err.name === 'TooManyRequestsException' || err.name === 'LimitExceededException') {
+        userMessage = 'Too many attempts. Please try again later.'
+      } else if (err.name === 'AliasExistsException') {
+        userMessage = 'An account with this email already exists.'
+      }
+
+      setError(userMessage)
+      return { success: false, error: userMessage, errorName: err.name }
     } finally {
       setLoading(false)
     }
