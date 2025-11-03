@@ -516,6 +516,34 @@ async def invocations(http_request: Request, request: dict[str, Any]):
             qualifier = query_params.get("qualifier", "DEFAULT")
             return await stop_agentcore_session(http_request, qualifier)
 
+        elif path == "/github/repositories" and method == "GET":
+            # List GitHub repositories
+            from .oauth import list_github_repositories
+            return await list_github_repositories()
+
+        elif path == "/github/create-project" and method == "POST":
+            # Create project from GitHub repository
+            from .oauth import create_project_from_github
+            # Extract params - try both path_params and query_params for compatibility
+            params = request.get("path_params", {}) or request.get("query_params", {})
+            user_id = params.get("user_id")
+            repository_url = params.get("repository_url")
+            project_name = params.get("project_name")
+            branch = params.get("branch")
+
+            if not user_id or not repository_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Missing required parameters: user_id and repository_url"
+                )
+
+            return await create_project_from_github(
+                user_id=user_id,
+                repository_url=repository_url,
+                project_name=project_name,
+                branch=branch
+            )
+
         elif path == "/health" and method == "GET":
             # Health check - import here to avoid circular dependency
             from ..server import health_check
