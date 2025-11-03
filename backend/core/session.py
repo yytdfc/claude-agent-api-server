@@ -69,7 +69,6 @@ class AgentSession:
     def __init__(
         self,
         session_id: str,
-        system_prompt: Optional[str] = None,
         model: Optional[str] = None,
         background_model: Optional[str] = None,
         enable_proxy: bool = False,
@@ -81,7 +80,6 @@ class AgentSession:
 
         Args:
             session_id: Unique session identifier
-            system_prompt: Optional system prompt override
             model: Optional model name (defaults to ANTHROPIC_MODEL env var)
             background_model: Optional background model for agents
             enable_proxy: Enable LiteLLM proxy mode (sets ANTHROPIC_BASE_URL)
@@ -102,7 +100,6 @@ class AgentSession:
 
         # Session configuration
         self.cwd = cwd
-        self.system_prompt = system_prompt or "You are a helpful AI assistant."
         # Model: use provided, or env var, or None (SDK default)
         self.model = model or os.environ.get("ANTHROPIC_MODEL")
         self.background_model = background_model  # Background model for agents

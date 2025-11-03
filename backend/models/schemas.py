@@ -14,7 +14,6 @@ class CreateSessionRequest(BaseModel):
     """Request to create a new session or resume an existing one."""
 
     resume_session_id: Optional[str] = None
-    system_prompt: Optional[str] = None
     model: Optional[str] = None  # e.g., "claude-3-5-sonnet-20241022"
     background_model: Optional[
         str

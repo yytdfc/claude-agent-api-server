@@ -43,7 +43,6 @@ async def create_session(request: CreateSessionRequest):
     manager = get_session_manager()
     session_id = await manager.create_session(
         resume_session_id=request.resume_session_id,
-        system_prompt=request.system_prompt,
         model=request.model,
         background_model=request.background_model,
         enable_proxy=request.enable_proxy,

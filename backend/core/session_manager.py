@@ -34,7 +34,6 @@ class SessionManager:
     async def create_session(
         self,
         resume_session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
         model: Optional[str] = None,
         background_model: Optional[str] = None,
         enable_proxy: bool = False,
@@ -46,7 +45,6 @@ class SessionManager:
 
         Args:
             resume_session_id: Optional session ID to resume
-            system_prompt: Optional system prompt override
             model: Optional model name override
             background_model: Optional background model for agents
             enable_proxy: Enable LiteLLM proxy mode
@@ -63,7 +61,6 @@ class SessionManager:
 
         session = AgentSession(
             session_id,
-            system_prompt,
             model,
             background_model,
             enable_proxy,
