@@ -3,11 +3,48 @@ import { Plus, Circle } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd, disabled }) {
+function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd, disabled, isActive }) {
   const [sessions, setSessions] = useState([])
   const [activeSessions, setActiveSessions] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const apiClientRef = useRef(null)
+  const previousActiveRef = useRef(false)
+
+  // Function to fetch sessions
+  const fetchSessions = async () => {
+    if (!apiClientRef.current) return
+
+    setLoading(true)
+    try {
+      // Fetch available sessions from disk
+      const availableData = await apiClientRef.current.listAvailableSessions(cwd)
+      setSessions(availableData.sessions || [])
+
+      // Fetch active sessions to mark them with indicator
+      const activeData = await apiClientRef.current.listSessions(cwd)
+      const activeIds = new Set(activeData.sessions.map(s => s.session_id))
+      setActiveSessions(activeIds)
+
+      // Sort sessions: active first, then by time (newest first)
+      setSessions(prev => {
+        return [...prev].sort((a, b) => {
+          const aIsActive = activeIds.has(a.session_id)
+          const bIsActive = activeIds.has(b.session_id)
+
+          // Active sessions always come first
+          if (aIsActive && !bIsActive) return -1
+          if (!aIsActive && bIsActive) return 1
+
+          // If both active or both inactive, sort by modified time (newest first)
+          return new Date(b.modified) - new Date(a.modified)
+        })
+      })
+    } catch (error) {
+      console.error('Failed to fetch sessions:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     // Don't fetch sessions if disabled
@@ -28,41 +65,6 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     }
     initApiClient()
 
-    const fetchSessions = async () => {
-      if (!apiClientRef.current) return
-
-      setLoading(true)
-      try {
-        // Fetch available sessions from disk
-        const availableData = await apiClientRef.current.listAvailableSessions(cwd)
-        setSessions(availableData.sessions || [])
-
-        // Fetch active sessions to mark them with indicator
-        const activeData = await apiClientRef.current.listSessions(cwd)
-        const activeIds = new Set(activeData.sessions.map(s => s.session_id))
-        setActiveSessions(activeIds)
-
-        // Sort sessions: active first, then by time (newest first)
-        setSessions(prev => {
-          return [...prev].sort((a, b) => {
-            const aIsActive = activeIds.has(a.session_id)
-            const bIsActive = activeIds.has(b.session_id)
-
-            // Active sessions always come first
-            if (aIsActive && !bIsActive) return -1
-            if (!aIsActive && bIsActive) return 1
-
-            // If both active or both inactive, sort by modified time (newest first)
-            return new Date(b.modified) - new Date(a.modified)
-          })
-        })
-      } catch (error) {
-        console.error('Failed to fetch sessions:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     // Initial fetch
     fetchSessions()
 
@@ -81,6 +83,32 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
       window.removeEventListener('focus', handleFocus)
     }
   }, [serverUrl, cwd, disabled, currentSessionId])
+
+  // Auto-refresh when tab becomes active
+  useEffect(() => {
+    if (disabled) {
+      previousActiveRef.current = isActive
+      return
+    }
+
+    // Check if tab just became active (transition from false to true)
+    if (isActive && !previousActiveRef.current) {
+      // Use a small delay to ensure apiClient is initialized
+      const timer = setTimeout(() => {
+        if (apiClientRef.current) {
+          fetchSessions()
+        }
+      }, 100)
+
+      // Update previous active state immediately
+      previousActiveRef.current = isActive
+
+      return () => clearTimeout(timer)
+    }
+
+    // Update previous active state
+    previousActiveRef.current = isActive
+  }, [isActive, disabled])
 
   const formatDate = (dateStr) => {
     try {

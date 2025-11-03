@@ -640,6 +640,7 @@ function AppContent() {
                 onNewSession={handleNewSession}
                 cwd={settings.cwd}
                 disabled={serverDisconnected}
+                isActive={activeTab === 'sessions'}
               />
             )}
 
