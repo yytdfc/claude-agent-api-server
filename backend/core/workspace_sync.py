@@ -350,6 +350,55 @@ async def clone_git_repository(
             )
             await shallow_process.communicate()
 
+        # Configure git user.name and user.email from GitHub CLI
+        try:
+            logger.info("Configuring git user info from GitHub CLI")
+
+            # Get GitHub username using gh api
+            gh_user_process = await asyncio.create_subprocess_exec(
+                "gh", "api", "user", "--jq", ".login",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            gh_user_stdout, gh_user_stderr = await gh_user_process.communicate()
+
+            if gh_user_process.returncode == 0 and gh_user_stdout:
+                gh_username = gh_user_stdout.decode().strip()
+
+                # Get GitHub email using gh api
+                gh_email_process = await asyncio.create_subprocess_exec(
+                    "gh", "api", "user/emails", "--jq", ".[0].email",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                gh_email_stdout, gh_email_stderr = await gh_email_process.communicate()
+
+                if gh_email_process.returncode == 0 and gh_email_stdout:
+                    gh_email = gh_email_stdout.decode().strip()
+
+                    # Set git config user.name
+                    await asyncio.create_subprocess_exec(
+                        "git", "-C", str(repo_path), "config", "user.name", gh_username,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+
+                    # Set git config user.email
+                    await asyncio.create_subprocess_exec(
+                        "git", "-C", str(repo_path), "config", "user.email", gh_email,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+
+                    logger.info(f"Configured git user: {gh_username} <{gh_email}>")
+                else:
+                    logger.warning("Failed to get GitHub email from gh CLI")
+            else:
+                gh_error = gh_user_stderr.decode() if gh_user_stderr else ""
+                logger.warning(f"Failed to get GitHub username from gh CLI: {gh_error}")
+        except Exception as e:
+            logger.warning(f"Failed to configure git user info: {e}")
+
         # Get repository info
         try:
             # Get current branch
