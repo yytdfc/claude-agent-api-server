@@ -19,12 +19,13 @@ import { Loader2 } from 'lucide-react'
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
 const SERVER_DISCONNECTED_KEY = 'claude-agent-server-disconnected'
 
+// Read default settings from environment variables
 const DEFAULT_SETTINGS = {
-  serverUrl: 'http://127.0.0.1:8000',
-  cwd: '/workspace',
-  model: 'global.anthropic.claude-sonnet-4-5-20250929-v1:0',
-  backgroundModel: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
-  enableProxy: false
+  serverUrl: import.meta.env.VITE_DEFAULT_SERVER_URL || 'http://127.0.0.1:8000',
+  cwd: import.meta.env.VITE_DEFAULT_CWD || '/workspace',
+  model: import.meta.env.VITE_DEFAULT_MODEL || 'global.anthropic.claude-sonnet-4-5-20250929-v1:0',
+  backgroundModel: import.meta.env.VITE_DEFAULT_BACKGROUND_MODEL || 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+  enableProxy: import.meta.env.VITE_DEFAULT_ENABLE_PROXY === 'true'
 }
 
 function AppContent() {
