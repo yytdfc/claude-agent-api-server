@@ -350,6 +350,26 @@ async def clone_git_repository(
             )
             await shallow_process.communicate()
 
+        # Configure git to use GitHub CLI for authentication
+        try:
+            logger.info("Setting up git to use GitHub CLI credentials")
+
+            # Run gh auth setup-git to configure git credential helper
+            setup_git_process = await asyncio.create_subprocess_exec(
+                "gh", "auth", "setup-git",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            setup_stdout, setup_stderr = await setup_git_process.communicate()
+
+            if setup_git_process.returncode == 0:
+                logger.info("Successfully configured git to use GitHub CLI credentials")
+            else:
+                setup_error = setup_stderr.decode() if setup_stderr else ""
+                logger.warning(f"Failed to setup git credentials: {setup_error}")
+        except Exception as e:
+            logger.warning(f"Failed to run gh auth setup-git: {e}")
+
         # Configure git user.name and user.email from GitHub CLI
         try:
             logger.info("Configuring git user info from GitHub CLI")
