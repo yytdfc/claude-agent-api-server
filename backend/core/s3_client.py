@@ -288,15 +288,24 @@ class S3Client:
                 return []
 
             # Parse s5cmd ls output to extract directory names
-            # Format: "DIR s3://bucket/prefix/path/dirname/"
+            # Format: "                                  DIR  dirname/"
+            # or: "DIR s3://bucket/prefix/path/dirname/"
             directories = []
             for line in stdout_text.strip().split('\n'):
-                if line.strip() and line.startswith("DIR"):
-                    # Extract directory name from path
-                    path = line.split()[-1].rstrip('/')
-                    dir_name = path.split('/')[-1]
-                    if dir_name:
-                        directories.append(dir_name)
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Check if line contains DIR (with or without leading spaces)
+                if "DIR" in line:
+                    # Extract the last token which should be the directory name with trailing slash
+                    tokens = line.split()
+                    if len(tokens) >= 2:
+                        dir_path = tokens[-1].rstrip('/')
+                        # Get just the directory name (last part of path)
+                        dir_name = dir_path.split('/')[-1] if '/' in dir_path else dir_path
+                        if dir_name:
+                            directories.append(dir_name)
 
             logger.debug(f"Found {len(directories)} directories at {s3_path}")
             return directories
