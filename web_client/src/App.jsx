@@ -21,6 +21,9 @@ import { Loader2 } from 'lucide-react'
 const SETTINGS_STORAGE_KEY = 'claude-agent-settings'
 const SERVER_DISCONNECTED_KEY = 'claude-agent-server-disconnected'
 
+// Read environment variables
+const hideSettingsButton = import.meta.env.VITE_HIDE_SETTINGS_BUTTON === 'true'
+
 // Read default settings from environment variables
 const DEFAULT_SETTINGS = {
   serverUrl: import.meta.env.VITE_DEFAULT_SERVER_URL || 'http://127.0.0.1:8000',
@@ -688,9 +691,11 @@ function AppContent() {
               <div className="welcome-content">
                 <h2>Welcome to Claude Agent</h2>
                 <p>Select a session from the sidebar or create a new one to get started.</p>
-                <p className="welcome-hint">
-                  Configure settings using the ⚙️ button in the top-right corner.
-                </p>
+                {!hideSettingsButton && (
+                  <p className="welcome-hint">
+                    Configure settings using the ⚙️ button in the top-right corner.
+                  </p>
+                )}
               </div>
             </div>
           ) : (
