@@ -16,12 +16,18 @@ function Login({ onSwitchToSignup }) {
     setLoading(true)
 
     try {
+      console.log('🚀 Login form submitted')
       const result = await login(username, password)
+      console.log('📬 Login result received:', result)
 
       if (!result.success) {
+        console.log('❌ Login failed, setting error:', result.error)
         setError(result.error || 'Login failed. Please try again.')
+      } else {
+        console.log('✅ Login successful!')
       }
     } catch (err) {
+      console.error('💥 Unexpected error in handleSubmit:', err)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
