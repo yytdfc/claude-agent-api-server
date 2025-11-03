@@ -664,6 +664,7 @@ function AppContent() {
                 onFileClick={handleFileClick}
                 refreshTrigger={messages.length + fileRefreshTrigger}
                 disabled={serverDisconnected}
+                isActive={activeTab === 'files'}
               />
             )}
 

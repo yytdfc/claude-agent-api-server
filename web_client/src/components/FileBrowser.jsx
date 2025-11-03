@@ -3,12 +3,13 @@ import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } 
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger, disabled }) {
+function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger, disabled, isActive }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [expandedDirs, setExpandedDirs] = useState(new Set())
   const apiClientRef = useRef(null)
+  const previousActiveRef = useRef(false)
 
   // Create API client
   useEffect(() => {
@@ -41,6 +42,20 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
       loadFiles(currentPath)
     }
   }, [refreshTrigger, disabled])
+
+  // Auto-refresh when tab becomes active
+  useEffect(() => {
+    if (disabled) return
+
+    // Check if tab just became active (transition from false to true)
+    if (isActive && !previousActiveRef.current && currentPath && apiClientRef.current) {
+      console.log('Files tab activated, refreshing file list')
+      loadFiles(currentPath)
+    }
+
+    // Update previous active state
+    previousActiveRef.current = isActive
+  }, [isActive, disabled, currentPath])
 
   const loadFiles = async (path) => {
     if (!apiClientRef.current) return
