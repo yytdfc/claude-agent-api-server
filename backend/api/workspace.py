@@ -218,14 +218,16 @@ async def clone_git(request: CloneGitRepositoryRequest):
 @router.get("/workspace/projects/{user_id}", response_model=ListProjectsResponse)
 async def list_projects(user_id: str):
     """
-    List all projects for a user from S3.
+    List all projects for a user from both S3 and local filesystem.
 
-    Returns a list of project names that exist in the user's S3 workspace.
-    Projects are stored in S3 at: s3://{bucket}/{prefix}/{user_id}/projects/{project_name}/
+    Returns a unified list of project names from:
+    1. S3: s3://{bucket}/{prefix}/{user_id}/projects/{project_name}/
+    2. Local: {base_path}/{project_name}/
 
     Environment Variables:
     - S3_WORKSPACE_BUCKET: S3 bucket name (required)
     - S3_WORKSPACE_PREFIX: S3 key prefix (default: "user_data")
+    - WORKSPACE_BASE_PATH: Local base directory (default: "/workspace")
 
     Args:
         user_id: User ID
@@ -245,16 +247,34 @@ async def list_projects(user_id: str):
     logger.info(f"Listing projects for user: {user_id}")
 
     try:
-        projects = await list_projects_from_s3(
+        # Get projects from S3
+        s3_projects = await list_projects_from_s3(
             user_id=user_id,
             bucket_name=S3_BUCKET,
             s3_prefix=S3_PREFIX,
         )
+        logger.info(f"Found {len(s3_projects)} projects in S3: {s3_projects}")
+
+        # Get projects from local filesystem
+        from pathlib import Path
+        local_projects = []
+        local_base = Path(LOCAL_BASE_PATH)
+        if local_base.exists():
+            # List directories in workspace base path (excluding hidden directories)
+            local_projects = [
+                d.name for d in local_base.iterdir()
+                if d.is_dir() and not d.name.startswith('.')
+            ]
+            logger.info(f"Found {len(local_projects)} projects locally: {local_projects}")
+
+        # Merge and deduplicate projects (S3 + local)
+        all_projects = sorted(set(s3_projects + local_projects))
+        logger.info(f"Total unique projects: {len(all_projects)}")
 
         return ListProjectsResponse(
             user_id=user_id,
-            projects=projects,
-            message=f"Found {len(projects)} projects" if projects else "No projects found"
+            projects=all_projects,
+            message=f"Found {len(all_projects)} projects ({len(s3_projects)} in S3, {len(local_projects)} local)" if all_projects else "No projects found"
         )
 
     except Exception as e:
