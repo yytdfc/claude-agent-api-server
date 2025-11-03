@@ -1,5 +1,7 @@
 import { Settings, Circle, Bot, LogOut, User, FolderOpen, Terminal, Folder, Github, XCircle } from 'lucide-react'
 
+const hideSettingsButton = import.meta.env.VITE_HIDE_SETTINGS_BUTTON === 'true'
+
 function Header({
   serverConnected,
   connected,
@@ -68,9 +70,11 @@ function Header({
             <XCircle size={18} />
           </button>
         )}
-        <button className="btn-icon settings-button" onClick={onSettingsClick} title="Settings">
-          <Settings size={18} />
-        </button>
+        {!hideSettingsButton && (
+          <button className="btn-icon settings-button" onClick={onSettingsClick} title="Settings">
+            <Settings size={18} />
+          </button>
+        )}
         {user && onLogout && (
           <button className="btn-icon logout-button" onClick={onLogout} title="Logout">
             <LogOut size={18} />

@@ -97,6 +97,15 @@ These settings control the default values in the UI. Users can override them in 
 - **Description**: Enable LiteLLM proxy by default for multi-provider support
 - **Usage**: Set to `'true'` to use non-Anthropic models via LiteLLM
 
+### UI Configuration
+
+#### `VITE_HIDE_SETTINGS_BUTTON`
+- **Type**: Boolean (`'true'` or `'false'`)
+- **Default**: `'false'`
+- **Description**: Hide the settings button in the header
+- **Usage**: Set to `'true'` to hide the settings gear icon from the UI header
+- **Use Case**: In managed deployments where you want to prevent users from changing settings
+
 ## Configuration Examples
 
 ### Example 1: Local Development (Default)
@@ -112,6 +121,7 @@ VITE_DEFAULT_CWD=/workspace
 VITE_DEFAULT_MODEL=global.anthropic.claude-sonnet-4-5-20250929-v1:0
 VITE_DEFAULT_BACKGROUND_MODEL=global.anthropic.claude-haiku-4-5-20251001-v1:0
 VITE_DEFAULT_ENABLE_PROXY=false
+VITE_HIDE_SETTINGS_BUTTON=false
 ```
 
 ### Example 2: Docker Deployment
@@ -127,6 +137,7 @@ VITE_DEFAULT_CWD=/workspace
 VITE_DEFAULT_MODEL=global.anthropic.claude-sonnet-4-5-20250929-v1:0
 VITE_DEFAULT_BACKGROUND_MODEL=global.anthropic.claude-haiku-4-5-20251001-v1:0
 VITE_DEFAULT_ENABLE_PROXY=false
+VITE_HIDE_SETTINGS_BUTTON=false
 ```
 
 ### Example 3: Production with LiteLLM Proxy
@@ -142,6 +153,7 @@ VITE_DEFAULT_CWD=/home/ubuntu/workspace
 VITE_DEFAULT_MODEL=gpt-4o
 VITE_DEFAULT_BACKGROUND_MODEL=gpt-4o-mini
 VITE_DEFAULT_ENABLE_PROXY=true
+VITE_HIDE_SETTINGS_BUTTON=false
 ```
 
 ### Example 4: Using AWS Bedrock Models Directly
@@ -157,6 +169,25 @@ VITE_DEFAULT_CWD=/workspace
 VITE_DEFAULT_MODEL=us.anthropic.claude-sonnet-4-5-v1:0
 VITE_DEFAULT_BACKGROUND_MODEL=us.anthropic.claude-haiku-4-5-v1:0
 VITE_DEFAULT_ENABLE_PROXY=false
+VITE_HIDE_SETTINGS_BUTTON=false
+```
+
+### Example 5: Managed Deployment (Settings Hidden)
+
+For managed environments where admins control all settings:
+
+```bash
+VITE_USE_INVOCATIONS=true
+VITE_TERMINAL_USE_STREAMING=true
+VITE_COGNITO_REGION=us-west-2
+VITE_COGNITO_USER_POOL_ID=us-west-2_Sw8yyFfBT
+VITE_COGNITO_CLIENT_ID=2d2cqqjvpf1ecqjg6gh1u6fivl
+VITE_DEFAULT_SERVER_URL=https://api.example.com
+VITE_DEFAULT_CWD=/workspace
+VITE_DEFAULT_MODEL=global.anthropic.claude-sonnet-4-5-20250929-v1:0
+VITE_DEFAULT_BACKGROUND_MODEL=global.anthropic.claude-haiku-4-5-20251001-v1:0
+VITE_DEFAULT_ENABLE_PROXY=false
+VITE_HIDE_SETTINGS_BUTTON=true
 ```
 
 ## How to Use
