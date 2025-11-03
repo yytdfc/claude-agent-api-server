@@ -93,7 +93,7 @@ function AppContent() {
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false)
 
   // Sidebar tab state
-  const [activeTab, setActiveTab] = useState('files') // 'files' | 'git' | 'sessions'
+  const [activeTab, setActiveTab] = useState('sessions') // 'files' | 'git' | 'sessions'
 
   // GitHub auth state
   const [githubAuthStatus, setGithubAuthStatus] = useState(null) // null | 'success' | 'pending' | 'error'
