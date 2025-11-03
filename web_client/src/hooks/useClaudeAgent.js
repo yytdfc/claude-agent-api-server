@@ -346,7 +346,7 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
     }
   }, [sessionId, addSystemMessage, addErrorMessage])
 
-  // Send message
+  // Send message with streaming
   const sendMessage = useCallback(async (message) => {
     if (!sessionId || !message.trim() || !apiClientRef.current) return
 
@@ -354,28 +354,122 @@ export function useClaudeAgent(initialServerUrl = 'http://127.0.0.1:8000', userI
       // Add user message to UI
       setMessages(prev => [...prev, { type: 'text', role: 'user', content: message }])
 
-      // Send to API
-      const data = await apiClientRef.current.sendMessage(sessionId, message)
+      // Use streaming endpoint
+      const eventSource = await apiClientRef.current.sendMessageStream(sessionId, message)
 
-      // Process response messages
-      const newMessages = []
-      for (const msg of data.messages) {
-        if (msg.type === 'text') {
-          newMessages.push({ type: 'text', role: 'assistant', content: msg.content })
-        } else if (msg.type === 'tool_use') {
-          newMessages.push({
-            type: 'tool',
-            toolName: msg.tool_name,
-            toolInput: msg.tool_input
-          })
+      if (!eventSource) {
+        throw new Error('Failed to create event stream')
+      }
+
+      // Track accumulated text for current assistant message
+      let currentTextContent = ''
+      let messageIdCounter = Date.now()
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+
+          switch (data.type) {
+            case 'start':
+              console.log('🚀 Stream started')
+              break
+
+            case 'text':
+              // Accumulate text content
+              currentTextContent += data.content
+
+              // Update or add the current assistant message
+              setMessages(prev => {
+                const lastMsg = prev[prev.length - 1]
+                if (lastMsg && lastMsg.role === 'assistant' && lastMsg.streaming) {
+                  // Update existing streaming message
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...lastMsg, content: currentTextContent }
+                  ]
+                } else {
+                  // Create new streaming message
+                  return [
+                    ...prev,
+                    { type: 'text', role: 'assistant', content: currentTextContent, streaming: true }
+                  ]
+                }
+              })
+              break
+
+            case 'tool_use':
+              // Mark previous message as complete
+              setMessages(prev => {
+                const lastMsg = prev[prev.length - 1]
+                if (lastMsg && lastMsg.streaming) {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...lastMsg, streaming: false }
+                  ]
+                } else {
+                  return prev
+                }
+              })
+
+              // Reset text accumulator
+              currentTextContent = ''
+
+              // Add tool use message
+              setMessages(prev => [...prev, {
+                type: 'tool',
+                toolName: data.tool_name,
+                toolInput: data.tool_input,
+                toolUseId: data.tool_use_id
+              }])
+              break
+
+            case 'user_message':
+              // Additional user messages during the conversation
+              console.log('👤 User message:', data.content)
+              break
+
+            case 'result':
+              // Mark last message as complete
+              setMessages(prev => {
+                const lastMsg = prev[prev.length - 1]
+                if (lastMsg && lastMsg.streaming) {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...lastMsg, streaming: false }
+                  ]
+                } else {
+                  return prev
+                }
+              })
+
+              // Show cost if available
+              if (data.cost_usd !== null) {
+                addSystemMessage(`💰 Cost: $${data.cost_usd.toFixed(4)}`)
+              }
+              break
+
+            case 'done':
+              console.log('✅ Stream completed')
+              eventSource.close()
+              break
+
+            case 'error':
+              console.error('❌ Stream error:', data.error)
+              addErrorMessage(`Error: ${data.error}`)
+              eventSource.close()
+              break
+          }
+        } catch (err) {
+          console.error('Failed to parse stream event:', err)
         }
       }
-      setMessages(prev => [...prev, ...newMessages])
 
-      // Show cost if available
-      if (data.cost_usd !== null) {
-        addSystemMessage(`💰 Cost: $${data.cost_usd.toFixed(4)}`)
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error)
+        addErrorMessage('Connection lost. Please try again.')
+        eventSource.close()
       }
+
     } catch (error) {
       addErrorMessage(`Failed to send message: ${error.message}`)
     }

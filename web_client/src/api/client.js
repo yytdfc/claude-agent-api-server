@@ -92,6 +92,77 @@ class DirectAPIClient {
     return response.json()
   }
 
+  async sendMessageStream(sessionId, message) {
+    const authHeaders = await getAuthHeaders()
+    const agentCoreSessionId = authHeaders['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id']
+
+    // Append session ID as query parameter for SSE (EventSource doesn't support custom headers)
+    const url = `${this.baseUrl}/sessions/${sessionId}/messages/stream${agentCoreSessionId ? `?agentcore_session_id=${encodeURIComponent(agentCoreSessionId)}` : ''}`
+
+    // EventSource doesn't support POST, so we need to use fetch for the initial request
+    // Then create EventSource for subsequent streaming
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({ message })
+    })
+
+    handleFetchResponse(response)
+
+    if (!response.ok) {
+      throw new Error('Failed to send message')
+    }
+
+    // For SSE, we need to return the response body as EventSource-like object
+    // But since EventSource doesn't support POST, we'll parse the response body manually
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+
+    // Create an object that mimics EventSource API
+    const eventSource = {
+      onmessage: null,
+      onerror: null,
+      close: () => reader.cancel(),
+      _buffer: '',
+
+      async _processStream() {
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+
+            if (done) break
+
+            this._buffer += decoder.decode(value, { stream: true })
+            const lines = this._buffer.split('\n')
+            this._buffer = lines.pop() || ''
+
+            for (const line of lines) {
+              const trimmed = line.trim()
+              if (trimmed.startsWith('data: ')) {
+                const jsonStr = trimmed.substring(6)
+                if (this.onmessage) {
+                  this.onmessage({ data: jsonStr })
+                }
+              }
+            }
+          }
+        } catch (error) {
+          if (this.onerror) {
+            this.onerror(error)
+          }
+        }
+      }
+    }
+
+    // Start processing the stream
+    eventSource._processStream()
+
+    return eventSource
+  }
+
   async respondToPermission(sessionId, requestId, allowed, applySuggestions = false) {
     const authHeaders = await getAuthHeaders()
     const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/permissions/respond`, {
@@ -665,6 +736,86 @@ class InvocationsAPIClient {
       { message },
       { session_id: sessionId }
     )
+  }
+
+  async sendMessageStream(sessionId, message) {
+    const authHeaders = await getAuthHeaders()
+    const body = {
+      path: '/sessions/{session_id}/messages/stream',
+      method: 'POST',
+      payload: { message },
+      path_params: { session_id: sessionId }
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...authHeaders
+    }
+
+    if (this.agentCoreSessionId) {
+      headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = this.agentCoreSessionId
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/invocations`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      })
+
+      handleFetchResponse(response)
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Failed to create stream: ${response.status}`)
+      }
+
+      // Parse SSE from response body
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      // Create an object that mimics EventSource API
+      const eventSource = {
+        onmessage: null,
+        onerror: null,
+        close: () => reader.cancel(),
+        _buffer: '',
+
+        async _processStream() {
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+
+              if (done) break
+
+              this._buffer += decoder.decode(value, { stream: true })
+              const lines = this._buffer.split('\n')
+              this._buffer = lines.pop() || ''
+
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (trimmed.startsWith('data: ')) {
+                  const jsonStr = trimmed.substring(6)
+                  if (this.onmessage) {
+                    this.onmessage({ data: jsonStr })
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            if (this.onerror) {
+              this.onerror(error)
+            }
+          }
+        }
+      }
+
+      // Start processing the stream
+      eventSource._processStream()
+
+      return eventSource
+    } catch (error) {
+      throw error
+    }
   }
 
   async respondToPermission(sessionId, requestId, allowed, applySuggestions = false) {

@@ -244,6 +244,21 @@ async def invocations(http_request: Request, request: dict[str, Any]):
 
         elif (
             path.startswith("/sessions/")
+            and path.endswith("/messages/stream")
+            and method == "POST"
+        ):
+            # Send message with streaming
+            session_id = path_params.get("session_id")
+            if not session_id:
+                raise HTTPException(
+                    status_code=400, detail="Missing session_id in path_params"
+                )
+            req = SendMessageRequest(**payload)
+            from .messages import send_message_stream
+            return await send_message_stream(session_id, req)
+
+        elif (
+            path.startswith("/sessions/")
             and path.endswith("/messages")
             and method == "POST"
         ):
