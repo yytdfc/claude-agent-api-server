@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS = {
 function AppContent() {
   const [showSettings, setShowSettings] = useState(false)
   const [authView, setAuthView] = useState('login') // 'login' or 'signup'
-  const { user, loading: authLoading, logout } = useAuth()
+  const { user, initializing, logout } = useAuth()
 
   // Set up global authentication error handler
   useEffect(() => {
@@ -455,8 +455,8 @@ function AppContent() {
     setIsResizingTerminal(true)
   }
 
-  // Show loading spinner during auth check
-  if (authLoading) {
+  // Show loading spinner during initial auth check only
+  if (initializing) {
     return (
       <div className="auth-loading">
         <Loader2 size={48} className="spinning" />

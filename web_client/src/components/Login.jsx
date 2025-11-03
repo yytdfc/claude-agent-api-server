@@ -10,32 +10,26 @@ function Login({ onSwitchToSignup }) {
 
   const { login } = useAuth()
 
-  // Debug: log error state changes
-  console.log('🎨 Login component render, error state:', error)
-
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
+    setError('') // Clear any previous errors
     setLoading(true)
 
     try {
-      console.log('🚀 Login form submitted')
       const result = await login(username, password)
-      console.log('📬 Login result received:', result)
 
       if (!result.success) {
-        console.log('❌ Login failed, setting error:', result.error)
         const errorMessage = result.error || 'Login failed. Please try again.'
+        setLoading(false)
         setError(errorMessage)
-        console.log('🔴 Error state set to:', errorMessage)
-      } else {
-        console.log('✅ Login successful!')
+        return
       }
-    } catch (err) {
-      console.error('💥 Unexpected error in handleSubmit:', err)
-      setError('An unexpected error occurred')
-    } finally {
+
       setLoading(false)
+    } catch (err) {
+      console.error('Unexpected error in handleSubmit:', err)
+      setLoading(false)
+      setError('An unexpected error occurred')
     }
   }
 

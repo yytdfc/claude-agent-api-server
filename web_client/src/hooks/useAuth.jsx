@@ -22,7 +22,8 @@ const AuthContext = createContext(null)
  */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [initializing, setInitializing] = useState(true) // Initial auth check on app load
+  const [loading, setLoading] = useState(false) // Login/signup/logout operations
   const [error, setError] = useState(null)
 
   // Check if user is already authenticated
@@ -45,7 +46,7 @@ export function AuthProvider({ children }) {
         console.error('Auth check error:', err)
       }
     } finally {
-      setLoading(false)
+      setInitializing(false)
     }
   }, [])
 
@@ -269,6 +270,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    initializing,
     loading,
     error,
     login,
