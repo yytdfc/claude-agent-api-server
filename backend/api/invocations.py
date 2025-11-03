@@ -520,6 +520,12 @@ async def invocations(http_request: Request, request: dict[str, Any]):
                 )
             return await close_terminal_session(session_id)
 
+        elif path == "/workspace/projects/backup" and method == "POST":
+            # Backup project to S3
+            from .workspace import backup_project, CreateProjectRequest
+            req = CreateProjectRequest(**payload)
+            return await backup_project(req)
+
         elif path == "/workspace/projects" and method == "POST":
             # Create project
             from .workspace import create_project, CreateProjectRequest
