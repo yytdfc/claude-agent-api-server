@@ -60,5 +60,9 @@ htmlcov/
 .gitignore
 .ruff_cache/*
 .git/*
-web_client/*
 
+web_client/*
+logs/*
+deploy/*
+claude*
+claude/*
