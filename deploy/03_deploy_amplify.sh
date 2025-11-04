@@ -196,23 +196,39 @@ cd "${SCRIPT_DIR}"
 echo -e "${GREEN}✓${NC} Package created"
 
 echo -e "${YELLOW}Uploading to Amplify...${NC}"
-curl -X PUT "$ZIP_UPLOAD_URL" \
+UPLOAD_RESPONSE=$(curl -X PUT "$ZIP_UPLOAD_URL" \
     -H "Content-Type: application/zip" \
     --data-binary @deployment.zip \
+    --write-out "%{http_code}" \
     --silent \
-    > /dev/null
+    --output /tmp/amplify_upload_response.txt)
 
-echo -e "${GREEN}✓${NC} Upload complete"
+if [ "$UPLOAD_RESPONSE" != "200" ]; then
+    echo -e "${RED}Error: Upload failed with HTTP code $UPLOAD_RESPONSE${NC}"
+    cat /tmp/amplify_upload_response.txt
+    rm /tmp/amplify_upload_response.txt
+    exit 1
+fi
+
+rm -f /tmp/amplify_upload_response.txt
+echo -e "${GREEN}✓${NC} Upload complete (HTTP $UPLOAD_RESPONSE)"
 
 echo -e "${YELLOW}Starting deployment...${NC}"
-aws amplify start-deployment \
+START_RESULT=$(aws amplify start-deployment \
     --app-id "$APP_ID" \
     --branch-name "$AMPLIFY_BRANCH_NAME" \
     --job-id "$JOB_ID" \
     --region "$AWS_REGION" \
-    > /dev/null
+    --output json 2>&1)
 
-echo -e "${GREEN}✓${NC} Deployment started"
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Error: Failed to start deployment${NC}"
+    echo "$START_RESULT"
+    rm deployment.zip
+    exit 1
+fi
+
+echo -e "${GREEN}✓${NC} Deployment started successfully"
 
 rm deployment.zip
 
