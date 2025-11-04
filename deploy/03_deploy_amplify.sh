@@ -175,13 +175,43 @@ if [ -z "$BRANCH_EXISTS" ]; then
     echo -e "${GREEN}✓${NC} Branch created"
 fi
 
+echo -e "${YELLOW}Checking for pending/running jobs...${NC}"
+PENDING_JOBS=$(aws amplify list-jobs \
+    --app-id "$APP_ID" \
+    --branch-name "$AMPLIFY_BRANCH_NAME" \
+    --region "$AWS_REGION" \
+    --max-results 10 \
+    --output json 2>/dev/null | jq -r '.jobSummaries[] | select(.status=="PENDING" or .status=="RUNNING") | .jobId' || echo "")
+
+if [ -n "$PENDING_JOBS" ]; then
+    echo "Found pending/running jobs, cleaning up..."
+    for job_id in $PENDING_JOBS; do
+        echo "  Stopping job $job_id..."
+        aws amplify stop-job \
+            --app-id "$APP_ID" \
+            --branch-name "$AMPLIFY_BRANCH_NAME" \
+            --job-id "$job_id" \
+            --region "$AWS_REGION" \
+            > /dev/null 2>&1 || true
+    done
+    echo -e "${GREEN}✓${NC} Cleaned up pending/running jobs"
+else
+    echo -e "${GREEN}✓${NC} No pending/running jobs found"
+fi
+
 echo -e "${YELLOW}Creating deployment...${NC}"
 
 DEPLOYMENT=$(aws amplify create-deployment \
     --app-id "$APP_ID" \
     --branch-name "$AMPLIFY_BRANCH_NAME" \
     --region "$AWS_REGION" \
-    --output json)
+    --output json 2>&1)
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Error: Failed to create deployment${NC}"
+    echo "$DEPLOYMENT"
+    exit 1
+fi
 
 ZIP_UPLOAD_URL=$(echo "$DEPLOYMENT" | jq -r '.zipUploadUrl')
 JOB_ID=$(echo "$DEPLOYMENT" | jq -r '.jobId')
