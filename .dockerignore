@@ -1,3 +1,14 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+.dockerignore
+Dockerfile
+docker/
+docker-compose*.yml
+
 # Python
 __pycache__/
 *.py[cod]
@@ -29,6 +40,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.venv/
 
 # IDE
 .vscode/
@@ -37,32 +49,99 @@ venv.bak/
 *.swo
 *~
 .DS_Store
+.vs/
+*.sublime-*
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.nox/
+.hypothesis/
+*.cover
+.cache
+nosetests.xml
+coverage.xml
+*.mo
+*.pot
 
 # Logs
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Environment variables
 .env
-.env.local
+.env.*
+!.env.example
+*.local
 
-# Distribution / packaging
+# Documentation
+*.md
+!README.md
+docs/
+CLAUDE*.md
+claude/
+
+# Deployment
+deploy/
+temp/
+tmp/
+
+# Frontend (not needed in backend container)
+web_client/
+node_modules/
+
+# Cache
+.cache/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.pytype/
+*.rdb
+
+# OS
+Thumbs.db
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.swn
+*.swo
+*.swp
+*~
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts
 *.whl
+*.egg
+dist/
+build/
 
-.venv/*
-.claude/*
-.dockerignore
-.gitignore
-.ruff_cache/*
-.git/*
+# Lock files (keep uv.lock for reproducible builds)
+# uv.lock is kept because it's needed for uv sync
 
-web_client/*
-logs/*
-deploy/*
-claude*
-claude/*
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+Jenkinsfile
+
+# Misc
+.envrc
+.editorconfig
