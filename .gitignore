@@ -51,6 +51,11 @@ logs/
 # Environment variables
 .env
 .env.local
+deploy/config.env
+deploy/.build_output
+deploy/.agentcore_output
+deploy/.amplify_output
+deploy/deployment.zip
 
 # Distribution / packaging
 *.whl
