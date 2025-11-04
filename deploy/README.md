@@ -5,8 +5,7 @@ This directory contains scripts and configuration for deploying the web client t
 ## Files
 
 - `amplify.yml` - Amplify build configuration
-- `deploy-amplify.sh` - Initial setup script (creates Amplify app)
-- `deploy-manual.sh` - Manual deployment script (direct file upload)
+- `deploy.sh` - Unified deployment script (creates or updates Amplify app)
 - `README.md` - This file
 
 ## Prerequisites
@@ -27,41 +26,40 @@ This directory contains scripts and configuration for deploying the web client t
    sudo apt-get install jq
    ```
 
-## Deployment Options
+## Quick Start
 
-### Option 1: GitHub Integration (Recommended)
+Simply run the deployment script:
 
-1. **Initial Setup**
-   ```bash
-   cd deploy
-   chmod +x deploy-amplify.sh
-   ./deploy-amplify.sh
-   ```
+```bash
+cd deploy
+./deploy.sh
+```
 
-2. **Connect GitHub Repository**
-   - Open AWS Amplify Console
-   - Select your app
-   - Click "Connect branch"
-   - Follow GitHub OAuth flow
-   - Select repository and branch
-   - Amplify will automatically deploy on every push
+The script will automatically:
+- ✅ Check if Amplify app exists (create if new, update if exists)
+- ✅ Configure environment variables from `web_client/.env`
+- ✅ Build the web client
+- ✅ Create deployment package
+- ✅ Upload and deploy to Amplify
 
-### Option 2: Manual Deployment
+## How It Works
 
-For quick deployments without Git integration:
+### First Time Deployment
 
-1. **Initial Setup** (if not done already)
-   ```bash
-   cd deploy
-   chmod +x deploy-amplify.sh
-   ./deploy-amplify.sh
-   ```
+When running for the first time:
+1. Creates new Amplify app named `claude-agent-web-client`
+2. Configures environment variables
+3. Creates branch `main`
+4. Builds and deploys the web client
+5. Provides URL to access the app
 
-2. **Deploy**
-   ```bash
-   chmod +x deploy-manual.sh
-   ./deploy-manual.sh
-   ```
+### Subsequent Deployments
+
+When app already exists:
+1. Updates environment variables (in case `.env` changed)
+2. Builds the web client with latest changes
+3. Deploys new version to existing app
+4. No duplicate apps created
 
 ## Environment Variables
 
@@ -84,8 +82,29 @@ Current environment variables:
 To update environment variables:
 
 1. Edit `web_client/.env`
-2. Run `./deploy-amplify.sh` to sync variables to Amplify
-3. Redeploy the app
+2. Run `./deploy.sh` (environment variables will be updated automatically)
+
+## GitHub Integration (Optional)
+
+For continuous deployment on every push:
+
+1. After first deployment, open Amplify Console
+2. Click "Connect branch"
+3. Authorize GitHub
+4. Select repository: `https://github.com/yytdfc/claude-agent-api-server.git`
+5. Select branch: `main`
+6. Amplify will automatically deploy on every push
+
+## Configuration
+
+Edit `deploy.sh` to customize:
+
+```bash
+APP_NAME="claude-agent-web-client"  # Amplify app name
+REGION="us-west-2"                  # AWS region
+BRANCH_NAME="main"                  # Git branch name
+GITHUB_REPO="https://github.com/yytdfc/claude-agent-api-server.git"
+```
 
 ## Custom Domain
 
@@ -123,7 +142,7 @@ Amplify.yml specifies Node.js version. Check that your build uses a compatible v
 
 ### Environment variables not updating
 
-Run `./deploy-amplify.sh` again to sync variables, then trigger a new deployment.
+Run `./deploy.sh` again - it automatically syncs environment variables from `.env` file.
 
 ### 404 on page refresh
 
@@ -132,6 +151,13 @@ The `amplify.yml` includes SPA redirect rules. Verify they're applied in Amplify
 ### CORS errors
 
 Ensure your backend server URL in `VITE_DEFAULT_SERVER_URL` allows CORS from the Amplify domain.
+
+### Deployment stuck or failed
+
+Check deployment logs in Amplify Console or run:
+```bash
+aws amplify get-job --app-id <APP_ID> --branch-name main --job-id <JOB_ID> --region us-west-2
+```
 
 ## Clean Up
 
