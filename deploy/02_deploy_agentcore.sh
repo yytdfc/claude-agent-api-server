@@ -105,8 +105,6 @@ if [ -z "$COGNITO_USER_POOL_ID" ] || [ -z "$COGNITO_CLIENT_ID" ]; then
             }' \
             --user-pool-tags \
                 Project="${TAG_PROJECT:-claude-agent}" \
-                Environment="${TAG_ENVIRONMENT:-production}" \
-                ManagedBy="${TAG_MANAGED_BY:-deployment-script}" \
             --output json)
 
         COGNITO_USER_POOL_ID=$(echo "$CREATE_POOL_OUTPUT" | jq -r '.UserPool.Id')
