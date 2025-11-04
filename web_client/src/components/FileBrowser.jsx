@@ -3,7 +3,7 @@ import { Folder, File, ChevronRight, ChevronDown, RefreshCw, FolderOpen, Home } 
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger, disabled, isActive }) {
+function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, onFileClick, refreshTrigger, disabled, isActive, currentProject }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -20,7 +20,7 @@ function FileBrowser({ serverUrl, currentPath, workingDirectory, onPathChange, o
 
     const initApiClient = async () => {
       if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
-        const agentCoreSessionId = await getAgentCoreSessionId()
+        const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
         apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
       }
     }

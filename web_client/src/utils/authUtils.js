@@ -41,9 +41,10 @@ export async function getValidAccessToken() {
 /**
  * Get AgentCore session ID from access token
  * Extracts user_id from JWT 'sub' claim and formats as session ID
+ * @param {string|null} project - Project name (optional). If provided and workspace mode is disabled, formats as userid@workspace/project
  * @returns {Promise<string|null>} Session ID or null if not available
  */
-export async function getAgentCoreSessionId() {
+export async function getAgentCoreSessionId(project = null) {
   try {
     const token = await getValidAccessToken()
     if (!token) {
@@ -63,8 +64,17 @@ export async function getAgentCoreSessionId() {
       return null
     }
 
-    // Format: user_id@workspace
-    return `${userId}@workspace`
+    // Check workspace mode from environment variable
+    const workspaceMode = import.meta.env.VITE_WORKSPACE_MODE === 'true'
+
+    // Format session ID based on mode
+    if (workspaceMode || !project) {
+      // Workspace mode: user_id@workspace
+      return `${userId}@workspace`
+    } else {
+      // Project mode: user_id@workspace/project
+      return `${userId}@workspace/${project}`
+    }
   } catch (error) {
     console.error('Failed to get AgentCore session ID:', error)
     return null
@@ -74,9 +84,10 @@ export async function getAgentCoreSessionId() {
 /**
  * Create authorization headers for API requests
  * @param {boolean} includeSessionId - Whether to include X-Amzn-Bedrock-AgentCore-Runtime-Session-Id header
+ * @param {string|null} project - Project name (optional) for session ID
  * @returns {Promise<Object>} Headers object with Authorization header and optionally session ID
  */
-export async function getAuthHeaders(includeSessionId = false) {
+export async function getAuthHeaders(includeSessionId = false, project = null) {
   const token = await getValidAccessToken()
 
   if (!token) {
@@ -89,7 +100,7 @@ export async function getAuthHeaders(includeSessionId = false) {
 
   // Optionally include AgentCore session ID header
   if (includeSessionId) {
-    const sessionId = await getAgentCoreSessionId()
+    const sessionId = await getAgentCoreSessionId(project)
     if (sessionId) {
       headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = sessionId
     }

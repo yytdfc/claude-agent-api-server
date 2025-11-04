@@ -6,7 +6,7 @@ import { X } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function TerminalPTY({ serverUrl, initialCwd, onClose, disabled }) {
+function TerminalPTY({ serverUrl, initialCwd, onClose, disabled, currentProject }) {
   const terminalRef = useRef(null)
   const xtermRef = useRef(null)
   const fitAddonRef = useRef(null)
@@ -40,7 +40,7 @@ function TerminalPTY({ serverUrl, initialCwd, onClose, disabled }) {
     }
 
     const initApiClient = async () => {
-      const agentCoreSessionId = await getAgentCoreSessionId()
+      const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
       apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
     }
     initApiClient()

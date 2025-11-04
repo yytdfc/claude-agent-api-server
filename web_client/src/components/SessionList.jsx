@@ -3,7 +3,7 @@ import { Plus, Circle } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
 
-function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd, disabled, isActive }) {
+function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd, disabled, isActive, currentProject }) {
   const [sessions, setSessions] = useState([])
   const [activeSessions, setActiveSessions] = useState(new Set())
   const [loading, setLoading] = useState(false)
@@ -59,7 +59,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     // Create or update API client when serverUrl changes
     const initApiClient = async () => {
       if (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl) {
-        const agentCoreSessionId = await getAgentCoreSessionId()
+        const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
         apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
       }
     }

@@ -165,7 +165,7 @@ function AppContent() {
 
     setProjectsLoading(true)
     try {
-      const agentCoreSessionId = await getAgentCoreSessionId()
+      const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
       const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
       const result = await apiClient.listProjects(user.userId)
       setAvailableProjects(result.projects || [])
@@ -187,7 +187,7 @@ function AppContent() {
     if (currentProject) {
       try {
         console.log(`💾 Backing up current project "${currentProject}" to S3...`)
-        const agentCoreSessionId = await getAgentCoreSessionId()
+        const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
         const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
         const backupResult = await apiClient.backupProject(user.userId, currentProject)
 
@@ -224,7 +224,7 @@ function AppContent() {
   }
 
   const handleCreateProject = async (projectName) => {
-    const agentCoreSessionId = await getAgentCoreSessionId()
+    const agentCoreSessionId = await getAgentCoreSessionId(projectName)
     const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
     const result = await apiClient.createProject(user.userId, projectName)
     console.log(`✅ Created project: ${projectName}`)
@@ -242,7 +242,7 @@ function AppContent() {
     setGithubAuthMessage('Requesting GitHub authentication...')
 
     try {
-      const agentCoreSessionId = await getAgentCoreSessionId()
+      const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
       const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
       const result = await apiClient.getGithubToken()
 
@@ -363,7 +363,7 @@ function AppContent() {
       // If there's an active session, try to stop it
       if (connected) {
         try {
-          const agentCoreSessionId = await getAgentCoreSessionId()
+          const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
           const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
           await apiClient.stopAgentCoreSession('DEFAULT')
           console.log('✅ Stopped AgentCore session')
@@ -641,6 +641,7 @@ function AppContent() {
                 cwd={settings.cwd}
                 disabled={serverDisconnected}
                 isActive={activeTab === 'sessions'}
+                currentProject={currentProject}
               />
             )}
 
@@ -666,6 +667,7 @@ function AppContent() {
                 refreshTrigger={messages.length + fileRefreshTrigger}
                 disabled={serverDisconnected}
                 isActive={activeTab === 'files'}
+                currentProject={currentProject}
               />
             )}
 
@@ -721,6 +723,7 @@ function AppContent() {
               filePath={previewFilePath}
               onClose={handleClosePreview}
               disabled={serverDisconnected}
+              currentProject={currentProject}
             />
           </aside>
         )}
@@ -739,6 +742,7 @@ function AppContent() {
               initialCwd={workingDirectory}
               onClose={() => setShowTerminal(false)}
               disabled={serverDisconnected}
+              currentProject={currentProject}
             />
           </aside>
         )}

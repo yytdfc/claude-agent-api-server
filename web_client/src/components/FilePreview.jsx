@@ -50,7 +50,7 @@ hljs.registerLanguage('c', hljsCpp)
 hljs.registerLanguage('go', hljsGo)
 hljs.registerLanguage('rust', hljsRust)
 
-function FilePreview({ serverUrl, filePath, onClose, disabled }) {
+function FilePreview({ serverUrl, filePath, onClose, disabled, currentProject }) {
   const [fileInfo, setFileInfo] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -71,7 +71,7 @@ function FilePreview({ serverUrl, filePath, onClose, disabled }) {
 
     const initApiClient = async () => {
       if (serverUrl && (!apiClientRef.current || apiClientRef.current.baseUrl !== serverUrl)) {
-        const agentCoreSessionId = await getAgentCoreSessionId()
+        const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
         apiClientRef.current = createAPIClient(serverUrl, agentCoreSessionId)
       }
     }
