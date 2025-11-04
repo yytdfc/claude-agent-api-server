@@ -122,6 +122,15 @@ class AgentSession:
         Args:
             resume_session_id: Optional session ID to resume from
         """
+        print(f"\n[Session] {'Resuming' if resume_session_id else 'Creating'} session {self.session_id}")
+        print(f"[Session] user_id: {self.user_id}")
+        print(f"[Session] cwd: {self.cwd}")
+        print(f"[Session] model: {self.model}")
+        print(f"[Session] background_model: {self.background_model}")
+        print(f"[Session] enable_proxy: {self.enable_proxy}")
+        if resume_session_id:
+            print(f"[Session] resume_session_id: {resume_session_id}")
+
         # Load custom system prompt from file
         custom_prompt = load_custom_system_prompt()
 
@@ -207,13 +216,20 @@ class AgentSession:
         # Add env vars if any were set
         if env_vars:
             options_dict["env"] = env_vars
+            print(f"[Session] Environment variables set:")
+            for key, value in env_vars.items():
+                print(f"[Session]   {key}={value}")
+        else:
+            print(f"[Session] No custom environment variables")
 
         options = ClaudeAgentOptions(**options_dict)
 
         try:
+            print(f"[Session] Connecting to Claude SDK...")
             self.client = ClaudeSDKClient(options=options)
             await self.client.connect()
             self.status = "connected"
+            print(f"[Session] ✓ Connected successfully")
         except (CLINotFoundError, CLIConnectionError) as e:
             self.status = "error"
             raise HTTPException(status_code=500, detail=f"Failed to connect: {str(e)}")
