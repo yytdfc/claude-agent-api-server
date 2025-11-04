@@ -9,7 +9,7 @@ connection, permission callbacks, and conversation state.
 import asyncio
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -91,8 +91,8 @@ class AgentSession:
         self.session_id = session_id
         self.user_id = user_id
         self.client: Optional[ClaudeSDKClient] = None
-        self.created_at = datetime.now()
-        self.last_activity = datetime.now()
+        self.created_at = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)
         self.status = "initializing"
         self.message_count = 0
 
@@ -351,7 +351,7 @@ class AgentSession:
         if not self.client or self.status != "connected":
             raise HTTPException(status_code=400, detail="Session not connected")
 
-        self.last_activity = datetime.now()
+        self.last_activity = datetime.now(timezone.utc)
         self.message_count += 1
 
         # Send message
@@ -405,7 +405,7 @@ class AgentSession:
         if not self.client or self.status != "connected":
             raise HTTPException(status_code=400, detail="Session not connected")
 
-        self.last_activity = datetime.now()
+        self.last_activity = datetime.now(timezone.utc)
         self.message_count += 1
 
         # Send initial event
@@ -491,7 +491,7 @@ class AgentSession:
             await self.client.set_model(model)
             self.current_model = model
             self.model = model  # Update tracked model for consistency
-            self.last_activity = datetime.now()
+            self.last_activity = datetime.now(timezone.utc)
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Failed to set model: {str(e)}"
@@ -509,7 +509,7 @@ class AgentSession:
 
         try:
             await self.client.interrupt()
-            self.last_activity = datetime.now()
+            self.last_activity = datetime.now(timezone.utc)
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Failed to interrupt: {str(e)}"
@@ -530,7 +530,7 @@ class AgentSession:
 
         try:
             await self.client.set_permission_mode(mode)
-            self.last_activity = datetime.now()
+            self.last_activity = datetime.now(timezone.utc)
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Failed to set permission mode: {str(e)}"

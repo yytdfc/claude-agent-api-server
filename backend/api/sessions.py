@@ -6,7 +6,7 @@ creating, listing, and closing sessions.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -53,7 +53,7 @@ async def create_session(request: CreateSessionRequest):
 
     return CreateSessionResponse(
         session_id=session_id,
-        created_at=datetime.now().isoformat(),
+        created_at=datetime.now(timezone.utc).isoformat(),
         status="connected",
     )
 

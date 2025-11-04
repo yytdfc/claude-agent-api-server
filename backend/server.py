@@ -16,7 +16,7 @@ Key Features:
 """
 
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -186,7 +186,7 @@ async def health_check():
     return {
         "status": "healthy",
         "active_sessions": len(session_manager.sessions),
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "github_auth": gh_status
     }
 

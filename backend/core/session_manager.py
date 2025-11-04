@@ -7,7 +7,7 @@ and cleanup operations.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -183,7 +183,7 @@ class SessionManager:
                         continue
 
                     mtime = session_file.stat().st_mtime
-                    modified = datetime.fromtimestamp(mtime)
+                    modified = datetime.fromtimestamp(mtime, tz=timezone.utc)
 
                     # Read first few lines for preview
                     preview = "No preview"
