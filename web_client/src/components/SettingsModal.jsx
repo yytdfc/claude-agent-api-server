@@ -20,10 +20,9 @@ function SettingsModal({ isOpen, onClose, settings, onSave }) {
 
   // Check if a model is from Anthropic
   const isAnthropicModel = (model) => {
-    return model && (
-      model.includes('anthropic') ||
-      model.startsWith('claude-')
-    )
+    if (!model) return true // Default to Anthropic if no model specified
+    const modelLower = model.toLowerCase()
+    return modelLower.includes('anthropic') || modelLower.includes('claude')
   }
 
   const handleChange = (key, value) => {
