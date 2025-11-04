@@ -705,8 +705,11 @@ class InvocationsAPIClient {
       )
       return { response: { ok: true, status: 200 }, data }
     } catch (error) {
-      // Handle 404 case - check status code or error message
-      if (error.status === 404 || error.message.includes('404') || error.detail?.includes('not found')) {
+      // Handle 404 and 424 (Failed Dependency from AgentCore) - both mean session not found
+      if (error.status === 404 ||
+          error.status === 424 ||
+          error.message.includes('404') ||
+          error.detail?.includes('not found')) {
         return { response: { ok: false, status: 404 }, data: null }
       }
       throw error
