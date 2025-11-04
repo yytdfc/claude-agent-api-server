@@ -35,6 +35,33 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}Error: Node.js is not installed${NC}"
+    echo "Please install Node.js (version 18 or later):"
+    echo "  macOS: brew install node"
+    echo "  Ubuntu: sudo apt-get install nodejs npm"
+    echo "  Or visit: https://nodejs.org/"
+    exit 1
+fi
+
+if ! command -v npm &> /dev/null; then
+    echo -e "${RED}Error: npm is not installed${NC}"
+    echo "Please install npm:"
+    echo "  macOS: brew install node"
+    echo "  Ubuntu: sudo apt-get install npm"
+    exit 1
+fi
+
+NODE_VERSION=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_VERSION" -lt 18 ]; then
+    echo -e "${RED}Error: Node.js version 18 or later is required${NC}"
+    echo "Current version: $(node --version)"
+    echo "Please upgrade Node.js"
+    exit 1
+fi
+
+echo -e "${GREEN}✓${NC} Node.js $(node --version) and npm $(npm --version) installed"
+
 if ! aws sts get-caller-identity &> /dev/null; then
     echo -e "${RED}Error: AWS credentials not configured${NC}"
     echo "Please run: aws configure"
@@ -62,8 +89,6 @@ if [ -z "$APP_ID" ]; then
         ]' \
         --tags \
             Project="${TAG_PROJECT}" \
-            Environment="${TAG_ENVIRONMENT}" \
-            ManagedBy="${TAG_MANAGED_BY}" \
         --output json)
 
     APP_ID=$(echo "$CREATE_OUTPUT" | jq -r '.app.appId')
@@ -115,8 +140,20 @@ aws amplify update-app \
 
 echo -e "${GREEN}✓${NC} Environment variables configured"
 
-echo -e "${YELLOW}Building web client...${NC}"
+echo -e "${YELLOW}Installing web client dependencies...${NC}"
 cd "${SCRIPT_DIR}/../web_client"
+
+if [ ! -d "node_modules" ]; then
+    echo "Installing npm packages..."
+    npm install
+else
+    echo "node_modules exists, updating dependencies..."
+    npm install
+fi
+
+echo -e "${GREEN}✓${NC} Dependencies installed"
+
+echo -e "${YELLOW}Building web client...${NC}"
 npm run build
 cd "${SCRIPT_DIR}"
 
