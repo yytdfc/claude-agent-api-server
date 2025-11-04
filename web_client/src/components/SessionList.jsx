@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Plus, Circle } from 'lucide-react'
 import { createAPIClient } from '../api/client'
 import { getAgentCoreSessionId } from '../utils/authUtils'
+import { formatRelativeTime, compareDates } from '../utils/dateUtils'
 
 function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSession, cwd, disabled, isActive, currentProject }) {
   const [sessions, setSessions] = useState([])
@@ -36,7 +37,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
           if (!aIsActive && bIsActive) return 1
 
           // If both active or both inactive, sort by modified time (newest first)
-          return new Date(b.modified) - new Date(a.modified)
+          return compareDates(a.modified, b.modified)
         })
       })
     } catch (error) {
@@ -110,25 +111,6 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     previousActiveRef.current = isActive
   }, [isActive, disabled])
 
-  const formatDate = (dateStr) => {
-    try {
-      const date = new Date(dateStr)
-      const now = new Date()
-      const diffMs = now - date
-      const diffMins = Math.floor(diffMs / 60000)
-
-      if (diffMins < 1) return 'just now'
-      if (diffMins < 60) return `${diffMins}m ago`
-
-      const diffHours = Math.floor(diffMins / 60)
-      if (diffHours < 24) return `${diffHours}h ago`
-
-      const diffDays = Math.floor(diffHours / 24)
-      return `${diffDays}d ago`
-    } catch {
-      return dateStr
-    }
-  }
 
   return (
     <div className="session-list">
@@ -175,7 +157,7 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
                     {session.preview}
                   </span>
                   <span className="session-time" title={session.modified}>
-                    {formatDate(session.modified)}
+                    {formatRelativeTime(session.modified)}
                   </span>
                 </div>
               </div>
