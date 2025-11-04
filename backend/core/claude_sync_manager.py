@@ -234,6 +234,10 @@ class ClaudeSyncManager:
         Args:
             user_id: User ID
         """
+        if not user_id:
+            logger.warning("⚠️  Backup skipped: user_id is None")
+            return
+
         logger.info(f"🔄 Starting post-task backup for user {user_id}")
 
         await self.backup_user_claude_dir(user_id)
