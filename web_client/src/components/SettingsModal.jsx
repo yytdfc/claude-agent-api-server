@@ -3,17 +3,48 @@ import { useState, useEffect } from 'react'
 function SettingsModal({ isOpen, onClose, settings, onSave }) {
   const [localSettings, setLocalSettings] = useState(settings)
 
+  // Get available models from environment or use defaults
+  const availableModels = import.meta.env.VITE_AVAILABLE_MODELS
+    ? import.meta.env.VITE_AVAILABLE_MODELS.split(',')
+    : [
+        'global.anthropic.claude-sonnet-4-5-20250929-v1:0',
+        'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+        'qwen.qwen3-coder-480b-a35b-v1:0'
+      ]
+
   useEffect(() => {
     setLocalSettings(settings)
   }, [settings, isOpen])
 
   if (!isOpen) return null
 
+  // Check if a model is from Anthropic
+  const isAnthropicModel = (model) => {
+    return model && (
+      model.includes('anthropic') ||
+      model.startsWith('claude-')
+    )
+  }
+
   const handleChange = (key, value) => {
-    setLocalSettings(prev => ({
-      ...prev,
-      [key]: value
-    }))
+    setLocalSettings(prev => {
+      const newSettings = {
+        ...prev,
+        [key]: value
+      }
+
+      // Auto-enable proxy for non-Anthropic models
+      if (key === 'model' || key === 'backgroundModel') {
+        const mainModel = key === 'model' ? value : prev.model
+        const bgModel = key === 'backgroundModel' ? value : prev.backgroundModel
+
+        // Enable proxy if any model is non-Anthropic
+        const needsProxy = !isAnthropicModel(mainModel) || !isAnthropicModel(bgModel)
+        newSettings.enableProxy = needsProxy
+      }
+
+      return newSettings
+    })
   }
 
   const handleSave = () => {
@@ -61,26 +92,34 @@ function SettingsModal({ isOpen, onClose, settings, onSave }) {
 
           <div className="form-group">
             <label htmlFor="settings-model">Main Model:</label>
-            <input
-              type="text"
+            <select
               id="settings-model"
               value={localSettings.model || ''}
               onChange={(e) => handleChange('model', e.target.value)}
-              placeholder="e.g., claude-3-5-sonnet-20241022 or gpt-4"
-            />
-            <small>Optional: Specify the main model to use</small>
+            >
+              {availableModels.map(model => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+            <small>Select the main model for agent responses</small>
           </div>
 
           <div className="form-group">
             <label htmlFor="settings-background-model">Background Model:</label>
-            <input
-              type="text"
+            <select
               id="settings-background-model"
               value={localSettings.backgroundModel || ''}
               onChange={(e) => handleChange('backgroundModel', e.target.value)}
-              placeholder="e.g., claude-3-5-haiku-20241022 or gpt-3.5-turbo"
-            />
-            <small>Optional: Specify the background model to use</small>
+            >
+              {availableModels.map(model => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+            <small>Select the model for background tasks</small>
           </div>
 
           <div className="form-group checkbox-group">
@@ -90,7 +129,12 @@ function SettingsModal({ isOpen, onClose, settings, onSave }) {
                 checked={localSettings.enableProxy || false}
                 onChange={(e) => handleChange('enableProxy', e.target.checked)}
               />
-              <span>Enable Proxy Mode (for non-Claude models)</span>
+              <span>
+                Enable Proxy Mode (for non-Anthropic models)
+                {(!isAnthropicModel(localSettings.model) || !isAnthropicModel(localSettings.backgroundModel)) &&
+                  <span style={{ color: '#ffa500', marginLeft: '8px' }}>• Auto-enabled</span>
+                }
+              </span>
             </label>
           </div>
         </div>
