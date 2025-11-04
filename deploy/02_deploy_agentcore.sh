@@ -96,7 +96,7 @@ if [ -z "$COGNITO_USER_POOL_ID" ] || [ -z "$COGNITO_CLIENT_ID" ]; then
             --auto-verified-attributes email \
             --mfa-configuration OFF \
             --email-configuration EmailSendingAccount=COGNITO_DEFAULT \
-            --admin-create-user-config AllowAdminCreateUserOnly=false,UnusedAccountValidityDays=7 \
+            --admin-create-user-config AllowAdminCreateUserOnly=false \
             --account-recovery-setting '{
                 "RecoveryMechanisms": [
                     {"Priority": 1, "Name": "verified_email"},
