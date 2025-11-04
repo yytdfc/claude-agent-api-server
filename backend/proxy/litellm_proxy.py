@@ -54,11 +54,15 @@ async def litellm_messages_proxy(request: Request):
     - Automatic removal of cache_control for non-Claude models
     """
     try:
+        print("\n[LiteLLM Proxy] Request received")
+
         # Try to import litellm
         try:
             import litellm
-            litellm.success_callback = ["langfuse"] 
+            litellm.success_callback = ["langfuse"]
+            print("[LiteLLM Proxy] LiteLLM imported successfully")
         except ImportError:
+            print("[LiteLLM Proxy] ERROR: LiteLLM not installed")
             raise HTTPException(
                 status_code=503,
                 detail="LiteLLM is not installed. Install with: pip install litellm",
@@ -69,22 +73,31 @@ async def litellm_messages_proxy(request: Request):
         # Check if model is a Claude model
         model = body.get("model", "")
         is_claude_model = "claude" in model.lower()
+        print(f"[LiteLLM Proxy] Model: {model}")
+        print(f"[LiteLLM Proxy] Is Claude model: {is_claude_model}")
 
         # Remove cache_control if not a Claude model
         if not is_claude_model:
+            print("[LiteLLM Proxy] Removing cache_control for non-Claude model")
             body = remove_cache_control(body)
 
         # Check if streaming is requested
         is_streaming = body.get("stream", False)
+        print(f"[LiteLLM Proxy] Streaming: {is_streaming}")
 
         if is_streaming:
             # Streaming response
+            print("[LiteLLM Proxy] Starting streaming response")
             async def generate_stream():
                 try:
                     # Forward to LiteLLM with streaming
+                    print("[LiteLLM Proxy] Calling litellm.acreate()")
                     response = await litellm.litellm.anthropic.messages.acreate(**body)
+                    print("[LiteLLM Proxy] Received response, streaming chunks...")
 
+                    chunk_count = 0
                     async for chunk in response:
+                        chunk_count += 1
                         # Forward raw chunk in SSE format
                         if hasattr(chunk, "model_dump_json"):
                             # Pydantic model
@@ -96,7 +109,10 @@ async def litellm_messages_proxy(request: Request):
                             # Plain dict
                             yield f"data: {json.dumps(chunk)}\n\n"
 
+                    print(f"[LiteLLM Proxy] Streaming completed, sent {chunk_count} chunks")
+
                 except Exception as e:
+                    print(f"[LiteLLM Proxy] ERROR in streaming: {type(e).__name__}: {str(e)}")
                     error_data = {
                         "error": {"message": str(e), "type": type(e).__name__}
                     }
@@ -108,8 +124,11 @@ async def litellm_messages_proxy(request: Request):
             )
         else:
             # Non-streaming response
+            print("[LiteLLM Proxy] Starting non-streaming response")
             try:
+                print("[LiteLLM Proxy] Calling litellm.acreate()")
                 response = await litellm.litellm.anthropic.messages.acreate(**body)
+                print("[LiteLLM Proxy] Response received successfully")
 
                 # Convert response to dict
                 if hasattr(response, "model_dump"):
@@ -120,6 +139,7 @@ async def litellm_messages_proxy(request: Request):
                     return response
 
             except Exception as e:
+                print(f"[LiteLLM Proxy] ERROR in non-streaming: {type(e).__name__}: {str(e)}")
                 raise HTTPException(
                     status_code=500,
                     detail={"error": {"message": str(e), "type": type(e).__name__}},
@@ -128,6 +148,7 @@ async def litellm_messages_proxy(request: Request):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[LiteLLM Proxy] FATAL ERROR: {type(e).__name__}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail={"error": {"message": str(e), "type": type(e).__name__}},
