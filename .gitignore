@@ -60,3 +60,5 @@ deploy/deployment.zip
 # Distribution / packaging
 *.whl
 docker/test_docker.sh
+
+workshop/*

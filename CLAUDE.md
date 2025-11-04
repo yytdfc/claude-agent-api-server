@@ -56,7 +56,7 @@ docker build -t claude-agent-api-server:latest -f Dockerfile ..
 
 # Run container
 docker run -d -p 8080:8080 \
-  -e ANTHROPIC_API_KEY=your_key \
+  -e ANTHROPIC_AUTH_TOKEN=your_key \
   --name claude-agent-api-server \
   claude-agent-api-server:latest
 
@@ -133,7 +133,7 @@ The codebase is organized into three main layers:
 When `enable_proxy=true` in session creation:
 - Sets `ANTHROPIC_BASE_URL` to server's `/v1/messages` endpoint
 - Sets `CLAUDE_CODE_USE_BEDROCK=0` (disables AWS Bedrock)
-- Sets `ANTHROPIC_API_KEY=placeholder` (required by SDK but not used)
+- Sets `ANTHROPIC_AUTH_TOKEN=placeholder` (required by SDK but not used)
 - If `background_model` provided, sets `ANTHROPIC_DEFAULT_HAIKU_MODEL`
 - Server automatically removes `cache_control` fields for non-Claude models
 - Allows using OpenAI, Azure, Cohere, etc. via LiteLLM

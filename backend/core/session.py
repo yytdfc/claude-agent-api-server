@@ -73,7 +73,7 @@ class AgentSession:
         model: Optional[str] = None,
         background_model: Optional[str] = None,
         enable_proxy: bool = False,
-        server_port: int = 8000,
+        server_port: int = 8080,
         cwd: Optional[str] = None,
     ):
         """
@@ -207,7 +207,7 @@ class AgentSession:
             # Disable Bedrock when using proxy mode
             env_vars["CLAUDE_CODE_USE_BEDROCK"] = "0"
             # Add placeholder API key (not actually used, just a placeholder)
-            env_vars["ANTHROPIC_API_KEY"] = "placeholder"
+            env_vars["ANTHROPIC_AUTH_TOKEN"] = "placeholder"
 
             # If a background model is specified, set it as the default Haiku model for agents
             if self.background_model:

@@ -47,7 +47,7 @@ async def create_session(request: CreateSessionRequest):
         model=request.model,
         background_model=request.background_model,
         enable_proxy=request.enable_proxy,
-        server_port=8000,  # Using hardcoded port from uvicorn.run
+        server_port=8080,  # Using hardcoded port from uvicorn.run
         cwd=request.cwd,
     )
 

@@ -38,7 +38,7 @@ class SessionManager:
         model: Optional[str] = None,
         background_model: Optional[str] = None,
         enable_proxy: bool = False,
-        server_port: int = 8000,
+        server_port: int = 8080,
         cwd: Optional[str] = None,
     ) -> str:
         """
