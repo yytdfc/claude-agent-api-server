@@ -188,6 +188,14 @@ if [ -f "${SCRIPT_DIR}/.agentcore_output" ]; then
         echo "  ✓ Updated VITE_COGNITO_CLIENT_ID"
     fi
 
+    # Enable invocations mode by default
+    if grep -q "^VITE_USE_INVOCATIONS=" .env; then
+        sed -i.bak "s|^VITE_USE_INVOCATIONS=.*|VITE_USE_INVOCATIONS=true|" .env
+    else
+        echo "VITE_USE_INVOCATIONS=true" >> .env
+    fi
+    echo "  ✓ Set VITE_USE_INVOCATIONS=true"
+
     # Hide settings button by default
     if grep -q "^VITE_HIDE_SETTINGS_BUTTON=" .env; then
         sed -i.bak "s|^VITE_HIDE_SETTINGS_BUTTON=.*|VITE_HIDE_SETTINGS_BUTTON=true|" .env
