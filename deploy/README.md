@@ -213,7 +213,8 @@ DOCKER_IMAGE_VERSION=latest                # Image tag
 ```bash
 AGENT_RUNTIME_NAME=claude_code                    # Runtime name
 IAM_ROLE_NAME=AmazonBedrockAgentCoreSDKRuntime   # IAM role prefix
-S3_WORKSPACE_BUCKET=agentcore                     # S3 bucket prefix (region appended)
+S3_WORKSPACE_BUCKET_PREFIX=agentcore              # S3 bucket prefix
+# Note: Actual bucket name will be: agentcore-{region}-{account_id}
 ```
 
 ### Authentication (Optional)
@@ -251,7 +252,7 @@ All resources are created with consistent naming:
 | ECR Repository | `${ECR_REPOSITORY_NAME}` | `agentcore/claude-code` |
 | AgentCore Runtime | `${AGENT_RUNTIME_NAME}` | `claude_code` |
 | IAM Role | `${IAM_ROLE_NAME}-${REGION}-${ENV}` | `AmazonBedrockAgentCoreSDKRuntime-us-west-2-prod` |
-| S3 Bucket | `${S3_WORKSPACE_BUCKET}-${REGION}` | `agentcore-us-west-2` |
+| S3 Bucket | `${S3_WORKSPACE_BUCKET_PREFIX}-${REGION}-${ACCOUNT_ID}` | `agentcore-us-west-2-123456789012` |
 | Amplify App | `${AMPLIFY_APP_NAME}` | `claude-agent-web-client` |
 | CloudWatch Logs | `/aws/bedrock-agentcore/runtimes/${AGENT_RUNTIME_NAME}` | `/aws/bedrock-agentcore/runtimes/claude_code` |
 
@@ -434,17 +435,22 @@ vi web_client/.env
 
 ### S3 bucket already exists
 
-S3 bucket names are global. If bucket name is taken:
+S3 bucket names are global. The default naming pattern includes region and account ID for uniqueness:
+- Pattern: `{prefix}-{region}-{account_id}`
+- Example: `agentcore-us-west-2-123456789012`
+
+If bucket name conflicts still occur:
 1. Edit `config.env`
-2. Change `S3_WORKSPACE_BUCKET` to unique name
+2. Change `S3_WORKSPACE_BUCKET_PREFIX` to a different prefix
 3. Redeploy
 
 ### Cannot delete S3 bucket
 
 Bucket must be empty before deletion:
 ```bash
-aws s3 rm s3://agentcore-us-west-2 --recursive --region us-west-2
-aws s3api delete-bucket --bucket agentcore-us-west-2 --region us-west-2
+# Replace with your actual bucket name
+aws s3 rm s3://agentcore-us-west-2-123456789012 --recursive --region us-west-2
+aws s3api delete-bucket --bucket agentcore-us-west-2-123456789012 --region us-west-2
 ```
 
 ## Security Best Practices

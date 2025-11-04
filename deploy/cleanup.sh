@@ -164,7 +164,8 @@ fi
 
 echo ""
 echo -e "${YELLOW}[5/6] Deleting S3 bucket...${NC}"
-BUCKET_NAME="${S3_WORKSPACE_BUCKET}-${AWS_REGION}"
+BUCKET_PREFIX="${S3_WORKSPACE_BUCKET_PREFIX:-agentcore}"
+BUCKET_NAME="${BUCKET_PREFIX}-${AWS_REGION}-${AWS_ACCOUNT_ID}"
 
 if aws s3 ls "s3://$BUCKET_NAME" &>/dev/null; then
     echo "Emptying S3 bucket: $BUCKET_NAME"

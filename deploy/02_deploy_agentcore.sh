@@ -40,7 +40,8 @@ echo ""
 
 # Create S3 workspace bucket
 echo -e "${YELLOW}Checking S3 workspace bucket...${NC}"
-BUCKET_NAME="${S3_WORKSPACE_BUCKET}-${AWS_REGION}"
+BUCKET_PREFIX="${S3_WORKSPACE_BUCKET_PREFIX:-agentcore}"
+BUCKET_NAME="${BUCKET_PREFIX}-${AWS_REGION}-${AWS_ACCOUNT_ID}"
 
 if aws s3 ls "s3://${BUCKET_NAME}" &>/dev/null; then
     echo -e "${GREEN}✓${NC} S3 bucket already exists: ${BUCKET_NAME}"
