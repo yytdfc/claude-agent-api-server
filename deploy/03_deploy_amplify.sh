@@ -140,8 +140,69 @@ aws amplify update-app \
 
 echo -e "${GREEN}✓${NC} Environment variables configured"
 
-echo -e "${YELLOW}Installing web client dependencies...${NC}"
+echo -e "${YELLOW}Updating web client configuration...${NC}"
 cd "${SCRIPT_DIR}/../web_client"
+
+# Update .env file with AgentCore configuration
+if [ -f "${SCRIPT_DIR}/.agentcore_output" ]; then
+    source "${SCRIPT_DIR}/.agentcore_output"
+
+    # Backup original .env
+    cp .env .env.backup 2>/dev/null || true
+
+    # Update or add VITE_DEFAULT_SERVER_URL
+    if [ -n "$AGENT_RUNTIME_URL" ]; then
+        if grep -q "^VITE_DEFAULT_SERVER_URL=" .env; then
+            sed -i.bak "s|^VITE_DEFAULT_SERVER_URL=.*|VITE_DEFAULT_SERVER_URL=\"${AGENT_RUNTIME_URL}\"|" .env
+        else
+            echo "VITE_DEFAULT_SERVER_URL=\"${AGENT_RUNTIME_URL}\"" >> .env
+        fi
+        echo "  ✓ Updated VITE_DEFAULT_SERVER_URL"
+    fi
+
+    # Update Cognito configuration
+    if [ -n "$COGNITO_REGION" ]; then
+        if grep -q "^VITE_COGNITO_REGION=" .env; then
+            sed -i.bak "s|^VITE_COGNITO_REGION=.*|VITE_COGNITO_REGION=${COGNITO_REGION}|" .env
+        else
+            echo "VITE_COGNITO_REGION=${COGNITO_REGION}" >> .env
+        fi
+        echo "  ✓ Updated VITE_COGNITO_REGION"
+    fi
+
+    if [ -n "$COGNITO_USER_POOL_ID" ]; then
+        if grep -q "^VITE_COGNITO_USER_POOL_ID=" .env; then
+            sed -i.bak "s|^VITE_COGNITO_USER_POOL_ID=.*|VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}|" .env
+        else
+            echo "VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}" >> .env
+        fi
+        echo "  ✓ Updated VITE_COGNITO_USER_POOL_ID"
+    fi
+
+    if [ -n "$COGNITO_CLIENT_ID" ]; then
+        if grep -q "^VITE_COGNITO_CLIENT_ID=" .env; then
+            sed -i.bak "s|^VITE_COGNITO_CLIENT_ID=.*|VITE_COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}|" .env
+        else
+            echo "VITE_COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}" >> .env
+        fi
+        echo "  ✓ Updated VITE_COGNITO_CLIENT_ID"
+    fi
+
+    # Hide settings button by default
+    if grep -q "^VITE_HIDE_SETTINGS_BUTTON=" .env; then
+        sed -i.bak "s|^VITE_HIDE_SETTINGS_BUTTON=.*|VITE_HIDE_SETTINGS_BUTTON=true|" .env
+    else
+        echo "VITE_HIDE_SETTINGS_BUTTON=true" >> .env
+    fi
+    echo "  ✓ Set VITE_HIDE_SETTINGS_BUTTON=true"
+
+    # Clean up backup files
+    rm -f .env.bak
+fi
+
+echo -e "${GREEN}✓${NC} Web client configuration updated"
+
+echo -e "${YELLOW}Installing web client dependencies...${NC}"
 
 if [ ! -d "node_modules" ]; then
     echo "Installing npm packages..."

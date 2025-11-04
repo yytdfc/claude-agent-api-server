@@ -412,10 +412,16 @@ RUNTIME_ARN=$(jq -r '.agentRuntimeArn' /tmp/runtime-output.json)
 WORKLOAD_IDENTITY_ARN=$(jq -r '.workloadIdentityDetails.workloadIdentityArn' /tmp/runtime-output.json)
 STATUS=$(jq -r '.status' /tmp/runtime-output.json)
 
+# Construct Runtime URL for web client
+# URL encode the ARN for use in URL path
+ENCODED_ARN=$(echo "${RUNTIME_ARN}" | sed 's/:/%3A/g' | sed 's/\//%2F/g')
+RUNTIME_URL="https://bedrock-agentcore.${AWS_REGION}.amazonaws.com/runtimes/${ENCODED_ARN}"
+
 echo ""
 echo -e "${GREEN}AgentCore Runtime Details:${NC}"
 echo "  Runtime ID: ${RUNTIME_ID}"
 echo "  Runtime ARN: ${RUNTIME_ARN}"
+echo "  Runtime URL: ${RUNTIME_URL}"
 echo "  Status: ${STATUS}"
 echo "  Workload Identity ARN: ${WORKLOAD_IDENTITY_ARN}"
 
@@ -441,6 +447,7 @@ fi
 # Save outputs
 cat > "${SCRIPT_DIR}/.agentcore_output" <<EOF
 export AGENT_RUNTIME_ARN=${RUNTIME_ARN}
+export AGENT_RUNTIME_URL=${RUNTIME_URL}
 export WORKLOAD_IDENTITY_ARN=${WORKLOAD_IDENTITY_ARN}
 export IAM_ROLE_ARN=${ROLE_ARN}
 export S3_WORKSPACE_BUCKET=${BUCKET_NAME}
