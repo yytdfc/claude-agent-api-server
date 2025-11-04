@@ -69,18 +69,43 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     // Initial fetch
     fetchSessions()
 
-    // Refresh session list every 30 seconds (reduced from 5s)
-    // This is sufficient for most use cases and reduces server load
-    const interval = setInterval(fetchSessions, 30000)
+    // Refresh session list every 30 seconds when page is visible
+    let interval = null
+    const startInterval = () => {
+      if (!document.hidden && !interval) {
+        interval = setInterval(fetchSessions, 30000)
+      }
+    }
+
+    const stopInterval = () => {
+      if (interval) {
+        clearInterval(interval)
+        interval = null
+      }
+    }
+
+    // Handle visibility change - stop polling when page is hidden
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopInterval()
+      } else {
+        fetchSessions()
+        startInterval()
+      }
+    }
 
     // Also refresh on window focus (when user comes back to the tab)
     const handleFocus = () => {
       fetchSessions()
     }
+
+    startInterval()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('focus', handleFocus)
 
     return () => {
-      clearInterval(interval)
+      stopInterval()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
     }
   }, [serverUrl, cwd, disabled, currentSessionId])
