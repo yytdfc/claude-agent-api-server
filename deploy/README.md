@@ -99,11 +99,12 @@ ECR_REPOSITORY_NAME=agentcore/claude-code
 
 This will:
 1. ✅ Build and push Docker image to ECR
-2. ✅ Create S3 workspace bucket with lifecycle policies
-3. ✅ Create IAM execution role with required permissions
-4. ✅ Deploy AgentCore runtime with your container
-5. ✅ Build and deploy frontend to Amplify
-6. ✅ Configure environment variables automatically
+2. ✅ Create S3 workspace bucket
+3. ✅ Create Cognito User Pool and App Client (for authentication)
+4. ✅ Create IAM execution role with required permissions
+5. ✅ Deploy AgentCore runtime with your container
+6. ✅ Build and deploy frontend to Amplify
+7. ✅ Configure environment variables automatically
 
 ### 3. Access Your Application
 
@@ -147,7 +148,7 @@ Creates/updates ECR repository and pushes Docker image.
 Creates/updates all AgentCore infrastructure.
 
 **What it does:**
-- Creates S3 workspace bucket with 30-day lifecycle policy
+- Creates S3 workspace bucket
 - **Creates Cognito User Pool and App Client** (if not provided in config)
   - Configures password policy
   - Sets up JWT authentication

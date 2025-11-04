@@ -57,26 +57,7 @@ else
             --create-bucket-configuration LocationConstraint="${AWS_REGION}"
     fi
 
-    aws s3api put-bucket-lifecycle-configuration \
-        --bucket "${BUCKET_NAME}" \
-        --lifecycle-configuration '{
-            "Rules": [{
-                "Id": "DeleteOldWorkspaceFiles",
-                "Status": "Enabled",
-                "Prefix": "",
-                "Expiration": {"Days": 30}
-            }]
-        }'
-
-    aws s3api put-bucket-tagging \
-        --bucket "${BUCKET_NAME}" \
-        --tagging "TagSet=[
-            {Key=Project,Value=${TAG_PROJECT:-claude-agent}},
-            {Key=Environment,Value=${TAG_ENVIRONMENT:-production}},
-            {Key=ManagedBy,Value=${TAG_MANAGED_BY:-deployment-script}}
-        ]"
-
-    echo -e "${GREEN}✓${NC} S3 bucket created with lifecycle configuration"
+    echo -e "${GREEN}✓${NC} S3 bucket created"
 fi
 
 # Setup Cognito
