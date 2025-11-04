@@ -50,7 +50,7 @@ APP_ID=$(aws amplify list-apps --region $REGION --query "apps[?name=='$APP_NAME'
 if [ -z "$APP_ID" ]; then
     echo -e "${YELLOW}Creating new Amplify app: $APP_NAME${NC}"
 
-    # Create Amplify app
+    # Create Amplify app with proper SPA redirect rules
     CREATE_OUTPUT=$(aws amplify create-app \
         --name "$APP_NAME" \
         --region "$REGION" \
@@ -58,7 +58,7 @@ if [ -z "$APP_ID" ]; then
         --build-spec file://$(dirname "$0")/amplify.yml \
         --custom-rules '[
             {
-                "source": "/<*>",
+                "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>",
                 "target": "/index.html",
                 "status": "200"
             }
@@ -72,6 +72,22 @@ else
     echo -e "${GREEN}✓${NC} Found existing Amplify app with ID: $APP_ID"
     IS_NEW_APP=false
 fi
+
+# Update SPA redirect rules (for both new and existing apps)
+echo -e "${YELLOW}Updating SPA redirect rules...${NC}"
+aws amplify update-app \
+    --app-id "$APP_ID" \
+    --region "$REGION" \
+    --custom-rules '[
+        {
+            "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>",
+            "target": "/index.html",
+            "status": "200"
+        }
+    ]' \
+    > /dev/null 2>&1 || echo -e "${YELLOW}Note: Could not update custom rules via CLI, will configure in Console${NC}"
+
+echo -e "${GREEN}✓${NC} Redirect rules configured"
 
 # Set environment variables from .env file
 echo -e "${YELLOW}Configuring environment variables...${NC}"
