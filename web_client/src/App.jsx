@@ -428,6 +428,40 @@ function AppContent() {
     setPreviewFilePath(null)
   }
 
+  // Check if a model is from Anthropic
+  const isAnthropicModel = (model) => {
+    if (!model) return true
+    const modelLower = model.toLowerCase()
+    return modelLower.includes('anthropic') || modelLower.includes('claude')
+  }
+
+  // Handle model change - restart session with new model
+  const handleModelChange = async (newModel) => {
+    console.log(`Switching model from ${settings.model} to ${newModel}`)
+
+    // Auto-enable proxy for non-Anthropic models
+    const needsProxy = !isAnthropicModel(newModel)
+
+    // Update settings with new model and proxy setting
+    const newSettings = {
+      ...settings,
+      model: newModel,
+      enableProxy: needsProxy
+    }
+
+    setSettings(newSettings)
+
+    // Disconnect current session
+    if (sessionId) {
+      await disconnect()
+    }
+
+    // Reconnect with new model
+    setTimeout(() => {
+      connect(newSettings)
+    }, 500) // Small delay to ensure disconnect completes
+  }
+
   // Handle sidebar resize
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -712,6 +746,8 @@ function AppContent() {
               onPermissionRespond={respondToPermission}
               sessionError={sessionError}
               onRetrySession={retrySession}
+              currentModel={settings.model}
+              onModelChange={handleModelChange}
             />
           )}
         </main>

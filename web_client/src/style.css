@@ -293,6 +293,51 @@ body {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
+/* Model Selector Bar */
+.model-selector-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+}
+
+.model-selector-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.model-selector-dropdown {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.model-selector-dropdown:hover:not(:disabled) {
+    border-color: var(--primary-color);
+}
+
+.model-selector-dropdown:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.model-selector-dropdown:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Messages */
 .messages {
     flex: 1;

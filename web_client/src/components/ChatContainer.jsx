@@ -2,10 +2,38 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import Message from './Message'
 
-function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onClearSession, onPermissionRespond, sessionError, onRetrySession }) {
+function ChatContainer({
+  sessionInfo,
+  messages,
+  onSendMessage,
+  onDisconnect,
+  onClearSession,
+  onPermissionRespond,
+  sessionError,
+  onRetrySession,
+  currentModel,
+  onModelChange
+}) {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [selectedModel, setSelectedModel] = useState(currentModel || '')
   const messagesEndRef = useRef(null)
+
+  // Get available models from environment or use defaults
+  const availableModels = import.meta.env.VITE_AVAILABLE_MODELS
+    ? import.meta.env.VITE_AVAILABLE_MODELS.split(',')
+    : [
+        'global.anthropic.claude-sonnet-4-5-20250929-v1:0',
+        'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+        'qwen.qwen3-coder-480b-a35b-v1:0'
+      ]
+
+  // Update selected model when currentModel prop changes
+  useEffect(() => {
+    if (currentModel) {
+      setSelectedModel(currentModel)
+    }
+  }, [currentModel])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -35,6 +63,22 @@ function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onC
     }
   }
 
+  const handleModelChange = (e) => {
+    const newModel = e.target.value
+    if (newModel !== currentModel && onModelChange) {
+      const confirmed = window.confirm(
+        `Switch to ${newModel}?\n\nThis will restart the current session with the new model.`
+      )
+      if (confirmed) {
+        setSelectedModel(newModel)
+        onModelChange(newModel)
+      } else {
+        // Reset to current model if cancelled
+        setSelectedModel(currentModel)
+      }
+    }
+  }
+
   return (
     <div className="chat-container">
       {/* Header with Session Info and Close Button */}
@@ -47,6 +91,26 @@ function ChatContainer({ sessionInfo, messages, onSendMessage, onDisconnect, onC
         >
           <X size={18} />
         </button>
+      </div>
+
+      {/* Model Selector */}
+      <div className="model-selector-bar">
+        <label htmlFor="model-select" className="model-selector-label">
+          Model:
+        </label>
+        <select
+          id="model-select"
+          value={selectedModel}
+          onChange={handleModelChange}
+          className="model-selector-dropdown"
+          disabled={sending}
+        >
+          {availableModels.map(model => (
+            <option key={model} value={model}>
+              {model}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Error Banner */}
