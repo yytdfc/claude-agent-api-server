@@ -185,9 +185,11 @@ class SessionManager:
                     mtime = session_file.stat().st_mtime
                     modified = datetime.fromtimestamp(mtime, tz=timezone.utc)
 
-                    # Read first few lines for preview
+                    # Read file to check if it has actual content
                     preview = "No preview"
                     summary = None
+                    message_count = 0
+                    first_user_message = None
 
                     with open(session_file, encoding="utf-8") as f:
                         for line in f:
@@ -199,15 +201,43 @@ class SessionManager:
                                 entry = json.loads(line)
                                 entry_type = entry.get("type")
 
+                                # Count actual user/assistant messages
+                                if entry_type in ["user", "assistant"]:
+                                    message_count += 1
+
+                                    # Get first user message for preview
+                                    if entry_type == "user" and not first_user_message:
+                                        msg = entry.get("message", {})
+                                        content = msg.get("content", "")
+                                        if isinstance(content, str):
+                                            first_user_message = content
+                                        elif isinstance(content, list) and len(content) > 0:
+                                            # Extract text from first content block
+                                            first_block = content[0]
+                                            if isinstance(first_block, dict):
+                                                first_user_message = first_block.get("text", "")
+                                            elif isinstance(first_block, str):
+                                                first_user_message = first_block
+
+                                # Check for summary
                                 if entry_type == "summary" and not summary:
                                     summary = entry.get("summary", "")
-                                    if summary:
-                                        break
                             except json.JSONDecodeError:
                                 continue
 
+                    # Skip empty sessions (no messages or only warmup)
+                    if message_count == 0:
+                        continue
+
+                    # Skip sessions with only a single "Warmup" message
+                    if message_count == 1 and first_user_message and first_user_message.strip().lower() == "warmup":
+                        continue
+
+                    # Use summary if available, otherwise use first user message
                     if summary:
                         preview = summary[:100]
+                    elif first_user_message:
+                        preview = first_user_message[:100]
 
                     sessions.append(
                         {
