@@ -19,7 +19,23 @@ function SessionList({ serverUrl, currentSessionId, onSessionSelect, onNewSessio
     try {
       // Fetch available sessions from disk
       const availableData = await apiClientRef.current.listAvailableSessions(cwd)
-      setSessions(availableData.sessions || [])
+
+      // Filter out empty sessions (no messages or only warmup)
+      const filteredSessions = (availableData.sessions || []).filter(session => {
+        // Skip sessions with no messages
+        if (session.message_count === 0) return false
+
+        // Skip sessions with only one message that is "Warmup"
+        if (session.message_count === 1 &&
+            session.first_message &&
+            session.first_message.trim().toLowerCase() === 'warmup') {
+          return false
+        }
+
+        return true
+      })
+
+      setSessions(filteredSessions)
 
       // Fetch active sessions to mark them with indicator
       const activeData = await apiClientRef.current.listSessions(cwd)

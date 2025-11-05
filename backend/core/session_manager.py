@@ -225,14 +225,6 @@ class SessionManager:
                             except json.JSONDecodeError:
                                 continue
 
-                    # Skip empty sessions (no messages or only warmup)
-                    if message_count == 0:
-                        continue
-
-                    # Skip sessions with only a single "Warmup" message
-                    if message_count == 1 and first_user_message and first_user_message.strip().lower() == "warmup":
-                        continue
-
                     # Use summary if available, otherwise use first user message
                     if summary:
                         preview = summary[:100]
@@ -245,6 +237,8 @@ class SessionManager:
                             "modified": modified.isoformat(),
                             "preview": preview,
                             "project": project_dir.name,
+                            "message_count": message_count,
+                            "first_message": first_user_message[:100] if first_user_message else None,
                         }
                     )
                 except Exception:
