@@ -67,13 +67,23 @@ export async function getAgentCoreSessionId(project = null) {
     // Check workspace mode from environment variable
     const workspaceMode = import.meta.env.VITE_WORKSPACE_MODE === 'true'
 
+    console.log(`[AuthUtils] getAgentCoreSessionId:`, {
+      workspaceMode,
+      project,
+      VITE_WORKSPACE_MODE: import.meta.env.VITE_WORKSPACE_MODE
+    })
+
     // Format session ID based on mode
     if (workspaceMode || !project) {
       // Workspace mode: user_id@workspace
-      return `${userId}@workspace`
+      const sessionId = `${userId}@workspace`
+      console.log(`[AuthUtils] Using workspace mode, session ID: ${sessionId}`)
+      return sessionId
     } else {
       // Project mode: user_id@workspace/project
-      return `${userId}@workspace/${project}`
+      const sessionId = `${userId}@workspace/${project}`
+      console.log(`[AuthUtils] Using project mode, session ID: ${sessionId}`)
+      return sessionId
     }
   } catch (error) {
     console.error('Failed to get AgentCore session ID:', error)

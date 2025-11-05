@@ -22,8 +22,8 @@ function generateUUID() {
 
 /**
  * Generate agent core session ID based on user ID and optional project
- * Format: "{userId}@workspace" for default workspace
- *         "{userId}@workspace/{projectName}" for specific project
+ * Format: "{userId}@workspace" for workspace mode or no project
+ *         "{userId}@workspace/{projectName}" for project mode with project
  * @param {string} userId - User ID from authentication
  * @param {string|null} projectName - Optional project name
  * @returns {string} Agent core session ID
@@ -33,11 +33,27 @@ export function generateAgentCoreSessionId(userId, projectName = null) {
     throw new Error('userId is required to generate agent core session ID')
   }
 
-  if (projectName) {
-    return `${userId}@workspace/${projectName}`
+  // Check workspace mode from environment variable
+  const workspaceMode = import.meta.env.VITE_WORKSPACE_MODE === 'true'
+
+  console.log(`[SessionUtils] generateAgentCoreSessionId:`, {
+    userId,
+    projectName,
+    workspaceMode,
+    VITE_WORKSPACE_MODE: import.meta.env.VITE_WORKSPACE_MODE
+  })
+
+  // In workspace mode, always use workspace-only format regardless of project
+  if (workspaceMode || !projectName) {
+    const sessionId = `${userId}@workspace`
+    console.log(`[SessionUtils] Generated session ID (workspace mode): ${sessionId}`)
+    return sessionId
   }
 
-  return `${userId}@workspace`
+  // In project mode with a project, include the project name
+  const sessionId = `${userId}@workspace/${projectName}`
+  console.log(`[SessionUtils] Generated session ID (project mode): ${sessionId}`)
+  return sessionId
 }
 
 /**
