@@ -435,31 +435,60 @@ function AppContent() {
     return modelLower.includes('anthropic') || modelLower.includes('claude')
   }
 
-  // Handle model change - restart session with new model
+  // Handle model change - use set_model API or restart if proxy mode changes
   const handleModelChange = async (newModel) => {
     console.log(`Switching model from ${settings.model} to ${newModel}`)
 
-    // Auto-enable proxy for non-Anthropic models
-    const needsProxy = !isAnthropicModel(newModel)
-
-    // Update settings with new model and proxy setting
-    const newSettings = {
-      ...settings,
-      model: newModel,
-      enableProxy: needsProxy
+    if (!sessionId) {
+      console.error('No active session to change model')
+      return
     }
 
-    setSettings(newSettings)
+    try {
+      // Check if proxy mode needs to change
+      const currentNeedsProxy = settings.enableProxy
+      const newNeedsProxy = !isAnthropicModel(newModel)
 
-    // Disconnect current session
-    if (sessionId) {
-      await disconnect()
+      // If proxy mode changes, need to restart session
+      if (currentNeedsProxy !== newNeedsProxy) {
+        console.log('Proxy mode change detected, restarting session...')
+
+        // Update settings with new model and proxy setting
+        const newSettings = {
+          ...settings,
+          model: newModel,
+          enableProxy: newNeedsProxy
+        }
+
+        setSettings(newSettings)
+
+        // Disconnect current session
+        await disconnect()
+
+        // Reconnect with new model
+        setTimeout(() => {
+          connect(newSettings)
+        }, 500)
+      } else {
+        // Proxy mode unchanged, just update model via API
+        const agentCoreSessionId = await getAgentCoreSessionId(currentProject)
+        const apiClient = createAPIClient(settings.serverUrl, agentCoreSessionId)
+        await apiClient.setModel(sessionId, newModel)
+
+        // Update settings with new model
+        const newSettings = {
+          ...settings,
+          model: newModel
+        }
+
+        setSettings(newSettings)
+
+        console.log(`✓ Model changed to ${newModel} without restart`)
+      }
+    } catch (error) {
+      console.error('Failed to change model:', error)
+      alert(`Failed to change model: ${error.message}`)
     }
-
-    // Reconnect with new model
-    setTimeout(() => {
-      connect(newSettings)
-    }, 500) // Small delay to ensure disconnect completes
   }
 
   // Handle sidebar resize

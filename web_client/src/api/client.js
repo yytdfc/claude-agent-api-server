@@ -192,6 +192,23 @@ class DirectAPIClient {
     return response.ok
   }
 
+  async setModel(sessionId, model) {
+    const authHeaders = await getAuthHeaders()
+    const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/model`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({ model })
+    })
+    handleFetchResponse(response)
+    if (!response.ok) {
+      throw new Error('Failed to set model')
+    }
+    return response.json()
+  }
+
   async listSessions(cwd = null) {
     const authHeaders = await getAuthHeaders()
     const url = cwd
@@ -846,6 +863,15 @@ class InvocationsAPIClient {
     } catch (error) {
       return false
     }
+  }
+
+  async setModel(sessionId, model) {
+    return this._invoke(
+      '/sessions/{session_id}/model',
+      'POST',
+      { model },
+      { session_id: sessionId }
+    )
   }
 
   async listSessions(cwd = null) {
