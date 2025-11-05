@@ -457,6 +457,80 @@ export COGNITO_DISCOVERY_URL=${COGNITO_DISCOVERY_URL}
 export COGNITO_REGION=${AWS_REGION}
 EOF
 
+# Configure GitHub Identity Provider
+echo ""
+echo -e "${YELLOW}Checking GitHub Identity Provider configuration...${NC}"
+
+if [ -z "$GITHUB_OAUTH_CLIENT_ID" ] || [ -z "$GITHUB_OAUTH_CLIENT_SECRET" ]; then
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}ERROR: GitHub OAuth configuration is missing!${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}GitHub integration features require an OAuth App to be configured.${NC}"
+    echo ""
+    echo -e "${YELLOW}Please follow these steps:${NC}"
+    echo ""
+    echo "1. Go to GitHub Settings → Developer settings → OAuth Apps"
+    echo "   URL: https://github.com/settings/developers"
+    echo ""
+    echo "2. Click 'New OAuth App' and fill in:"
+    echo "   - Application name: Claude Agent (or any name you prefer)"
+    echo "   - Homepage URL: Your application URL"
+    echo "   - Authorization callback URL:"
+    echo -e "     ${GREEN}https://bedrock-agentcore.${AWS_REGION}.amazonaws.com/identities/oauth2/callback${NC}"
+    echo ""
+    echo "3. After creating the app, copy the Client ID"
+    echo ""
+    echo "4. Click 'Generate a new client secret' and copy the secret"
+    echo "   (Note: GitHub only shows the secret once when generated)"
+    echo ""
+    echo "5. Add these values to deploy/config.env:"
+    echo -e "   ${GREEN}GITHUB_OAUTH_CLIENT_ID=your-client-id${NC}"
+    echo -e "   ${GREEN}GITHUB_OAUTH_CLIENT_SECRET=your-client-secret${NC}"
+    echo ""
+    echo "6. Run this deployment script again"
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    exit 1
+fi
+
+GITHUB_PROVIDER_NAME="github-provider-${DEPLOYMENT_ENV:-prod}"
+
+# Check if GitHub provider already exists
+EXISTING_GITHUB_PROVIDER=$(aws bedrock-agentcore-control list-oauth2-credential-providers \
+    --region "${AWS_REGION}" \
+    --query "oauth2CredentialProviderSummaries[?name=='${GITHUB_PROVIDER_NAME}'].oauth2CredentialProviderId" \
+    --output text 2>/dev/null || echo "")
+
+if [ -n "$EXISTING_GITHUB_PROVIDER" ]; then
+    echo -e "${GREEN}✓${NC} GitHub OAuth provider already exists: ${EXISTING_GITHUB_PROVIDER}"
+
+    # Update existing provider
+    echo -e "${YELLOW}Updating GitHub OAuth provider...${NC}"
+    aws bedrock-agentcore-control update-oauth2-credential-provider \
+        --oauth2-credential-provider-id "${EXISTING_GITHUB_PROVIDER}" \
+        --region "${AWS_REGION}" \
+        --oauth2-provider-config-input "githubOauth2ProviderConfig={clientId=${GITHUB_OAUTH_CLIENT_ID},clientSecret=${GITHUB_OAUTH_CLIENT_SECRET}}" \
+        --output json > /dev/null 2>&1 || echo -e "${YELLOW}Warning: Could not update GitHub provider${NC}"
+else
+    echo -e "${YELLOW}Creating GitHub OAuth provider: ${GITHUB_PROVIDER_NAME}${NC}"
+
+    GITHUB_PROVIDER_OUTPUT=$(aws bedrock-agentcore-control create-oauth2-credential-provider \
+        --name "${GITHUB_PROVIDER_NAME}" \
+        --credential-provider-vendor "GithubOauth2" \
+        --oauth2-provider-config-input "githubOauth2ProviderConfig={clientId=${GITHUB_OAUTH_CLIENT_ID},clientSecret=${GITHUB_OAUTH_CLIENT_SECRET}}" \
+        --region "${AWS_REGION}" \
+        --output json 2>&1)
+
+    if [ $? -eq 0 ]; then
+        GITHUB_PROVIDER_ID=$(echo "$GITHUB_PROVIDER_OUTPUT" | jq -r '.oauth2CredentialProviderId')
+        echo -e "${GREEN}✓${NC} GitHub OAuth provider created: ${GITHUB_PROVIDER_ID}"
+    else
+        echo -e "${YELLOW}Warning: Could not create GitHub provider${NC}"
+        echo "$GITHUB_PROVIDER_OUTPUT" | grep -i error || true
+    fi
+fi
+
 echo ""
 echo -e "${GREEN}Step 2 Complete!${NC}"
 echo "AgentCore Runtime ARN: ${RUNTIME_ARN}"
