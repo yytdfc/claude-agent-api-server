@@ -147,22 +147,25 @@ function ChatContainer({
           </select>
         </div>
 
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type your message here... (Press Enter to send, Shift+Enter for new line)"
-          rows="3"
-          disabled={sending}
-        />
-        <button
-          onClick={handleSubmit}
-          className="btn-icon btn-send"
-          disabled={sending || !input.trim()}
-          title={sending ? 'Sending...' : 'Send message'}
-        >
-          {sending ? <Loader2 size={20} className="spinning" /> : <Send size={20} />}
-        </button>
+        {/* Message input and send button */}
+        <div className="input-controls">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message here... (Press Enter to send, Shift+Enter for new line)"
+            rows="3"
+            disabled={sending}
+          />
+          <button
+            onClick={handleSubmit}
+            className="btn-icon btn-send"
+            disabled={sending || !input.trim()}
+            title={sending ? 'Sending...' : 'Send message'}
+          >
+            {sending ? <Loader2 size={20} className="spinning" /> : <Send size={20} />}
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -477,13 +477,20 @@ body {
 /* Input Area */
 .input-area {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 0;
     padding: 16px 20px;
     border-top: 1px solid var(--border-color);
     background-color: var(--bg-color);
 }
 
-.input-area textarea {
+.input-controls {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.input-controls textarea {
     flex: 1;
     padding: 12px;
     border: 1px solid var(--border-color);
@@ -494,7 +501,7 @@ body {
     transition: border-color 0.2s;
 }
 
-.input-area textarea:focus {
+.input-controls textarea:focus {
     outline: none;
     border-color: var(--primary-color);
 }
