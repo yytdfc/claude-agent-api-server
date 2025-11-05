@@ -93,26 +93,6 @@ function ChatContainer({
         </button>
       </div>
 
-      {/* Model Selector */}
-      <div className="model-selector-bar">
-        <label htmlFor="model-select" className="model-selector-label">
-          Model:
-        </label>
-        <select
-          id="model-select"
-          value={selectedModel}
-          onChange={handleModelChange}
-          className="model-selector-dropdown"
-          disabled={sending}
-        >
-          {availableModels.map(model => (
-            <option key={model} value={model}>
-              {model}
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* Error Banner */}
       {sessionError && (
         <div className="session-error-banner">
@@ -147,6 +127,26 @@ function ChatContainer({
 
       {/* Input Area */}
       <div className="input-area">
+        {/* Model Selector */}
+        <div className="model-selector-compact">
+          <label htmlFor="model-select" className="model-selector-label">
+            Model:
+          </label>
+          <select
+            id="model-select"
+            value={selectedModel}
+            onChange={handleModelChange}
+            className="model-selector-dropdown"
+            disabled={sending}
+          >
+            {availableModels.map(model => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
