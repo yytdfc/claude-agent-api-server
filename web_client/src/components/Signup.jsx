@@ -32,6 +32,21 @@ function Signup({ onSwitchToLogin }) {
       return
     }
 
+    // Validate email domain if restriction is enabled
+    const allowedDomains = import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS
+    if (allowedDomains) {
+      const domainList = allowedDomains.split(',').map(d => d.trim().toLowerCase())
+      const emailDomain = email.split('@')[1]?.toLowerCase()
+
+      if (!emailDomain || !domainList.includes(emailDomain)) {
+        setError(
+          `Registration is restricted to specific email domains. ` +
+          `Allowed domains: ${domainList.join(', ')}`
+        )
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
@@ -180,6 +195,16 @@ function Signup({ onSwitchToLogin }) {
                 autoComplete="email"
                 disabled={loading}
               />
+              {import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS && (
+                <small>
+                  Only these domains are allowed: {
+                    import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS
+                      .split(',')
+                      .map(d => d.trim())
+                      .join(', ')
+                  }
+                </small>
+              )}
             </div>
 
             <div className="form-group">
